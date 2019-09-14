@@ -231,7 +231,6 @@ std::vector<transaction> load_token_from_disk(const txhash tokenid)
 
         std::size_t inputs_size;
         std::copy(it, it+sizeof(inputs_size), reinterpret_cast<char*>(&inputs_size));
-        //std::copy(it, it+sizeof(inputs_size), &inputs_size);
         it += sizeof(inputs_size);
 
         std::vector<txhash> inputs;
