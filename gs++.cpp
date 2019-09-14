@@ -2,7 +2,6 @@
 #include <string>
 #include <vector>
 #include <fstream>
-#include <chrono>
 #include <filesystem>
 #include <sstream>
 #include <cstdlib>
@@ -25,55 +24,16 @@
 
 
 #include "helloworld.grpc.pb.h"
-
-
-using txhash = std::string;
+#include "gs++.hpp"
+#include "transaction.hpp"
+#include "token_details.hpp"
+#include "graph_node.hpp"
+#include "txhash.hpp"
+#include "graph_search_service.hpp"
 
 constexpr std::size_t txid_size = 64;
 
 
-struct transaction
-{
-    txhash txid;
-    std::string txdata;
-    std::vector<txhash> inputs;
-
-    transaction(
-        txhash txid,
-        std::string txdata,
-        std::vector<txhash> inputs
-    )
-    : txid(txid)
-    , txdata(txdata)
-    , inputs(inputs)
-    {}
-};
-
-struct graph_node
-{
-    txhash                   txid;
-    std::vector<graph_node*> inputs;
-    std::string              txdata;
-
-    graph_node () {}
-
-    graph_node (txhash txid, std::string txdata)
-    : txid(txid)
-    , txdata(txdata)
-    {}
-};
-
-struct token_details
-{
-    txhash                                  tokenid;
-    absl::node_hash_map<txhash, graph_node> graph;
-
-    token_details () {}
-
-    token_details (txhash tokenid)
-    : tokenid(tokenid)
-    {}
-};
 
 absl::node_hash_map<txhash, token_details>  tokens;        // tokenid -> token
 absl::node_hash_map<txhash, token_details*> txid_to_token; // txid -> token
@@ -343,37 +303,6 @@ std::vector<transaction> load_token_from_mongo (
     return ret;
 }
 
-class GraphSearchServiceServiceImpl final
- : public graphsearch::GraphSearchService::Service
-{
-    grpc::Status GraphSearch (
-        grpc::ServerContext* context,
-        const graphsearch::GraphSearchRequest* request,
-        graphsearch::GraphSearchReply* reply
-    ) override {
-        const txhash lookup_txid = request->txid();
-
-        std::stringstream ss;
-        ss << "lookup: " << lookup_txid;
-        reply->add_txdata();
-
-        const auto start = std::chrono::steady_clock::now();
-        std::vector<std::string> result = graph_search__ptr(lookup_txid);
-        for (auto i : result) {
-            reply->add_txdata(i);
-        }
-        const auto end = std::chrono::steady_clock::now();
-        const auto diff = end - start;
-
-        ss  << "\t" << std::chrono::duration <double, std::milli> (diff).count() << " ms "
-            << "(" << result.size() << ")"
-            << std::endl;
-
-        std::cout << ss.str();
-
-        return grpc::Status::OK;
-    }
-};
 
 void signal_handler(int signal)
 {
@@ -473,7 +402,7 @@ int main(int argc, char * argv[])
 
     std::string server_address(grpc_bind+":"+grpc_port);
 
-    GraphSearchServiceServiceImpl graphsearch_service;
+    GraphSearchServiceImpl graphsearch_service;
     grpc::ServerBuilder builder;
     builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
     builder.RegisterService(&graphsearch_service);
