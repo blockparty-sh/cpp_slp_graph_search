@@ -95,9 +95,22 @@ void recursive_walk__ptr (
 
 std::vector<std::string> graph_search__ptr(const txhash lookup_txid)
 {
+    if (txid_to_token.count(lookup_txid) == 0) {
+        // txid hasn't entered our system yet
+        return {};
+    }
+
     token_details* token = txid_to_token[lookup_txid];
 
     absl::flat_hash_set<graph_node*> seen;
+
+    if (token->graph.count(lookup_txid) == 0) {
+        std::stringstream ss;
+        ss << "graph_search__ptr: txid not found in tokengraph " << lookup_txid
+           << "\n";
+        std::cerr << ss.str();
+        return {};
+    }
     recursive_walk__ptr(&token->graph[lookup_txid], seen);
 
     std::vector<std::string> ret;
