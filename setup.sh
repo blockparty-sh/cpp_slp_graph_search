@@ -14,13 +14,13 @@ cd third_party/protobuf
 make
 sudo make install
 
-cd ../../..
+cd ../../../..
 mkdir -p build/Debug
 cd build/Debug
 cmake ../..
 make
 
-cd ..
+cd ../../
 mkdir -p build/Release
 cd build/Release
 cmake -DCMAKE_BUILD_TYPE=Release ../..
