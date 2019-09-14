@@ -126,8 +126,8 @@ grpc_generate_cpp(GRPC_SRCS GRPC_HDRS ${PROTO_SRC_DIR} ${PROTOS})
 
 
 add_executable(gs++
-    ${CMAKE_CURRENT_SOURCE_DIR}/gs++.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/graph_search_service.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/gs++.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graph_search_service.cpp
     ${PROTO_SRCS}
     ${GRPC_SRCS}
 )
@@ -148,7 +148,7 @@ target_compile_definitions(gs++ PUBLIC
 )
 
 add_executable(gs++-cli
-    ${CMAKE_CURRENT_SOURCE_DIR}/gs++-cli.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/gs++-cli.cpp
     ${PROTO_SRCS}
     ${GRPC_SRCS}
 )
