@@ -103,7 +103,7 @@ std::vector<std::string> graph_search__ptr(const txhash lookup_txid)
     ret.reserve(seen.size());
 
     for (auto it = std::begin(seen); it != std::end(seen); ) {
-		ret.emplace_back(std::move(seen.extract(it++).value())->txdata);
+        ret.emplace_back(std::move(seen.extract(it++).value())->txdata);
     }
 
     return ret;
@@ -240,10 +240,10 @@ class GraphSearchServiceServiceImpl final
  : public graphsearch::GraphSearchService::Service
 {
     grpc::Status GraphSearch (
-		grpc::ServerContext* context,
-		const graphsearch::GraphSearchRequest* request,
+        grpc::ServerContext* context,
+        const graphsearch::GraphSearchRequest* request,
         graphsearch::GraphSearchReply* reply
-	) override {
+    ) override {
         const txhash lookup_txid = request->txid();
         std::cout << "lookup: " << lookup_txid;
         reply->add_txdata();
@@ -268,11 +268,11 @@ class GraphSearchServiceServiceImpl final
 
 void signal_handler(int signal)
 {
-	if (signal == SIGTERM || signal == SIGINT) {
+    if (signal == SIGTERM || signal == SIGINT) {
         std::cout << "received signal " << signal << " requesting to shut down" << std::endl;
         // TODO shutdown / save_state_to_disk
         gserver->Shutdown();
-	}
+    }
 }
 
 
@@ -424,7 +424,7 @@ int main(int argc, char * argv[])
     }
 
 
-	mongocxx::instance inst{};
+    mongocxx::instance inst{};
     mongocxx::client conn{mongocxx::uri{}};
 
     bsoncxx::builder::stream::document document{};
@@ -466,7 +466,7 @@ int main(int argc, char * argv[])
     std::unique_ptr<grpc::Server> gserver(builder.BuildAndStart());
     std::cout << "gs++ listening on " << server_address << std::endl;
 
-	gserver->Wait();
+    gserver->Wait();
 
-	return EXIT_SUCCESS;
+    return EXIT_SUCCESS;
 }

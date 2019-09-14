@@ -17,7 +17,7 @@ public:
     {}
 
     bool GraphSearch(const std::string& txid)
-	{
+    {
         graphsearch::GraphSearchRequest request;
         request.set_txid(txid);
 
