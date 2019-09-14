@@ -41,11 +41,11 @@ std::unique_ptr<grpc::Server> gserver;
 
 
 void recursive_walk__ptr (
-    graph_node* node,
-    absl::flat_hash_set<graph_node*> & seen
+    const graph_node* node,
+    absl::flat_hash_set<const graph_node*> & seen
 ) {
 
-    for (graph_node* n : node->inputs) {
+    for (const graph_node* n : node->inputs) {
         if (! seen.count(n)) {
             seen.insert(n);
             recursive_walk__ptr(n, seen);
@@ -62,7 +62,7 @@ std::vector<std::string> graph_search__ptr(const txhash lookup_txid)
 
     token_details* token = txid_to_token[lookup_txid];
 
-    absl::flat_hash_set<graph_node*> seen;
+    absl::flat_hash_set<const graph_node*> seen;
 
     if (token->graph.count(lookup_txid) == 0) {
         std::stringstream ss;

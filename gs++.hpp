@@ -11,8 +11,8 @@
 #include "txhash.hpp"
 
 void recursive_walk__ptr (
-    graph_node* node,
-    absl::flat_hash_set<graph_node*> & seen
+    const graph_node* node,
+    absl::flat_hash_set<const graph_node*> & seen
 );
 
 std::vector<std::string> graph_search__ptr(const txhash lookup_txid);
