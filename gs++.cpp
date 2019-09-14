@@ -217,7 +217,7 @@ std::vector<transaction> load_token_from_disk(const txhash tokenid)
 
     auto it = std::begin(fbuf);
     while (it != std::end(fbuf)) {
-        txhash txid(txid_size, '0');
+        txhash txid(txid_size, '\0');
         std::copy(it, it+txid_size, std::begin(txid));
         it += txid_size;
 
@@ -225,7 +225,7 @@ std::vector<transaction> load_token_from_disk(const txhash tokenid)
         std::copy(it, it+sizeof(std::size_t), reinterpret_cast<char*>(&txdata_size));
         it += sizeof(std::size_t);
 
-        std::string txdata(txdata_size, '0');
+        std::string txdata(txdata_size, '\0');
         std::copy(it, it+txdata_size, std::begin(txdata));
         it += txdata_size;
 
@@ -236,7 +236,7 @@ std::vector<transaction> load_token_from_disk(const txhash tokenid)
         std::vector<txhash> inputs;
         inputs.reserve(inputs_size);
         for (std::size_t i=0; i<inputs_size; ++i) {
-            txhash input(txid_size, '0');
+            txhash input(txid_size, '\0');
             std::copy(it, it+txid_size, std::begin(input));
             it += txid_size;
             inputs.emplace_back(input);
@@ -247,47 +247,6 @@ std::vector<transaction> load_token_from_disk(const txhash tokenid)
     file.close();
 
     return ret;
-}
-
-class GraphSearchServiceServiceImpl final
- : public graphsearch::GraphSearchService::Service
-{
-    grpc::Status GraphSearch (
-        grpc::ServerContext* context,
-        const graphsearch::GraphSearchRequest* request,
-        graphsearch::GraphSearchReply* reply
-    ) override {
-        const txhash lookup_txid = request->txid();
-
-        std::stringstream ss;
-        ss << "lookup: " << lookup_txid;
-        reply->add_txdata();
-
-        const auto start = std::chrono::steady_clock::now();
-        std::vector<std::string> result = graph_search__ptr(lookup_txid);
-        for (auto i : result) {
-            reply->add_txdata(i);
-        }
-        const auto end = std::chrono::steady_clock::now();
-        const auto diff = end - start;
-
-        ss  << "\t" << std::chrono::duration <double, std::milli> (diff).count() << " ms "
-            << "(" << result.size() << ")"
-            << std::endl;
-
-        std::cout << ss.str();
-
-        return grpc::Status::OK;
-    }
-};
-
-
-void signal_handler(int signal)
-{
-    if (signal == SIGTERM || signal == SIGINT) {
-        std::cout << "received signal " << signal << " requesting to shut down" << std::endl;
-        gserver->Shutdown();
-    }
 }
 
 
@@ -382,6 +341,46 @@ std::vector<transaction> load_token_from_mongo (
     }
 
     return ret;
+}
+
+class GraphSearchServiceServiceImpl final
+ : public graphsearch::GraphSearchService::Service
+{
+    grpc::Status GraphSearch (
+        grpc::ServerContext* context,
+        const graphsearch::GraphSearchRequest* request,
+        graphsearch::GraphSearchReply* reply
+    ) override {
+        const txhash lookup_txid = request->txid();
+
+        std::stringstream ss;
+        ss << "lookup: " << lookup_txid;
+        reply->add_txdata();
+
+        const auto start = std::chrono::steady_clock::now();
+        std::vector<std::string> result = graph_search__ptr(lookup_txid);
+        for (auto i : result) {
+            reply->add_txdata(i);
+        }
+        const auto end = std::chrono::steady_clock::now();
+        const auto diff = end - start;
+
+        ss  << "\t" << std::chrono::duration <double, std::milli> (diff).count() << " ms "
+            << "(" << result.size() << ")"
+            << std::endl;
+
+        std::cout << ss.str();
+
+        return grpc::Status::OK;
+    }
+};
+
+void signal_handler(int signal)
+{
+    if (signal == SIGTERM || signal == SIGINT) {
+        std::cout << "received signal " << signal << " requesting to shut down" << std::endl;
+        gserver->Shutdown();
+    }
 }
 
 int main(int argc, char * argv[])
