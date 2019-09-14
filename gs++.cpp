@@ -155,7 +155,12 @@ std::size_t insert_token_data (
 
         for (const txhash input_txid : input_map[txid]) {
             if (! token.graph.count(input_txid)) {
-                // std::cerr << "missing input_txid " << input_txid << std::endl;
+                /*
+                std::stringstream ss;
+                ss << "insert_token_data: input_txid not found in tokengraph " << input_txid
+                   << "\n";
+                std::cerr << ss.str();
+                */
                 continue;
             }
 
