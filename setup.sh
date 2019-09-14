@@ -15,13 +15,13 @@ make
 sudo make install
 
 cd ../../..
-mkdir -P build/Debug
+mkdir -p build/Debug
 cd build/Debug
 cmake ..
 make
 
 cd ..
-mkdir -P build/Release
+mkdir -p build/Release
 cd build/Release
 cmake -DCMAKE_BUILD_TYPE=Release ..
 make
