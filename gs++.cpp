@@ -4,6 +4,7 @@
 #include <fstream>
 #include <chrono>
 #include <filesystem>
+#include <sstream>
 #include <cstdlib>
 #include <cstdint>
 #include <csignal>
@@ -245,7 +246,9 @@ class GraphSearchServiceServiceImpl final
         graphsearch::GraphSearchReply* reply
     ) override {
         const txhash lookup_txid = request->txid();
-        std::cout << "lookup: " << lookup_txid;
+
+        std::stringstream ss;
+        ss << "lookup: " << lookup_txid;
         reply->add_txdata();
 
         const auto start = std::chrono::steady_clock::now();
@@ -256,10 +259,11 @@ class GraphSearchServiceServiceImpl final
         const auto end = std::chrono::steady_clock::now();
         const auto diff = end - start;
 
-        std::cout
-            << "\t" << std::chrono::duration <double, std::milli> (diff).count() << " ms "
+        ss  << "\t" << std::chrono::duration <double, std::milli> (diff).count() << " ms "
             << "(" << result.size() << ")"
             << std::endl;
+
+        std::cout << ss.str();
 
         return grpc::Status::OK;
     }
