@@ -17,11 +17,11 @@ sudo make install
 cd ../../..
 mkdir -p build/Debug
 cd build/Debug
-cmake ..
+cmake ../..
 make
 
 cd ..
 mkdir -p build/Release
 cd build/Release
-cmake -DCMAKE_BUILD_TYPE=Release ..
+cmake -DCMAKE_BUILD_TYPE=Release ../..
 make
