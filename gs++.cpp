@@ -274,7 +274,6 @@ void signal_handler(int signal)
 {
     if (signal == SIGTERM || signal == SIGINT) {
         std::cout << "received signal " << signal << " requesting to shut down" << std::endl;
-        // TODO shutdown / save_state_to_disk
         gserver->Shutdown();
     }
 }

@@ -7,7 +7,6 @@ option objc_class_prefix = "GS";
 
 package graphsearch;
 
-// The greeting service definition.
 service GraphSearchService {
   rpc GraphSearch (GraphSearchRequest) returns (GraphSearchReply) {}
 }
