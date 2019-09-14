@@ -4,6 +4,7 @@
 #include <vector>
 #include <filesystem>
 #include <cstdint>
+#include <absl/container/flat_hash_map.h>
 #include <absl/container/flat_hash_set.h>
 #include <mongocxx/client.hpp>
 #include "graph_node.hpp"
@@ -32,6 +33,10 @@ std::vector<txhash> get_all_token_ids(mongocxx::database & db);
 std::vector<transaction> load_token_from_mongo (
     mongocxx::database & db,
     const txhash tokenid
+);
+absl::flat_hash_map<txhash, std::vector<transaction>> load_block_from_mongo (
+    mongocxx::database & db,
+    const std::int32_t block_height
 );
 
 void signal_handler(int signal);

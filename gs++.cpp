@@ -113,7 +113,7 @@ bool save_token_to_disk(const txhash tokenid)
         outf.write(node.txdata.data(), node.txdata.size());
 
         const std::size_t inputs_size = node.inputs.size();
-        outf.write(reinterpret_cast<const char *>(&inputs_size), sizeof(inputs_size));
+        outf.write(reinterpret_cast<const char *>(&inputs_size), sizeof(std::size_t));
 
         for (graph_node* input : node.inputs) {
             outf.write(input->txid.data(), input->txid.size());
@@ -308,6 +308,84 @@ std::vector<transaction> load_token_from_mongo (
     return ret;
 }
 
+absl::flat_hash_map<txhash, std::vector<transaction>> load_block_from_mongo (
+    mongocxx::database & db,
+    const std::int32_t block_height
+) {
+    using bsoncxx::builder::basic::make_document;
+    using bsoncxx::builder::basic::kvp;
+
+    auto collection = db["confirmed"];
+
+    mongocxx::pipeline pipe{};
+    pipe.match(make_document(
+        kvp("blk.i", block_height)
+    ));
+    pipe.lookup(make_document(
+        kvp("from", "graphs"),
+        kvp("localField", "tx.h"),
+        kvp("foreignField", "graphTxn.txid"),
+        kvp("as", "graph")
+    ));
+    pipe.project(make_document(
+        kvp("tx.h", 1),
+        kvp("tx.raw", 1),
+        kvp("slp.detail.tokenIdHex", 1),
+        kvp("graph.graphTxn.inputs.txid", 1)
+    ));
+
+    absl::flat_hash_map<txhash, std::vector<transaction>> ret;
+    auto cursor = collection.aggregate(pipe, mongocxx::options::aggregate{});
+    for (auto&& doc : cursor) {
+        const auto txid_el = doc["tx"]["h"];
+        assert(txid_el.type() == bsoncxx::type::k_utf8);
+        const std::string txidStr = bsoncxx::string::to_string(txid_el.get_utf8().value);
+
+        const auto txdata_el = doc["tx"]["raw"];
+        assert(txdata_el.type() == bsoncxx::type::k_binary);
+
+        auto txdata_bin = txdata_el.get_binary();
+
+        std::string txdataStr(txdata_bin.size, '\0');
+        std::copy(
+            txdata_bin.bytes,
+            txdata_bin.bytes+txdata_bin.size,
+            std::begin(txdataStr)
+        );
+
+        const auto tokenidhex_el = doc["slp"]["detail"]["tokenIdHex"];
+        assert(tokenidhex_el.type() == bsoncxx::type::k_utf8);
+        const std::string tokenidhexStr = bsoncxx::string::to_string(tokenidhex_el.get_utf8().value);
+
+
+        const auto graph_el = doc["graph"];
+        const bsoncxx::array::view graph_sarr { graph_el.get_array().value };
+
+        for (bsoncxx::array::element graph_s_el : graph_sarr) {
+            std::vector<txhash> inputs;
+
+            const auto inputs_el = graph_s_el["graphTxn"]["inputs"];
+            const bsoncxx::array::view inputs_sarr { inputs_el.get_array().value };
+
+            for (bsoncxx::array::element input_s_el : inputs_sarr) {
+                auto input_txid_el = input_s_el["txid"];
+                assert(input_txid_el.type() == bsoncxx::type::k_utf8);
+                const std::string input_txidStr = bsoncxx::string::to_string(input_txid_el.get_utf8().value);
+                inputs.emplace_back(input_txidStr);
+            }
+
+            if (! ret.count(tokenidhexStr)) {
+                ret.insert({ tokenidhexStr, {} });
+            }
+
+            ret[tokenidhexStr].emplace_back(transaction(txidStr, txdataStr, inputs));
+
+            break; // this is used for $lookup so just 1 item
+        }
+    }
+
+    return ret;
+}
 
 void signal_handler(int signal)
 {
@@ -403,6 +481,22 @@ int main(int argc, char * argv[])
         std::cerr << e.what() << std::endl;
         return EXIT_FAILURE;
     }
+
+
+
+
+    absl::flat_hash_map<txhash, std::vector<transaction>> block_data = load_block_from_mongo (db, 600167);
+    for (auto it : block_data) {
+        std::cout << "tokenid: " << it.first << std::endl;
+        for(auto m : it.second) {
+            std::cout << "\t" << m.txid << std::endl;
+            std::cout << "\t" << m.txdata.size() << std::endl;
+            for(auto x : m.inputs) {
+                std::cout << "\t\t" << x << std::endl;
+            }
+        }
+    }
+
 
 
     std::string server_address(grpc_bind+":"+grpc_port);
