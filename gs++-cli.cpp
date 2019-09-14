@@ -54,7 +54,7 @@ int main(int argc, char* argv[])
     std::string grpc_bind = "0.0.0.0";
     std::string grpc_port = "50051";
 
-    std::string usage_str = "usage: gs++-cli [--version] [--help] [--bind_address] [--port] TXID\n";
+    const std::string usage_str = "usage: gs++-cli [--version] [--help] [--bind bind_address] [--port port] TXID\n";
 
     while (true) {
         static struct option long_options[] = {
