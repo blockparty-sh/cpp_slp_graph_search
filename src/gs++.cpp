@@ -601,45 +601,13 @@ int main(int argc, char * argv[])
         return EXIT_FAILURE;
     }
 
-    /*
-    for (std::size_t bh=590000; bh<600400; ++bh) {
-        absl::flat_hash_map<txhash, std::vector<transaction>> block_data =
-            load_block_from_mongo(pool, bh);
-
-        std::size_t tid = 1;
-        for (auto it : block_data) {
-            std::cout
-                << "block: " << bh
-                << " token: " << it.first
-                << "\t" << insert_token_data(it.first, it.second)
-                << "\t(" << tid << "/" << block_data.size() << ")"
-                << std::endl;
-            ++tid;
-        }
-    }
-    */
-
-    /*
-    std::cout << "block_data: " << block_data.size() << std::endl;
-    for (auto it : block_data) {
-        std::cout << "tokenid: " << it.first << std::endl;
-        for(auto m : it.second) {
-            std::cout << "\t" << m.txid << std::endl;
-            std::cout << "\t" << m.txdata.size() << std::endl;
-            for(auto x : m.inputs) {
-                std::cout << "\t\t" << x << std::endl;
-            }
-        }
-
-        std::cout << "$$$600188---inserted: " << insert_token_data(it.first, it.second) << std::endl;
-    }*/
 
     std::thread([&] {
         watch_mongo_for_status_update(pool, current_block_height);
     }).detach();
 
 
-    std::string server_address(grpc_bind+":"+grpc_port);
+    const std::string server_address(grpc_bind+":"+grpc_port);
 
     GraphSearchServiceImpl graphsearch_service;
     grpc::ServerBuilder builder;
