@@ -14,6 +14,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 find_package(Protobuf REQUIRED)
 find_package(GRPC REQUIRED)
+find_package(Threads REQUIRED)
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/third-party/abseil-cpp)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/third-party/base64)
@@ -138,6 +139,7 @@ target_link_libraries(gs++
     gRPC::grpc++_reflection
     protobuf::libprotobuf
     ${LIBMONGOCXX_LIBRARIES}
+    ${CMAKE_THREAD_LIBS_INIT}
     stdc++fs
 )
 target_include_directories(gs++ PUBLIC
