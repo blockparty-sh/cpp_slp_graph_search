@@ -147,7 +147,7 @@ std::size_t insert_token_data (
     const txhash tokenid,
     std::vector<transaction> txs
 ) {
-    std::unique_lock lock(lookup_mtx);
+    std::lock_guard lock(lookup_mtx);
 
     token_details& token = tokens[tokenid];
 
