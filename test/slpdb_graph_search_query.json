@@ -1,0 +1,119 @@
+{
+  "v": 3,
+  "q": {
+    "db": ["g"],
+    "aggregate": [
+      { "$match": {
+        "$or": [
+            { "graphTxn.txid": "REPLACER" }
+          ]
+        }
+      },
+      { "$graphLookup": {
+          "from": "graphs",
+          "startWith": "$graphTxn.txid",
+          "connectFromField": "graphTxn.txid",
+          "connectToField": "graphTxn.outputs.spendTxid",
+          "as": "dependsOn",
+          "maxDepth": 10000,
+          "depthField": "depth",
+          "restrictSearchWithMatch": { 
+            "graphTxn.txid": 
+              { "$nin": [
+                ""
+              ]
+            }
+          }
+        }
+      },
+      { "$project":{
+          "_id":0,
+          "tokenId": "$tokenDetails.tokenIdHex",
+          "txid": "$graphTxn.txid",
+          "dependsOn": {
+            "$map":{
+              "input": "$dependsOn.graphTxn.txid",
+              "in": "$$this"
+            }
+          },
+          "depths": {
+            "$map":{
+              "input": "$dependsOn.depth",
+              "in": "$$this"
+            }
+          }
+        }
+      },
+      { "$unwind": {
+        "path": "$dependsOn" , "includeArrayIndex": "depends_index" 
+        }
+      },
+      { "$unwind": { 
+        "path": "$depths", "includeArrayIndex": "depth_index" 
+        }
+      }, 
+      { "$project": {
+          "tokenId": 1, 
+          "txid": 1, 
+          "dependsOn": 1,
+          "depths": 1,
+          "compare": {"$cmp": [ "$depends_index", "$depth_index" ]}
+        }
+      },
+      { "$match": {
+        "compare": 0
+        }
+      },
+      { "$group": {
+          "_id":"$dependsOn", 
+          "txid": { "$first": "$txid" },
+          "tokenId": { "$first": "$tokenId" },
+          "depths": { "$push": "$depths" }
+        }
+      },
+      { "$lookup": {
+          "from": "confirmed",
+          "localField": "_id",
+          "foreignField": "tx.h",
+          "as": "tx"
+        }
+      },
+      { "$project": {
+          "txid": 1,
+          "tokenId": 1,
+          "depths": 1,
+          "dependsOn": "$tx.tx.raw",
+          "_id": 0
+        }
+      },
+      {
+        "$unwind": "$dependsOn"
+      }, 
+      {
+        "$unwind": "$depths"
+      },
+      {
+        "$sort": { "depths": 1 }
+      },
+      {
+        "$group": {
+          "_id": "$txid", 
+          "dependsOn": { "$push": "$dependsOn" },
+          "depths": { "$push": "$depths" },
+          "tokenId": { "$first": "$tokenId" }
+        }
+      }, 
+      {
+        "$project": {
+          "txid": "$_id",
+          "tokenId": 1,
+          "dependsOn": 1,
+          "depths": 1,
+          "_id": 0, 
+          "txcount": { "$size": "$dependsOn" }
+        }
+      }
+    ],
+    "limit": 10000
+  }
+}
