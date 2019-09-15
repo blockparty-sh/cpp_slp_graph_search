@@ -16,7 +16,6 @@ grpc::Status GraphSearchServiceImpl::GraphSearch (
 
     std::stringstream ss;
     ss << "lookup: " << lookup_txid;
-    reply->add_txdata();
 
     const auto start = std::chrono::steady_clock::now();
     std::vector<std::string> result = graph_search__ptr(lookup_txid);
