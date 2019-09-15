@@ -96,8 +96,8 @@ std::vector<std::string> graph_search__ptr(const txhash lookup_txid)
 
 std::filesystem::path get_tokendir(const txhash tokenid)
 {
-    std::string p1 = tokenid.substr(0, 1);
-    std::string p2 = tokenid.substr(1, 1);
+    const std::string p1 = tokenid.substr(0, 1);
+    const std::string p2 = tokenid.substr(1, 1);
     return std::filesystem::path("cache") / p1 / p2;
 }
 
