@@ -149,6 +149,8 @@ target_include_directories(gs++ PUBLIC
 target_compile_definitions(gs++ PUBLIC
     ${LIBMONGOCXX_DEFINITIONS}
 )
+target_compile_options(gs++ PRIVATE -Wall -pedantic)
+
 
 add_executable(gs++-cli
     ${CMAKE_CURRENT_SOURCE_DIR}/src/gs++-cli.cpp
@@ -161,3 +163,4 @@ target_link_libraries(gs++-cli
     protobuf::libprotobuf
 	base64
 )
+target_compile_options(gs++-cli PRIVATE -Wall -pedantic)
