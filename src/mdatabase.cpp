@@ -11,7 +11,6 @@
 #include <mongocxx/uri.hpp>
 #include <mongocxx/pool.hpp>
 #include <mongocxx/instance.hpp>
-#include "gs++.hpp"
 #include "transaction.hpp"
 #include "txhash.hpp"
 #include "mdatabase.hpp"
@@ -73,8 +72,10 @@ std::int32_t mdatabase::get_current_block_height()
 }
 
 
-void mdatabase::watch_for_status_update(std::int32_t & current_block_height)
-{
+void mdatabase::watch_for_status_update(
+    txgraph & g,
+    std::int32_t & current_block_height
+) {
     const std::chrono::milliseconds await_time { 1000 };
     auto client = pool.acquire();
     auto collection = (*client)[db_name]["statuses"];
@@ -92,7 +93,7 @@ void mdatabase::watch_for_status_update(std::int32_t & current_block_height)
                     ss 
                         << "block: " << h
                         << " token: " << it.first
-                        << "\t" << insert_token_data(it.first, it.second)
+                        << "\t" << g.insert_token_data(it.first, it.second)
                         << "\t(" << tid << "/" << block_data.size() << ")"
                         << std::endl;
                     std::cout << ss.str();

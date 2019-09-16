@@ -15,6 +15,7 @@
 #include <mongocxx/instance.hpp>
 #include "transaction.hpp"
 #include "txhash.hpp"
+#include "txgraph.hpp"
 
 struct mdatabase
 {
@@ -34,7 +35,10 @@ struct mdatabase
 
     std::int32_t get_current_block_height();
 
-    void watch_for_status_update(std::int32_t & current_block_height);
+    void watch_for_status_update(
+        txgraph & g,
+        std::int32_t & current_block_height
+    );
 
     std::vector<transaction> load_token(
         const txhash tokenid,

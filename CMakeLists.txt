@@ -128,8 +128,8 @@ grpc_generate_cpp(GRPC_SRCS GRPC_HDRS ${PROTO_SRC_DIR} ${PROTOS})
 
 add_executable(gs++
     ${CMAKE_CURRENT_SOURCE_DIR}/src/gs++.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/graph_search_service.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/mdatabase.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/txgraph.cpp
     ${PROTO_SRCS}
     ${GRPC_SRCS}
 )
