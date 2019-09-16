@@ -1,7 +1,7 @@
 #ifndef GS_TOKEN_DETAILS_HPP
 #define GS_TOKEN_DETAILS_HPP
 
-#include <absl/container/node_hash_set.h>
+#include <absl/container/node_hash_map.h>
 #include "graph_node.hpp"
 #include "txhash.hpp"
 
