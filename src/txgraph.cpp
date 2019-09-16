@@ -67,7 +67,7 @@ void txgraph::clear_token_data (const txhash tokenid)
 }
 */
 
-std::size_t txgraph::insert_token_data (
+unsigned txgraph::insert_token_data (
     const txhash tokenid,
     std::vector<transaction> txs
 ) {
@@ -81,7 +81,7 @@ std::size_t txgraph::insert_token_data (
 
     absl::flat_hash_map<txhash, std::vector<txhash>> input_map;
 
-    std::size_t ret = 0;
+    unsigned ret = 0;
 
     // first pass to populate graph nodes
     std::vector<graph_node*> latest;

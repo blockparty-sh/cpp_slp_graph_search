@@ -33,11 +33,11 @@ struct mdatabase
 
     std::vector<txhash> get_all_token_ids();
 
-    std::int32_t get_current_block_height();
+    int get_current_block_height();
 
     void watch_for_status_update(
         txgraph & g,
-        std::int32_t & current_block_height
+        int & current_block_height
     );
 
     std::vector<transaction> load_token(
@@ -46,7 +46,7 @@ struct mdatabase
     );
 
     absl::flat_hash_map<txhash, std::vector<transaction>> load_block(
-        const std::int32_t block_height
+        const int block_height
     ); 
 };
 

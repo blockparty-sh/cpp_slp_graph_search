@@ -31,7 +31,7 @@ struct txgraph
 
     // void clear_token_data (const txhash tokenid);
 
-    std::size_t insert_token_data (
+    unsigned insert_token_data (
         const txhash tokenid,
         std::vector<transaction> txs
     );

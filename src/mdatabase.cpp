@@ -41,7 +41,7 @@ std::vector<txhash> mdatabase::get_all_token_ids()
 }
 
 
-std::int32_t mdatabase::get_current_block_height()
+int mdatabase::get_current_block_height()
 {
     auto client = pool.acquire();
     auto collection = (*client)[db_name]["statuses"];
@@ -74,19 +74,19 @@ std::int32_t mdatabase::get_current_block_height()
 
 void mdatabase::watch_for_status_update(
     txgraph & g,
-    std::int32_t & current_block_height
+    int & current_block_height
 ) {
     const std::chrono::milliseconds await_time { 1000 };
     auto client = pool.acquire();
     auto collection = (*client)[db_name]["statuses"];
 
     while (continue_watching_mongo) {
-        const std::int32_t block_height = get_current_block_height();
+        const int block_height = get_current_block_height();
 
         if (block_height > 0 && current_block_height < block_height) {
-            for (std::size_t h=current_block_height+1; h<=block_height; ++h) {
+            for (int h=current_block_height+1; h<=block_height; ++h) {
                 absl::flat_hash_map<txhash, std::vector<transaction>> block_data = load_block(h);
-                std::size_t tid = 1;
+                int tid = 1;
 
                 for (auto it : block_data) {
                     std::stringstream ss;
@@ -195,7 +195,7 @@ std::vector<transaction> mdatabase::load_token(
 }
 
 absl::flat_hash_map<txhash, std::vector<transaction>> mdatabase::load_block(
-    const std::int32_t block_height
+    const int block_height
 ) {
     using bsoncxx::builder::basic::make_document;
     using bsoncxx::builder::basic::kvp;

@@ -25,11 +25,10 @@
 std::string grpc_bind = "0.0.0.0";
 std::string grpc_port = "50051";
 std::unique_ptr<grpc::Server> gserver;
-std::int32_t current_block_height = -1;
+int current_block_height = -1;
 txgraph g;
 
 
-// TODO clean up
 std::filesystem::path get_tokendir(const txhash tokenid)
 {
     const std::string p1 = tokenid.substr(0, 1);
@@ -133,7 +132,8 @@ int main(int argc, char * argv[])
     current_block_height = mdb.get_current_block_height();
     if (current_block_height < 0) {
         std::cerr << "current block height could not be retrieved\n"
-                     "are you running recent slpdb version?\n";
+                     "are you running recent slpdb version?\n"
+                     "do you have correct database selected?\n";
         return EXIT_FAILURE;
     }
 
@@ -141,13 +141,13 @@ int main(int argc, char * argv[])
     try {
         const std::vector<std::string> token_ids = mdb.get_all_token_ids();
 
-        std::size_t cnt = 0;
+        unsigned cnt = 0;
         for (auto tokenid : token_ids) {
             std::stringstream ss;
             ss << "loaded: " << tokenid;
 
             auto txs = mdb.load_token(tokenid, current_block_height);
-            const std::size_t txs_inserted = g.insert_token_data(tokenid, txs);
+            const unsigned txs_inserted = g.insert_token_data(tokenid, txs);
 
             ++cnt;
             ss 
