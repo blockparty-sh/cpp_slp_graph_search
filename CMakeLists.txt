@@ -115,7 +115,7 @@ find_package(libmongocxx REQUIRED)
 
 
 set (PROTOS
-    ${CMAKE_CURRENT_SOURCE_DIR}/pb/helloworld.proto
+    ${CMAKE_CURRENT_SOURCE_DIR}/pb/graphsearch.proto
 )
 
 set(PROTO_SRC_DIR ${CMAKE_CURRENT_BINARY_DIR}/proto-src)

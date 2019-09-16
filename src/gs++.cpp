@@ -13,7 +13,7 @@
 
 #include <absl/container/node_hash_map.h>
 #include <grpc++/grpc++.h>
-#include "helloworld.grpc.pb.h"
+#include "graphsearch.grpc.pb.h"
 #include "gs++.hpp"
 #include "transaction.hpp"
 #include "graph_node.hpp"

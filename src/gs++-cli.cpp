@@ -7,7 +7,7 @@
 
 #include <grpc++/grpc++.h>
 #include <libbase64.h>
-#include "helloworld.grpc.pb.h"
+#include "graphsearch.grpc.pb.h"
 
 class GraphSearchServiceClient
 {
