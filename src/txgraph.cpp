@@ -118,6 +118,7 @@ unsigned txgraph::insert_token_data (
 
 bool txgraph::save_token_to_disk(const txhash tokenid)
 {
+    std::shared_lock lock(lookup_mtx);
     std::cout << "saving token to disk" << tokenid;
 
     const std::filesystem::path tokendir = get_tokendir(tokenid);
@@ -150,6 +151,7 @@ bool txgraph::save_token_to_disk(const txhash tokenid)
 
 std::vector<transaction> txgraph::load_token_from_disk(const txhash tokenid)
 {
+    std::shared_lock lock(lookup_mtx);
     constexpr std::size_t txid_size = 64;
 
     std::filesystem::path tokenpath = get_tokendir(tokenid) / tokenid;
