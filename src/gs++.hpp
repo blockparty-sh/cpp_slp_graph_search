@@ -25,27 +25,9 @@ bool save_token_to_disk(const txhash tokenid);
 
 std::size_t insert_token_data (
     const txhash tokenid,
-    std::vector<transaction> txs,
-    const int max_block_height // -1 for no max
+    std::vector<transaction> txs
 );
 std::vector<transaction> load_token_from_disk(const txhash tokenid);
-std::vector<txhash> get_all_token_ids_from_mongo(const mongocxx::database & db);
-std::int32_t get_current_block_height_from_mongo(
-    mongocxx::pool & pool
-);
-void watch_mongo_for_status_update(
-    mongocxx::pool & pool,
-    std::int32_t & current_block_height
-);
-
-std::vector<transaction> load_token_from_mongo(
-    mongocxx::pool & pool,
-    const txhash tokenid
-);
-absl::flat_hash_map<txhash, std::vector<transaction>> load_block_from_mongo (
-    mongocxx::pool & pool,
-    const std::int32_t block_height
-);
 
 void signal_handler(int signal);
 
