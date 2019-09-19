@@ -13,19 +13,8 @@ Install [SLPDB](https://github.com/simpleledger/SLPDB) and sync it (might take a
 
 ## Install Third Party Libs
 
-```
+Follow [this](https://github.com/grpc/grpc/blob/master/BUILDING.md) guide to install gRPC and Protobuf for your system if it is not already installed.
 
-cd third-party
-git clone -b $(curl -L http://grpc.io/release) https://github.com/grpc/grpc
-cd grpc
-git submodule update --init
-make HAS_SYSTEM_PROTOBUF=false
-sudo make install
-cd third_party/protobuf
-make
-sudo make install
-
-```
 
 ## Build
 
