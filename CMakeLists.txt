@@ -43,8 +43,7 @@ if(${PROJECT_NAME}_SUPERBUILD)
         CMAKE_CACHE_ARGS
             -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/absl
     )
-    set(absl_DIR "${CMAKE_BINARY_DIR}/absl/src/absl")
-    #add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/absl)
+    set(absl_DIR "${CMAKE_CURRENT_BINARY_DIR}/absl/src/absl")
 
     ExternalProject_Add(base64
         PREFIX base64
@@ -142,8 +141,6 @@ message(STATUS "Configuring inner-build")
 find_package(libmongocxx REQUIRED)
 add_subdirectory(${absl_DIR})
 add_subdirectory(${base64_DIR})
-
-
 
 set (PROTOS
     ${CMAKE_CURRENT_SOURCE_DIR}/pb/graphsearch.proto
