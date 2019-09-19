@@ -7,13 +7,43 @@ In-memory SLP Graph Search server.
 
 # Install
 
-Have SLPDB installed and running.
+## SLPDB
 
-Install required dependencies for grpc, protobuf, etc
+Install [SLPDB](https://github.com/simpleledger/SLPDB) and sync it (might take a while).
 
-run `./setup.sh`
+## Install Third Party Libs
 
-Now go into `./build/Release` or `./build/Debug`
+```
+
+cd third-party
+git clone https://github.com/abseil/abseil-cpp.git
+git clone https://github.com/BurningEnlightenment/base64-cmake base64
+ 
+# install gRPC + Protobuf (if not already installed)
+git clone -b $(curl -L http://grpc.io/release) https://github.com/grpc/grpc
+cd grpc
+git submodule update --init
+make HAS_SYSTEM_PROTOBUF=false
+sudo make install
+cd third_party/protobuf
+make
+sudo make install
+
+```
+
+## Build
+
+From root directory build like normal CMake program.
+
+```
+mkdir build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+make -j
+```
+
+You can remove `-DCMAKE_BUILD_TYPE=Release` for debug build.
+
 
 # Running
 
@@ -32,4 +62,4 @@ Then query it:
 
 # Integration
 
-You can use any grpc client to connect to a running server. It is recommended you disable max message size.
+You can use any grpc client to connect to a running server. It is recommended you disable max message size. Use the definitions in the `./pb` directory.
