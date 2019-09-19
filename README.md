@@ -16,10 +16,6 @@ Install [SLPDB](https://github.com/simpleledger/SLPDB) and sync it (might take a
 ```
 
 cd third-party
-git clone https://github.com/abseil/abseil-cpp.git
-git clone https://github.com/BurningEnlightenment/base64-cmake base64
- 
-# install gRPC + Protobuf (if not already installed)
 git clone -b $(curl -L http://grpc.io/release) https://github.com/grpc/grpc
 cd grpc
 git submodule update --init

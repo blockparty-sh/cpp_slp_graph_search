@@ -16,9 +16,6 @@ find_package(Protobuf REQUIRED)
 find_package(GRPC REQUIRED)
 find_package(Threads REQUIRED)
 
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/third-party/abseil-cpp)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/third-party/base64)
-
 
 option(${PROJECT_NAME}_SUPERBUILD "Build ${PROJECT_NAME} and the projects it depends on." ON)
 
@@ -34,6 +31,33 @@ if(${PROJECT_NAME}_SUPERBUILD)
             -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
         )
     endif()
+
+
+    ExternalProject_Add(absl
+        PREFIX absl
+        GIT_REPOSITORY "https://github.com/abseil/abseil-cpp.git"
+        GIT_TAG "20190808"
+        GIT_PROGRESS    1
+        GIT_SHALLOW     1
+        INSTALL_DIR     "${CMAKE_BINARY_DIR}/absl"
+        CMAKE_CACHE_ARGS
+            -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/absl
+    )
+    set(absl_DIR "${CMAKE_BINARY_DIR}/absl/src/absl")
+    #add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/absl)
+
+    ExternalProject_Add(base64
+        PREFIX base64
+        GIT_REPOSITORY "https://github.com/BurningEnlightenment/base64-cmake.git"
+        GIT_TAG "d20517370228473c72cdf3fe51f299e628f1d538"
+        GIT_PROGRESS    1
+        GIT_SHALLOW     1
+        INSTALL_DIR     "${CMAKE_BINARY_DIR}/base64"
+        CMAKE_CACHE_ARGS
+            -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/base64
+    )
+    set(base64_DIR "${CMAKE_CURRENT_BINARY_DIR}/base64/src/base64")
+
 
     ExternalProject_Add(libmongoc
         GIT_REPOSITORY  "https://github.com/mongodb/mongo-c-driver.git"
@@ -101,9 +125,13 @@ if(${PROJECT_NAME}_SUPERBUILD)
             -D${PROJECT_NAME}_SUPERBUILD:BOOL=OFF
             -Dlibbsoncxx_DIR:PATH=${libbsoncxx_DIR}
             -Dlibmongocxx_DIR:PATH=${libmongocxx_DIR}
+            -Dabsl_DIR:PATH=${absl_DIR}
+            -Dbase64_DIR:PATH=${base64_DIR}
         INSTALL_COMMAND ""
         DEPENDS
             libmongocxx
+            absl
+            base64
     )
     ExternalProject_AlwaysConfigure(${PROJECT_NAME})
     return()
@@ -112,6 +140,9 @@ endif()
 message(STATUS "Configuring inner-build")
 
 find_package(libmongocxx REQUIRED)
+add_subdirectory(${absl_DIR})
+add_subdirectory(${base64_DIR})
+
 
 
 set (PROTOS
