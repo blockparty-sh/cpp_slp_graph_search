@@ -45,6 +45,10 @@ Then query it:
 `./gs++-cli 508e543ff30ffe670e30ebd281ab25ebe6767071e87decbb958230a7760936ae`
 
 
+## REST
+
+There is also a simple JSON server in `./rest` which both shows how to use this as well as is an alternative to connecting via gRPC.
+
 # Integration
 
 You can use any grpc client to connect to a running server. It is recommended you disable max message size. Use the definitions in the `./pb` directory.
