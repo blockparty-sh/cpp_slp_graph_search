@@ -1,7 +1,6 @@
 #include <iostream>
 #include <vector>
 #include <thread>
-#include <sstream>
 #include <cstdint>
 #include <bsoncxx/builder/stream/document.hpp>
 #include <bsoncxx/string/to_string.hpp>
@@ -11,6 +10,7 @@
 #include <mongocxx/uri.hpp>
 #include <mongocxx/pool.hpp>
 #include <mongocxx/instance.hpp>
+#include <spdlog/spdlog.h>
 #include <gs++/transaction.hpp>
 #include <gs++/txhash.hpp>
 #include <gs++/mdatabase.hpp>
@@ -89,14 +89,11 @@ void mdatabase::watch_for_status_update(
                 int tid = 1;
 
                 for (auto it : block_data) {
-                    std::stringstream ss;
-                    ss 
-                        << "block: " << h
-                        << " token: " << it.first
-                        << "\t" << g.insert_token_data(it.first, it.second)
-                        << "\t(" << tid << "/" << block_data.size() << ")"
-                        << std::endl;
-                    std::cout << ss.str();
+                    spdlog::info("block: {} token: {}\t{}\t({}/{})",
+                        h, it.first,
+                        g.insert_token_data(it.first, it.second),
+                        tid, block_data.size()
+                    );
                     ++tid;
                 }
 
@@ -156,10 +153,7 @@ std::vector<transaction> mdatabase::load_token(
         const bsoncxx::array::view tx_sarr { tx_el.get_array().value };
 
         if (tx_sarr.empty()) {
-            std::stringstream ss;
-            ss << "load_token: associated tx not found in confirmed " << txidStr
-               << "\n";
-            std::cerr << ss.str();
+            spdlog::error("load_token: associated tx not found in confirmed {}", txidStr);
             continue;
         }
         for (bsoncxx::array::element tx_s_el : tx_sarr) {
@@ -249,10 +243,7 @@ absl::flat_hash_map<txhash, std::vector<transaction>> mdatabase::load_block(
         const bsoncxx::array::view graph_sarr { graph_el.get_array().value };
 
         if (graph_sarr.empty()) {
-            std::stringstream ss;
-            ss << "load_block: associated tx not found in graphs " << txidStr
-               << "\n";
-            std::cerr << ss.str();
+            spdlog::error("load_block: associated tx not found in graphs {}", txidStr);
             continue;
         }
         for (bsoncxx::array::element graph_s_el : graph_sarr) {

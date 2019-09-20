@@ -1,12 +1,12 @@
 #include <string>
 #include <vector>
-#include <sstream>
 #include <iostream>
 #include <fstream>
 #include <filesystem>
 #include <absl/container/flat_hash_set.h>
 #include <absl/container/flat_hash_map.h>
 #include <absl/container/node_hash_map.h>
+#include <spdlog/spdlog.h>
 #include <gs++/gs++.hpp>
 #include <gs++/graph_node.hpp>
 #include <gs++/token_details.hpp>
@@ -40,10 +40,7 @@ std::vector<std::string> txgraph::graph_search__ptr(const txhash lookup_txid)
     absl::flat_hash_set<const graph_node*> seen;
 
     if (token->graph.count(lookup_txid) == 0) {
-        std::stringstream ss;
-        ss << "graph_search__ptr: txid not found in tokengraph " << lookup_txid
-           << "\n";
-        std::cerr << ss.str();
+        spdlog::error("graph_search__ptr: txid not found in tokengraph {}", lookup_txid);
         return {};
     }
     recursive_walk__ptr(&token->graph[lookup_txid], seen);
@@ -100,12 +97,7 @@ unsigned txgraph::insert_token_data (
     for (graph_node * node : latest) {
         for (const txhash input_txid : input_map[node->txid]) {
             if (! token.graph.count(input_txid)) {
-                /*
-                std::stringstream ss;
-                ss << "insert_token_data: input_txid not found in tokengraph " << input_txid
-                   << "\n";
-                std::cerr << ss.str();
-                */
+                spdlog::warn("insert_token_data: input_txid not found in tokengraph {}", input_txid);
                 continue;
             }
 
@@ -119,7 +111,7 @@ unsigned txgraph::insert_token_data (
 bool txgraph::save_token_to_disk(const txhash tokenid)
 {
     std::shared_lock lock(lookup_mtx);
-    std::cout << "saving token to disk" << tokenid;
+    spdlog::info("saving token to disk {}", tokenid);
 
     const std::filesystem::path tokendir = get_tokendir(tokenid);
     std::filesystem::create_directories(tokendir);
@@ -144,8 +136,6 @@ bool txgraph::save_token_to_disk(const txhash tokenid)
         }
     }
 
-    std::cout << "\t done" << tokenpath << std::endl;
-
     return true;
 }
 
@@ -156,7 +146,7 @@ std::vector<transaction> txgraph::load_token_from_disk(const txhash tokenid)
 
     std::filesystem::path tokenpath = get_tokendir(tokenid) / tokenid;
     std::ifstream file(tokenpath, std::ios::binary);
-    std::cout << "loading token from disk: " << tokenpath << std::endl;
+    spdlog::info("loading token from disk {}", tokenpath.string());
     std::vector<std::uint8_t> fbuf(std::istreambuf_iterator<char>(file), {});
     std::vector<transaction> ret;
 

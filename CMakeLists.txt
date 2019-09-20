@@ -72,6 +72,21 @@ if(${PROJECT_NAME}_SUPERBUILD)
 	ExternalProject_Get_Property(catch source_dir)
 	set(CATCH_INCLUDE_DIR ${source_dir}/include CACHE INTERNAL "Path to include folder for Catch")
 
+    ExternalProject_Add(spdlog
+        PREFIX spdlog
+        GIT_REPOSITORY "https://github.com/gabime/spdlog.git"
+        GIT_TAG "v1.3.1"
+        GIT_PROGRESS    1
+        GIT_SHALLOW     1
+        INSTALL_DIR     "${CMAKE_BINARY_DIR}/spdlog"
+        CMAKE_CACHE_ARGS
+            -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/spdlog
+            -DBUILD_TESTING:BOOL=OFF
+            -DSPDLOG_BUILD_EXAMPLES:BOOL=OFF
+            -DSPDLOG_BUILD_BENCH:BOOL=OFF
+    )
+    set(spdlog_DIR "${CMAKE_CURRENT_BINARY_DIR}/spdlog/src/spdlog")
+
     ExternalProject_Add(libmongoc
         GIT_REPOSITORY  "https://github.com/mongodb/mongo-c-driver.git"
         GIT_TAG         "1.12.0"
@@ -142,11 +157,14 @@ if(${PROJECT_NAME}_SUPERBUILD)
             -Dbase64_DIR:PATH=${base64_DIR}
 			-Dcatch_DIR:PATH=${catch_DIR}
 			-DCATCH_INCLUDE_DIR:PATH=${CATCH_INCLUDE_DIR}
+            -Dspdlog_DIR:PATH=${spdlog_DIR}
         INSTALL_COMMAND ""
         DEPENDS
             libmongocxx
             absl
             base64
+            catch
+            spdlog
     )
     ExternalProject_AlwaysConfigure(${PROJECT_NAME})
     return()
@@ -158,7 +176,11 @@ find_package(libmongocxx REQUIRED)
 add_subdirectory(${absl_DIR})
 add_subdirectory(${base64_DIR})
 add_subdirectory(${catch_DIR})
-include_directories(${CATCH_INCLUDE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include)
+add_subdirectory(${spdlog_DIR})
+include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CATCH_INCLUDE_DIR}
+)
 
 set (PROTOS
     ${CMAKE_CURRENT_SOURCE_DIR}/pb/graphsearch.proto
@@ -187,6 +209,7 @@ target_link_libraries(gs++
     protobuf::libprotobuf
     ${LIBMONGOCXX_LIBRARIES}
     ${CMAKE_THREAD_LIBS_INIT}
+    spdlog
     stdc++fs
 )
 target_include_directories(gs++ PUBLIC

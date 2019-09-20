@@ -1,7 +1,6 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <sstream>
 #include <thread>
 #include <filesystem>
 #include <cstdlib>
@@ -13,14 +12,14 @@
 
 #include <absl/container/node_hash_map.h>
 #include <grpc++/grpc++.h>
-#include "graphsearch.grpc.pb.h"
+#include <spdlog/spdlog.h>
 #include <gs++/gs++.hpp>
 #include <gs++/transaction.hpp>
 #include <gs++/graph_node.hpp>
 #include <gs++/txhash.hpp>
 #include <gs++/mdatabase.hpp>
 #include <gs++/txgraph.hpp>
-
+#include "graphsearch.grpc.pb.h"
 
 std::string grpc_bind = "0.0.0.0";
 std::string grpc_port = "50051";
@@ -39,7 +38,7 @@ std::filesystem::path get_tokendir(const txhash tokenid)
 void signal_handler(int signal)
 {
     if (signal == SIGTERM || signal == SIGINT) {
-        std::cout << "received signal " << signal << " requesting to shut down" << std::endl;
+        spdlog::info("received signal {} requesting to shut down", signal);
         gserver->Shutdown();
     }
 }
@@ -54,9 +53,6 @@ class GraphSearchServiceImpl final
     ) override {
         const txhash lookup_txid = request->txid();
 
-        std::stringstream ss;
-        ss << "lookup: " << lookup_txid;
-
         const auto start = std::chrono::steady_clock::now();
         std::vector<std::string> result = g.graph_search__ptr(lookup_txid);
         for (auto i : result) {
@@ -64,12 +60,9 @@ class GraphSearchServiceImpl final
         }
         const auto end = std::chrono::steady_clock::now();
         const auto diff = end - start;
+        const auto diff_ms = std::chrono::duration <double, std::milli>(diff).count();
 
-        ss  << "\t" << std::chrono::duration <double, std::milli> (diff).count() << " ms "
-            << "(" << result.size() << ")"
-            << std::endl;
-
-        std::cout << ss.str();
+        spdlog::info("lookup: {} {} ({} ms)", lookup_txid, result.size(), diff_ms);
 
         return grpc::Status::OK;
     }
@@ -143,21 +136,14 @@ int main(int argc, char * argv[])
 
         unsigned cnt = 0;
         for (auto tokenid : token_ids) {
-            std::stringstream ss;
-            ss << "loaded: " << tokenid;
-
             auto txs = mdb.load_token(tokenid, current_block_height);
             const unsigned txs_inserted = g.insert_token_data(tokenid, txs);
 
             ++cnt;
-            ss 
-                << "\t" << txs_inserted
-                << "\t(" << cnt << "/" << token_ids.size() << ")"
-                << "\n";
-            std::cout << ss.str();
+            spdlog::info("loaded: {} {}\t({}/{})", tokenid, txs_inserted, cnt, token_ids.size());
         }
     } catch (const std::logic_error& e) {
-        std::cerr << e.what() << std::endl;
+        spdlog::error(e.what());
         return EXIT_FAILURE;
     }
 
@@ -174,7 +160,7 @@ int main(int argc, char * argv[])
     builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
     builder.RegisterService(&graphsearch_service);
     std::unique_ptr<grpc::Server> gserver(builder.BuildAndStart());
-    std::cout << "gs++ listening on " << server_address << std::endl;
+    spdlog::info("gs++ listening on {}", server_address);
 
     gserver->Wait();
 
