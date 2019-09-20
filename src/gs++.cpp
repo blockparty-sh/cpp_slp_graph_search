@@ -23,12 +23,9 @@
 #include <gs++/txgraph.hpp>
 #include "graphsearch.grpc.pb.h"
 
-std::string grpc_bind = "0.0.0.0";
-std::string grpc_port = "50051";
 std::unique_ptr<grpc::Server> gserver;
 std::atomic<int> current_block_height = { -1 };
 txgraph g;
-std::regex txid_regex("^[0-9a-fA-F]{64}$");
 
 
 std::filesystem::path get_tokendir(const txhash tokenid)
@@ -40,10 +37,8 @@ std::filesystem::path get_tokendir(const txhash tokenid)
 
 void signal_handler(int signal)
 {
-    if (signal == SIGTERM || signal == SIGINT) {
-        spdlog::info("received signal {} requesting to shut down", signal);
-        gserver->Shutdown();
-    }
+    spdlog::info("received signal {} requesting to shut down", signal);
+    gserver->Shutdown();
 }
 
 class GraphSearchServiceImpl final
@@ -60,6 +55,7 @@ class GraphSearchServiceImpl final
 
         std::pair<graph_search_status, std::vector<std::string>> result;
         // cowardly validating user provided data
+        static const std::regex txid_regex("^[0-9a-fA-F]{64}$");
         const bool rmatch = std::regex_match(lookup_txid, txid_regex);
         if (rmatch) {
             result = g.graph_search__ptr(lookup_txid);
@@ -101,7 +97,13 @@ class GraphSearchServiceImpl final
 
 int main(int argc, char * argv[])
 {
+    std::signal(SIGINT, signal_handler);
+    std::signal(SIGTERM, signal_handler);
+
+    std::string grpc_bind = "0.0.0.0";
+    std::string grpc_port = "50051";
     std::string mongo_db_name = "slpdb";
+
     while (true) {
         static struct option long_options[] = {
             { "help",    no_argument,       nullptr, 'h' },
