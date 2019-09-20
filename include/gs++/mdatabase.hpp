@@ -23,13 +23,11 @@ struct mdatabase
     mongocxx::instance inst{};
     mongocxx::pool pool{mongocxx::uri{}};
     const std::string db_name;
-    bool continue_watching_mongo = false;
 
     mdatabase(const std::string db_name)
     : inst{}
     , pool{mongocxx::uri{}}
     , db_name(db_name)
-    , continue_watching_mongo{false}
     {}
 
     std::vector<txhash> get_all_token_ids();
@@ -38,7 +36,8 @@ struct mdatabase
 
     void watch_for_status_update(
         txgraph & g,
-        std::atomic<int> & current_block_height
+        std::atomic<int> & current_block_height,
+        const std::atomic<bool> & continue_watching_mongo
     );
 
     std::vector<transaction> load_token(
