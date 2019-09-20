@@ -61,11 +61,11 @@ class GraphSearchServiceImpl final
         // cowardly validating user provided data
         const bool rmatch = std::regex_match(lookup_txid, txid_regex);
         if (rmatch) {
-            result = g.graph_search__ptr(lookup_txid);
+            result = g.graph_search__ptr(compress_txhash(lookup_txid));
 
             if (result.first == graph_search_status::OK) {
                 for (auto i : result.second) {
-                    reply->add_txdata(std::move(i));
+                    reply->add_txdata(i);
                 }
             }
         }
@@ -92,7 +92,7 @@ class GraphSearchServiceImpl final
                     std::exit(EXIT_FAILURE);
             }
         } else {
-            spdlog::info("lookup: **************************************************************** {} ({} ms)", result.second.size(), diff_ms);
+            spdlog::info("lookup: {} {} ({} ms)", std::string('*', 64), result.second.size(), diff_ms);
             return { grpc::StatusCode::INVALID_ARGUMENT, "txid did not match regex" };
         }
     }
@@ -154,9 +154,10 @@ int main(int argc, char * argv[])
 
     current_block_height = mdb.get_current_block_height();
     if (current_block_height < 0) {
-        std::cerr << "current block height could not be retrieved\n"
-                     "are you running recent slpdb version?\n"
-                     "do you have correct database selected?\n";
+        std::cerr << "Current block height could not be retrieved.\n"
+                     "This can be caused by a few things:\n"
+                     "\t* Are you running recent SLPDB version?\n"
+                     "\t* Do you have correct database selected?\n";
         return EXIT_FAILURE;
     }
 
@@ -167,7 +168,7 @@ int main(int argc, char * argv[])
         unsigned cnt = 0;
         for (auto tokenid : token_ids) {
             auto txs = mdb.load_token(tokenid, current_block_height);
-            const unsigned txs_inserted = g.insert_token_data(tokenid, txs);
+            const unsigned txs_inserted = g.insert_token_data(compress_txhash(tokenid), txs);
 
             ++cnt;
             spdlog::info("loaded: {} {}\t({}/{})", tokenid, txs_inserted, cnt, token_ids.size());

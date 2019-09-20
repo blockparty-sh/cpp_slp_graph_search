@@ -69,6 +69,7 @@ unsigned txgraph::insert_token_data (
     std::vector<transaction> txs
 ) {
     std::lock_guard lock(lookup_mtx);
+    assert(tokenid.size() == 32);
 
     token_details& token = tokens[tokenid];
 
@@ -97,7 +98,7 @@ unsigned txgraph::insert_token_data (
     for (graph_node * node : latest) {
         for (const txhash input_txid : input_map[node->txid]) {
             if (! token.graph.count(input_txid)) {
-                spdlog::warn("insert_token_data: input_txid not found in tokengraph {}", input_txid);
+                spdlog::warn("insert_token_data: input_txid not found in tokengraph {}", decompress_txhash(input_txid));
                 continue;
             }
 

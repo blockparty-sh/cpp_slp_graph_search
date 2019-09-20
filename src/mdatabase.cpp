@@ -150,7 +150,7 @@ std::vector<transaction> mdatabase::load_token(
         std::string txdata_str;
 
         const auto tx_el = doc["tx"];
-        assert(tx_el && tx_el.type() == bsoncxx::type::b_array);
+        assert(tx_el && tx_el.type() == bsoncxx::type::k_array);
         const bsoncxx::array::view tx_sarr { tx_el.get_array().value };
 
         if (tx_sarr.empty()) {
@@ -174,17 +174,17 @@ std::vector<transaction> mdatabase::load_token(
 
         std::vector<txhash> inputs;
         const auto inputs_el = doc["graphTxn"]["inputs"];
-        assert(inputs_el && inputs_el.type() == bsoncxx::type::b_array);
+        assert(inputs_el && inputs_el.type() == bsoncxx::type::k_array);
         const bsoncxx::array::view inputs_sarr { inputs_el.get_array().value };
 
         for (bsoncxx::array::element input_s_el : inputs_sarr) {
             auto input_txid_el = input_s_el["txid"];
             assert(input_txid_el && input_txid_el.type() == bsoncxx::type::k_utf8);
             const std::string input_txid_str = bsoncxx::string::to_string(input_txid_el.get_utf8().value);
-            inputs.emplace_back(input_txid_str);
+            inputs.emplace_back(compress_txhash(input_txid_str));
         }
 
-        ret.emplace_back(transaction(txid_str, txdata_str, inputs));
+        ret.emplace_back(transaction(compress_txhash(txid_str), txdata_str, inputs));
     }
 
     return ret;
@@ -239,10 +239,11 @@ absl::flat_hash_map<txhash, std::vector<transaction>> mdatabase::load_block(
         const auto tokenidhex_el = doc["slp"]["detail"]["tokenIdHex"];
         assert(tokenidhex_el && tokenidhex_el.type() == bsoncxx::type::k_utf8);
         const std::string tokenidhex_str = bsoncxx::string::to_string(tokenidhex_el.get_utf8().value);
+        const txhash ctokenidhex_str = compress_txhash(tokenidhex_str);
 
 
         const auto graph_el = doc["graph"];
-        assert(graph_el && graph_el.type() == bsoncxx::type::b_array);
+        assert(graph_el && graph_el.type() == bsoncxx::type::k_array);
         const bsoncxx::array::view graph_sarr { graph_el.get_array().value };
 
         if (graph_sarr.empty()) {
@@ -253,21 +254,21 @@ absl::flat_hash_map<txhash, std::vector<transaction>> mdatabase::load_block(
             std::vector<txhash> inputs;
 
             const auto inputs_el = graph_s_el["graphTxn"]["inputs"];
-            assert(inputs_el && inputs_el.type() == bsoncxx::type::b_array);
+            assert(inputs_el && inputs_el.type() == bsoncxx::type::k_array);
             const bsoncxx::array::view inputs_sarr { inputs_el.get_array().value };
 
             for (bsoncxx::array::element input_s_el : inputs_sarr) {
                 auto input_txid_el = input_s_el["txid"];
                 assert(input_txid_el && input_txid_el.type() == bsoncxx::type::k_utf8);
                 const std::string input_txid_str = bsoncxx::string::to_string(input_txid_el.get_utf8().value);
-                inputs.emplace_back(input_txid_str);
+                inputs.emplace_back(compress_txhash(input_txid_str));
             }
 
-            if (! ret.count(tokenidhex_str)) {
-                ret.insert({ tokenidhex_str, {} });
+            if (! ret.count(ctokenidhex_str)) {
+                ret.insert({ ctokenidhex_str, {} });
             }
 
-            ret[tokenidhex_str].emplace_back(transaction(txid_str, txdata_str, inputs));
+            ret[ctokenidhex_str].emplace_back(transaction(compress_txhash(txid_str), txdata_str, inputs));
 
             break; // this is used for $lookup so just 1 item
         }
