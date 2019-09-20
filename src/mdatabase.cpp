@@ -153,7 +153,7 @@ std::vector<transaction> mdatabase::load_token(
         const bsoncxx::array::view tx_sarr { tx_el.get_array().value };
 
         if (tx_sarr.empty()) {
-            spdlog::error("load_token: associated tx not found in confirmed {}", txidStr);
+            spdlog::warn("load_token: associated tx not found in confirmed {}", txidStr);
             continue;
         }
         for (bsoncxx::array::element tx_s_el : tx_sarr) {
@@ -243,7 +243,7 @@ absl::flat_hash_map<txhash, std::vector<transaction>> mdatabase::load_block(
         const bsoncxx::array::view graph_sarr { graph_el.get_array().value };
 
         if (graph_sarr.empty()) {
-            spdlog::error("load_block: associated tx not found in graphs {}", txidStr);
+            spdlog::warn("load_block: associated tx not found in graphs {}", txidStr);
             continue;
         }
         for (bsoncxx::array::element graph_s_el : graph_sarr) {

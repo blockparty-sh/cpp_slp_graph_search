@@ -40,7 +40,7 @@ std::vector<std::string> txgraph::graph_search__ptr(const txhash lookup_txid)
     absl::flat_hash_set<const graph_node*> seen;
 
     if (token->graph.count(lookup_txid) == 0) {
-        spdlog::error("graph_search__ptr: txid not found in tokengraph {}", lookup_txid);
+        spdlog::info("graph_search__ptr: txid not found in tokengraph {}", lookup_txid);
         return {};
     }
     recursive_walk__ptr(&token->graph[lookup_txid], seen);
