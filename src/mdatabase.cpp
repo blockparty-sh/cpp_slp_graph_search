@@ -75,7 +75,8 @@ int mdatabase::get_current_block_height()
 
 void mdatabase::watch_for_status_update(
     txgraph & g,
-    std::atomic<int> & current_block_height
+    std::atomic<int> & current_block_height,
+    const std::atomic<bool> & continue_watching_mongo
 ) {
     const std::chrono::milliseconds await_time { 1000 };
     auto client = pool.acquire();

@@ -25,6 +25,7 @@
 
 std::unique_ptr<grpc::Server> gserver;
 std::atomic<int> current_block_height = { -1 };
+std::atomic<bool> continue_watching_mongo = { true };
 txgraph g;
 
 
@@ -39,6 +40,7 @@ void signal_handler(int signal)
 {
     spdlog::info("received signal {} requesting to shut down", signal);
     gserver->Shutdown();
+    continue_watching_mongo = false;
 }
 
 class GraphSearchServiceImpl final
@@ -182,9 +184,13 @@ int main(int argc, char * argv[])
     }
 
 
-    std::thread([&] {
-        mdb.watch_for_status_update(g, current_block_height);
-    }).detach();
+    std::thread mongo_status_update_thread([&] {
+        mdb.watch_for_status_update(
+            g,
+            current_block_height,
+            continue_watching_mongo
+        );
+    });
 
 
     const std::string server_address(grpc_bind+":"+grpc_port);
@@ -197,6 +203,8 @@ int main(int argc, char * argv[])
     spdlog::info("gs++ listening on {}", server_address);
 
     gserver->Wait();
+    gserver->Shutdown();
+    mongo_status_update_thread.join();
 
     return EXIT_SUCCESS;
 }
