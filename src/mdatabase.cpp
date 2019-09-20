@@ -32,9 +32,9 @@ std::vector<txhash> mdatabase::get_all_token_ids()
     auto cursor = collection.find({}, opts);
     for (auto&& doc : cursor) {
         const auto el = doc["tokenDetails"]["tokenIdHex"];
-        assert(el.type() == bsoncxx::type::k_utf8);
-        const std::string tokenIdHexStr = bsoncxx::string::to_string(el.get_utf8().value);
-        ret.emplace_back(tokenIdHexStr);
+        assert(el && el.type() == bsoncxx::type::k_utf8);
+        const std::string tokenIdHex_str = bsoncxx::string::to_string(el.get_utf8().value);
+        ret.emplace_back(tokenIdHex_str);
     }
 
     return ret;
@@ -57,7 +57,7 @@ int mdatabase::get_current_block_height()
 
     for (auto&& doc : cursor) {
         auto el = doc["blockHeight"];
-        assert(el.type() == bsoncxx::type::k_int32 || el.type() == bsoncxx::type::k_int64);
+        assert(el && (el.type() == bsoncxx::type::k_int32 || el.type() == bsoncxx::type::k_int64));
 
         if (el.type() == bsoncxx::type::k_int32) {
             return el.get_int32().value;
@@ -144,28 +144,29 @@ std::vector<transaction> mdatabase::load_token(
     auto cursor = collection.aggregate(pipe, mongocxx::options::aggregate{});
     for (auto&& doc : cursor) {
         const auto txid_el = doc["graphTxn"]["txid"];
-        assert(txid_el.type() == bsoncxx::type::k_utf8);
-        const std::string txidStr = bsoncxx::string::to_string(txid_el.get_utf8().value);
+        assert(txid_el && txid_el.type() == bsoncxx::type::k_utf8);
+        const std::string txid_str = bsoncxx::string::to_string(txid_el.get_utf8().value);
 
-        std::string txdataStr;
+        std::string txdata_str;
 
         const auto tx_el = doc["tx"];
+        assert(tx_el && tx_el.type() == bsoncxx::type::b_array);
         const bsoncxx::array::view tx_sarr { tx_el.get_array().value };
 
         if (tx_sarr.empty()) {
-            spdlog::warn("load_token: associated tx not found in confirmed {}", txidStr);
+            spdlog::warn("load_token: associated tx not found in confirmed {}", txid_str);
             continue;
         }
         for (bsoncxx::array::element tx_s_el : tx_sarr) {
             auto txdata_el = tx_s_el["tx"]["raw"];
-            assert(txdata_el.type() == bsoncxx::type::k_binary);
+            assert(txdata_el && txdata_el.type() == bsoncxx::type::k_binary);
             auto txdata_bin = txdata_el.get_binary();
 
-            txdataStr.resize(txdata_bin.size, '\0');
+            txdata_str.resize(txdata_bin.size, '\0');
             std::copy(
                 txdata_bin.bytes,
                 txdata_bin.bytes+txdata_bin.size,
-                std::begin(txdataStr)
+                std::begin(txdata_str)
             );
 
             break; // this is used for $lookup so just 1 item
@@ -173,16 +174,17 @@ std::vector<transaction> mdatabase::load_token(
 
         std::vector<txhash> inputs;
         const auto inputs_el = doc["graphTxn"]["inputs"];
+        assert(inputs_el && inputs_el.type() == bsoncxx::type::b_array);
         const bsoncxx::array::view inputs_sarr { inputs_el.get_array().value };
 
         for (bsoncxx::array::element input_s_el : inputs_sarr) {
             auto input_txid_el = input_s_el["txid"];
-            assert(input_txid_el.type() == bsoncxx::type::k_utf8);
-            const std::string input_txidStr = bsoncxx::string::to_string(input_txid_el.get_utf8().value);
-            inputs.emplace_back(input_txidStr);
+            assert(input_txid_el && input_txid_el.type() == bsoncxx::type::k_utf8);
+            const std::string input_txid_str = bsoncxx::string::to_string(input_txid_el.get_utf8().value);
+            inputs.emplace_back(input_txid_str);
         }
 
-        ret.emplace_back(transaction(txidStr, txdataStr, inputs));
+        ret.emplace_back(transaction(txid_str, txdata_str, inputs));
     }
 
     return ret;
@@ -219,51 +221,53 @@ absl::flat_hash_map<txhash, std::vector<transaction>> mdatabase::load_block(
     auto cursor = collection.aggregate(pipe, mongocxx::options::aggregate{});
     for (auto&& doc : cursor) {
         const auto txid_el = doc["tx"]["h"];
-        assert(txid_el.type() == bsoncxx::type::k_utf8);
-        const std::string txidStr = bsoncxx::string::to_string(txid_el.get_utf8().value);
+        assert(txid_el && txid_el.type() == bsoncxx::type::k_utf8);
+        const std::string txid_str = bsoncxx::string::to_string(txid_el.get_utf8().value);
 
         const auto txdata_el = doc["tx"]["raw"];
-        assert(txdata_el.type() == bsoncxx::type::k_binary);
+        assert(txdata_el && txdata_el.type() == bsoncxx::type::k_binary);
 
         auto txdata_bin = txdata_el.get_binary();
 
-        std::string txdataStr(txdata_bin.size, '\0');
+        std::string txdata_str(txdata_bin.size, '\0');
         std::copy(
             txdata_bin.bytes,
             txdata_bin.bytes+txdata_bin.size,
-            std::begin(txdataStr)
+            std::begin(txdata_str)
         );
 
         const auto tokenidhex_el = doc["slp"]["detail"]["tokenIdHex"];
-        assert(tokenidhex_el.type() == bsoncxx::type::k_utf8);
-        const std::string tokenidhexStr = bsoncxx::string::to_string(tokenidhex_el.get_utf8().value);
+        assert(tokenidhex_el && tokenidhex_el.type() == bsoncxx::type::k_utf8);
+        const std::string tokenidhex_str = bsoncxx::string::to_string(tokenidhex_el.get_utf8().value);
 
 
         const auto graph_el = doc["graph"];
+        assert(graph_el && graph_el.type() == bsoncxx::type::b_array);
         const bsoncxx::array::view graph_sarr { graph_el.get_array().value };
 
         if (graph_sarr.empty()) {
-            spdlog::warn("load_block: associated tx not found in graphs {}", txidStr);
+            spdlog::warn("load_block: associated tx not found in graphs {}", txid_str);
             continue;
         }
         for (bsoncxx::array::element graph_s_el : graph_sarr) {
             std::vector<txhash> inputs;
 
             const auto inputs_el = graph_s_el["graphTxn"]["inputs"];
+            assert(inputs_el && inputs_el.type() == bsoncxx::type::b_array);
             const bsoncxx::array::view inputs_sarr { inputs_el.get_array().value };
 
             for (bsoncxx::array::element input_s_el : inputs_sarr) {
                 auto input_txid_el = input_s_el["txid"];
-                assert(input_txid_el.type() == bsoncxx::type::k_utf8);
-                const std::string input_txidStr = bsoncxx::string::to_string(input_txid_el.get_utf8().value);
-                inputs.emplace_back(input_txidStr);
+                assert(input_txid_el && input_txid_el.type() == bsoncxx::type::k_utf8);
+                const std::string input_txid_str = bsoncxx::string::to_string(input_txid_el.get_utf8().value);
+                inputs.emplace_back(input_txid_str);
             }
 
-            if (! ret.count(tokenidhexStr)) {
-                ret.insert({ tokenidhexStr, {} });
+            if (! ret.count(tokenidhex_str)) {
+                ret.insert({ tokenidhex_str, {} });
             }
 
-            ret[tokenidhexStr].emplace_back(transaction(txidStr, txdataStr, inputs));
+            ret[tokenidhex_str].emplace_back(transaction(txid_str, txdata_str, inputs));
 
             break; // this is used for $lookup so just 1 item
         }
