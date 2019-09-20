@@ -6,7 +6,7 @@
 
 using txhash = std::string;
 
-txhash compress_txhash(const std::string hex);
-txhash decompress_txhash(const txhash hash);
+txhash compress_txhash(const std::string & hex);
+txhash decompress_txhash(const txhash & hash);
 
 #endif

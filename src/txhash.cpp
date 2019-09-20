@@ -11,7 +11,7 @@ txhash compress_txhash(const std::string & hex)
     std::string ret(32, '\0');
     for (unsigned i=0; i<32; ++i) {
         const char p1 = hex[(i<<1)+0];
-        const char p2 = hex[(i<<1i+1];
+        const char p2 = hex[(i<<1)+1];
 
         ret[i] = ((p1 >= '0' && p1 <= '9' ? p1 - '0' : p1 - 'a' + 10) << 4)
                +  (p2 >= '0' && p2 <= '9' ? p2 - '0' : p2 - 'a' + 10);
