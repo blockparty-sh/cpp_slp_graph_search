@@ -3,6 +3,7 @@
 #include <vector>
 #include <thread>
 #include <filesystem>
+#include <regex>
 #include <cstdlib>
 #include <cstdint>
 #include <csignal>
@@ -26,6 +27,7 @@ std::string grpc_port = "50051";
 std::unique_ptr<grpc::Server> gserver;
 int current_block_height = -1;
 txgraph g;
+std::regex txid_regex("^[0-9a-fA-F]{64}$");
 
 
 std::filesystem::path get_tokendir(const txhash tokenid)
@@ -54,17 +56,45 @@ class GraphSearchServiceImpl final
         const txhash lookup_txid = request->txid();
 
         const auto start = std::chrono::steady_clock::now();
-        std::vector<std::string> result = g.graph_search__ptr(lookup_txid);
-        for (auto i : result) {
-            reply->add_txdata(i);
+
+        std::pair<graph_search_status, std::vector<std::string>> result;
+        // cowardly validating user provided data
+        const bool rmatch = std::regex_match(lookup_txid, txid_regex);
+        if (rmatch) {
+            result = g.graph_search__ptr(lookup_txid);
+
+            if (result.first == graph_search_status::OK) {
+                for (auto i : result.second) {
+                    reply->add_txdata(std::move(i));
+                }
+            }
         }
+
         const auto end = std::chrono::steady_clock::now();
         const auto diff = end - start;
-        const auto diff_ms = std::chrono::duration <double, std::milli>(diff).count();
+        const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
 
-        spdlog::info("lookup: {} {} ({} ms)", lookup_txid, result.size(), diff_ms);
+        if (rmatch) {
+            spdlog::info("lookup: {} {} ({} ms)", lookup_txid, result.second.size(), diff_ms);
 
-        return grpc::Status::OK;
+            switch (result.first) {
+                case graph_search_status::OK:
+                    return { grpc::Status::OK };
+                case graph_search_status::NOT_FOUND:
+                    return { grpc::StatusCode::NOT_FOUND,
+                            "txid not found" };
+                case graph_search_status::NOT_IN_TOKENGRAPH:
+                    spdlog::error("graph_search__ptr: txid not found in tokengraph {}", lookup_txid);
+                    return { grpc::StatusCode::INTERNAL, 
+                            "txid fount but not in tokengraph" };
+                default:
+                    spdlog::error("unknown graph_search_status");
+                    std::exit(EXIT_FAILURE);
+            }
+        } else {
+            spdlog::info("lookup: **************************************************************** {} ({} ms)", result.second.size(), diff_ms);
+            return { grpc::StatusCode::INVALID_ARGUMENT, "txid did not match regex" };
+        }
     }
 };
 

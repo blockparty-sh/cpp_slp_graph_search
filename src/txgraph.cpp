@@ -26,13 +26,14 @@ void txgraph::recursive_walk__ptr (
     }
 }
 
-std::vector<std::string> txgraph::graph_search__ptr(const txhash lookup_txid)
+std::pair<graph_search_status, std::vector<std::string>>
+txgraph::graph_search__ptr(const txhash lookup_txid)
 {
     std::shared_lock lock(lookup_mtx);
 
     if (txid_to_token.count(lookup_txid) == 0) {
         // txid hasn't entered our system yet
-        return {};
+        return { graph_search_status::NOT_FOUND, {} };
     }
 
     token_details* token = txid_to_token[lookup_txid];
@@ -40,8 +41,7 @@ std::vector<std::string> txgraph::graph_search__ptr(const txhash lookup_txid)
     absl::flat_hash_set<const graph_node*> seen;
 
     if (token->graph.count(lookup_txid) == 0) {
-        spdlog::info("graph_search__ptr: txid not found in tokengraph {}", lookup_txid);
-        return {};
+        return { graph_search_status::NOT_IN_TOKENGRAPH, {} };
     }
     recursive_walk__ptr(&token->graph[lookup_txid], seen);
 
@@ -52,7 +52,7 @@ std::vector<std::string> txgraph::graph_search__ptr(const txhash lookup_txid)
         ret.emplace_back(std::move(seen.extract(it++).value())->txdata);
     }
 
-    return ret;
+    return { graph_search_status::OK, ret };
 }
 
 /* TODO

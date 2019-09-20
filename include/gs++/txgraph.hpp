@@ -12,6 +12,12 @@
 #include "txhash.hpp"
 #include "transaction.hpp"
 
+enum class graph_search_status
+{
+    OK,                // normal response
+    NOT_FOUND,         // could be invalid slp token or we havent seen it yet
+    NOT_IN_TOKENGRAPH, // error: if found it should be in tokengraph
+};
 
 struct txgraph
 {
@@ -27,7 +33,8 @@ struct txgraph
         absl::flat_hash_set<const graph_node*> & seen
     ); 
 
-    std::vector<std::string> graph_search__ptr(const txhash lookup_txid);
+    std::pair<graph_search_status, std::vector<std::string>>
+    graph_search__ptr(const txhash lookup_txid);
 
     // void clear_token_data (const txhash tokenid);
 
