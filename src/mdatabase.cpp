@@ -94,10 +94,10 @@ void mdatabase::watch_for_status_update(
     while (continue_watching_mongo) {
         bool running = false;
         const int block_height = get_current_block_height(running);
-        spdlog::info("block: running({}) height({})", running, block_height);
         // if state is not running we may be syncing so we should wait
         if (running && block_height > 0 && current_block_height < block_height) {
             for (int h=current_block_height+1; h<=block_height; ++h) {
+                spdlog::info("block: {}", h);
                 absl::flat_hash_map<txhash, std::vector<transaction>> block_data = load_block(h);
                 int tid = 1;
 
