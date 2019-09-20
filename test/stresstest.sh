@@ -2,7 +2,7 @@
 
 # does 10000 graph searches
 
-GSPPCLI=../build/Release/gs++-cli
+GSPPCLI=../build/gs++-cli
 
 while read TXID; do
     ${GSPPCLI} ${TXID} > /dev/null &
