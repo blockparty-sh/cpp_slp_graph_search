@@ -92,7 +92,7 @@ void mdatabase::watch_for_status_update(
 
                 for (auto it : block_data) {
                     spdlog::info("block: {} token: {}\t{}\t({}/{})",
-                        h, it.first,
+                        h, decompress_txhash(it.first),
                         g.insert_token_data(it.first, it.second),
                         tid, block_data.size()
                     );
