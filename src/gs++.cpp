@@ -14,12 +14,12 @@
 #include <absl/container/node_hash_map.h>
 #include <grpc++/grpc++.h>
 #include "graphsearch.grpc.pb.h"
-#include "gs++.hpp"
-#include "transaction.hpp"
-#include "graph_node.hpp"
-#include "txhash.hpp"
-#include "mdatabase.hpp"
-#include "txgraph.hpp"
+#include <gs++/gs++.hpp>
+#include <gs++/transaction.hpp>
+#include <gs++/graph_node.hpp>
+#include <gs++/txhash.hpp>
+#include <gs++/mdatabase.hpp>
+#include <gs++/txgraph.hpp>
 
 
 std::string grpc_bind = "0.0.0.0";

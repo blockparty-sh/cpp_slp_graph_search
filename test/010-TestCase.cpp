@@ -1,7 +1,7 @@
 #define CATCH_CONFIG_MAIN
 
 #include <catch2/catch.hpp>
-#include "txgraph.hpp"
+#include <gs++/txgraph.hpp>
 
 
 int create_txgraph()

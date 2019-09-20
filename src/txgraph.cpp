@@ -7,12 +7,12 @@
 #include <absl/container/flat_hash_set.h>
 #include <absl/container/flat_hash_map.h>
 #include <absl/container/node_hash_map.h>
-#include "gs++.hpp"
-#include "graph_node.hpp"
-#include "token_details.hpp"
-#include "txhash.hpp"
-#include "transaction.hpp"
-#include "txgraph.hpp"
+#include <gs++/gs++.hpp>
+#include <gs++/graph_node.hpp>
+#include <gs++/token_details.hpp>
+#include <gs++/txhash.hpp>
+#include <gs++/transaction.hpp>
+#include <gs++/txgraph.hpp>
 
 void txgraph::recursive_walk__ptr (
     const graph_node* node,

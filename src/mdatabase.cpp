@@ -11,9 +11,9 @@
 #include <mongocxx/uri.hpp>
 #include <mongocxx/pool.hpp>
 #include <mongocxx/instance.hpp>
-#include "transaction.hpp"
-#include "txhash.hpp"
-#include "mdatabase.hpp"
+#include <gs++/transaction.hpp>
+#include <gs++/txhash.hpp>
+#include <gs++/mdatabase.hpp>
 
 
 std::vector<txhash> mdatabase::get_all_token_ids()

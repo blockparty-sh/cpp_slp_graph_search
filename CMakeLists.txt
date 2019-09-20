@@ -158,7 +158,7 @@ find_package(libmongocxx REQUIRED)
 add_subdirectory(${absl_DIR})
 add_subdirectory(${base64_DIR})
 add_subdirectory(${catch_DIR})
-include_directories(${CATCH_INCLUDE_DIR})
+include_directories(${CATCH_INCLUDE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 set (PROTOS
     ${CMAKE_CURRENT_SOURCE_DIR}/pb/graphsearch.proto
