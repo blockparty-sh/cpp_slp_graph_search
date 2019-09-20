@@ -86,7 +86,7 @@ class GraphSearchServiceImpl final
                 case graph_search_status::NOT_IN_TOKENGRAPH:
                     spdlog::error("graph_search__ptr: txid not found in tokengraph {}", lookup_txid);
                     return { grpc::StatusCode::INTERNAL, 
-                            "txid fount but not in tokengraph" };
+                            "txid found but not in tokengraph" };
                 default:
                     spdlog::error("unknown graph_search_status");
                     std::exit(EXIT_FAILURE);
