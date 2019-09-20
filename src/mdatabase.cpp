@@ -42,7 +42,7 @@ std::vector<txhash> mdatabase::get_all_token_ids()
 }
 
 
-int mdatabase::get_current_block_height()
+int mdatabase::get_current_block_height(bool & running)
 {
     auto client = pool.acquire();
     auto collection = (*client)[db_name]["statuses"];
@@ -50,6 +50,7 @@ int mdatabase::get_current_block_height()
     mongocxx::options::find opts{};
     opts.projection(
         bsoncxx::builder::stream::document{}
+    << "state" << 1
     << "blockHeight" << 1
     << bsoncxx::builder::stream::finalize
     );
@@ -57,15 +58,23 @@ int mdatabase::get_current_block_height()
     auto cursor = collection.find({}, opts);
 
     for (auto&& doc : cursor) {
-        auto el = doc["blockHeight"];
-        assert(el && (el.type() == bsoncxx::type::k_int32 || el.type() == bsoncxx::type::k_int64));
+        auto state_el = doc["state"];
+        assert(state_el && el.type() == bsoncxx::type::k_utf8);
+        const std::string state_str = bsoncxx::string::to_string(state_el.get_utf8().value);
+        running = state_str == "RUNNING";
 
-        if (el.type() == bsoncxx::type::k_int32) {
-            return el.get_int32().value;
+        auto height_el = doc["blockHeight"];
+        assert(height_el && (
+            height_el.type() == bsoncxx::type::k_int32 ||
+            height_el.type() == bsoncxx::type::k_int64)
+        );
+
+        if (height_el.type() == bsoncxx::type::k_int32) {
+            return height_el.get_int32().value;
         }
 
-        if (el.type() == bsoncxx::type::k_int64) {
-            return el.get_int64().value;
+        if (height_el.type() == bsoncxx::type::k_int64) {
+            return height_el.get_int64().value;
         }
     }
 
@@ -83,9 +92,11 @@ void mdatabase::watch_for_status_update(
     auto collection = (*client)[db_name]["statuses"];
 
     while (continue_watching_mongo) {
-        const int block_height = get_current_block_height();
-
-        if (block_height > 0 && current_block_height < block_height) {
+        bool running = false;
+        const int block_height = get_current_block_height(running);
+        spdlog::info("block: running({}) height({})", running, block_height);
+        // if state is not running we may be syncing so we should wait
+        if (running && block_height > 0 && current_block_height < block_height) {
             for (int h=current_block_height+1; h<=block_height; ++h) {
                 absl::flat_hash_map<txhash, std::vector<transaction>> block_data = load_block(h);
                 int tid = 1;

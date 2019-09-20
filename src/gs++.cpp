@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <regex>
 #include <atomic>
+#include <chrono>
 #include <cstdlib>
 #include <cstdint>
 #include <csignal>
@@ -157,13 +158,21 @@ int main(int argc, char * argv[])
     mdatabase mdb(mongo_db_name);
 
 
-    current_block_height = mdb.get_current_block_height();
-    if (current_block_height < 0) {
-        std::cerr << "Current block height could not be retrieved.\n"
-                     "This can be caused by a few things:\n"
-                     "\t* Are you running recent SLPDB version?\n"
-                     "\t* Do you have correct database selected?\n";
-        return EXIT_FAILURE;
+    spdlog::info("waiting for slpdb to sync...");
+    bool running = false;
+    while (! running) {
+        current_block_height = mdb.get_current_block_height(running);
+
+        if (current_block_height < 0) {
+            std::cerr << "Current block height could not be retrieved.\n"
+                         "This can be caused by a few things:\n"
+                         "\t* Are you running recent SLPDB version?\n"
+                         "\t* Do you have correct database selected?\n";
+            return EXIT_FAILURE;
+        }
+
+        const std::chrono::milliseconds await_time { 1000 };
+        std::this_thread::sleep_for(await_time);
     }
 
 
