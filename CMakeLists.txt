@@ -57,6 +57,20 @@ if(${PROJECT_NAME}_SUPERBUILD)
     )
     set(base64_DIR "${CMAKE_CURRENT_BINARY_DIR}/base64/src/base64")
 
+	ExternalProject_Add(
+		catch
+		PREFIX ${CMAKE_BINARY_DIR}/catch
+		GIT_REPOSITORY "https://github.com/philsquared/Catch.git"
+        GIT_TAG "v2.9.2"
+        GIT_PROGRESS    1
+        GIT_SHALLOW     1
+        INSTALL_DIR     "${CMAKE_BINARY_DIR}/catch2"
+        CMAKE_CACHE_ARGS
+            -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/catch2
+	)
+    set(catch_DIR "${CMAKE_CURRENT_BINARY_DIR}/catch/src/catch")
+	ExternalProject_Get_Property(catch source_dir)
+	set(CATCH_INCLUDE_DIR ${source_dir}/include CACHE INTERNAL "Path to include folder for Catch")
 
     ExternalProject_Add(libmongoc
         GIT_REPOSITORY  "https://github.com/mongodb/mongo-c-driver.git"
@@ -126,6 +140,8 @@ if(${PROJECT_NAME}_SUPERBUILD)
             -Dlibmongocxx_DIR:PATH=${libmongocxx_DIR}
             -Dabsl_DIR:PATH=${absl_DIR}
             -Dbase64_DIR:PATH=${base64_DIR}
+			-Dcatch_DIR:PATH=${catch_DIR}
+			-DCATCH_INCLUDE_DIR:PATH=${CATCH_INCLUDE_DIR}
         INSTALL_COMMAND ""
         DEPENDS
             libmongocxx
@@ -141,6 +157,8 @@ message(STATUS "Configuring inner-build")
 find_package(libmongocxx REQUIRED)
 add_subdirectory(${absl_DIR})
 add_subdirectory(${base64_DIR})
+add_subdirectory(${catch_DIR})
+include_directories(${CATCH_INCLUDE_DIR})
 
 set (PROTOS
     ${CMAKE_CURRENT_SOURCE_DIR}/pb/graphsearch.proto
@@ -192,3 +210,23 @@ target_link_libraries(gs++-cli
 	base64
 )
 target_compile_options(gs++-cli PRIVATE -Wall -pedantic)
+
+
+
+add_executable(010-TestCase
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/010-TestCase.cpp
+    ${PROTO_SRCS}
+    ${GRPC_SRCS}
+)
+target_include_directories(010-TestCase PUBLIC
+    ${CATCH_INCLUDE_DIR}
+	${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_link_libraries(010-TestCase
+	Catch2::Catch2
+    absl::flat_hash_map
+    absl::node_hash_map
+    gRPC::grpc++_reflection
+    protobuf::libprotobuf
+	base64
+)
