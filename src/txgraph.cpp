@@ -65,8 +65,8 @@ void txgraph::clear_token_data (const txhash tokenid)
 */
 
 unsigned txgraph::insert_token_data (
-    const txhash tokenid,
-    std::vector<transaction> txs
+    const txhash & tokenid,
+    const std::vector<transaction> & txs
 ) {
     std::lock_guard lock(lookup_mtx);
 
@@ -83,7 +83,7 @@ unsigned txgraph::insert_token_data (
     // first pass to populate graph nodes
     std::vector<graph_node*> latest;
     latest.reserve(txs.size());
-    for (auto tx : txs) {
+    for (auto & tx : txs) {
         if (! txid_to_token.count(tx.txid)) {
             token.graph.insert({ tx.txid, graph_node(tx.txid, tx.txdata) });
             txid_to_token.insert({ tx.txid, &token });
@@ -95,7 +95,7 @@ unsigned txgraph::insert_token_data (
 
     // second pass to add inputs
     for (graph_node * node : latest) {
-        for (const txhash input_txid : input_map[node->txid]) {
+        for (const txhash & input_txid : input_map[node->txid]) {
             if (! token.graph.count(input_txid)) {
                 spdlog::warn("insert_token_data: input_txid not found in tokengraph {}", input_txid);
                 continue;

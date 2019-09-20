@@ -39,8 +39,8 @@ struct txgraph
     // void clear_token_data (const txhash tokenid);
 
     unsigned insert_token_data (
-        const txhash tokenid,
-        std::vector<transaction> txs
+        const txhash & tokenid,
+        const std::vector<transaction> & txs
     );
 
     // TODO save writes into buffer to prevent many tiny writes

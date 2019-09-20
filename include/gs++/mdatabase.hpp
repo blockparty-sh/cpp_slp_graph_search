@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <atomic>
 #include <cstdint>
 #include <absl/container/flat_hash_map.h>
 #include <bsoncxx/builder/stream/document.hpp>
@@ -37,7 +38,7 @@ struct mdatabase
 
     void watch_for_status_update(
         txgraph & g,
-        int & current_block_height
+        std::atomic<int> & current_block_height
     );
 
     std::vector<transaction> load_token(

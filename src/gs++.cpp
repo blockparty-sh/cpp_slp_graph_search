@@ -4,6 +4,7 @@
 #include <thread>
 #include <filesystem>
 #include <regex>
+#include <atomic>
 #include <cstdlib>
 #include <cstdint>
 #include <csignal>
@@ -25,7 +26,7 @@
 std::string grpc_bind = "0.0.0.0";
 std::string grpc_port = "50051";
 std::unique_ptr<grpc::Server> gserver;
-int current_block_height = -1;
+std::atomic<int> current_block_height = { -1 };
 txgraph g;
 std::regex txid_regex("^[0-9a-fA-F]{64}$");
 

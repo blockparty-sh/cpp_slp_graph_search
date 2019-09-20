@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <thread>
+#include <atomic>
 #include <cstdint>
 #include <bsoncxx/builder/stream/document.hpp>
 #include <bsoncxx/string/to_string.hpp>
@@ -74,7 +75,7 @@ int mdatabase::get_current_block_height()
 
 void mdatabase::watch_for_status_update(
     txgraph & g,
-    int & current_block_height
+    std::atomic<int> & current_block_height
 ) {
     const std::chrono::milliseconds await_time { 1000 };
     auto client = pool.acquire();
