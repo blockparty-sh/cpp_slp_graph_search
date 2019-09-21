@@ -69,13 +69,12 @@ unsigned txgraph::insert_token_data (
     const std::vector<transaction> & txs
 ) {
     std::lock_guard lock(lookup_mtx);
-    assert(tokenid.size() == 32);
-
-    token_details& token = tokens[tokenid];
 
     if (! tokens.count(tokenid)) {
         tokens.insert({ tokenid, token_details(tokenid) });
     }
+
+    token_details& token = tokens[tokenid];
 
     absl::flat_hash_map<txhash, std::vector<txhash>> input_map;
 
@@ -84,6 +83,7 @@ unsigned txgraph::insert_token_data (
     // first pass to populate graph nodes
     std::vector<graph_node*> latest;
     latest.reserve(txs.size());
+
     for (auto & tx : txs) {
         if (! txid_to_token.count(tx.txid)) {
             token.graph.insert({ tx.txid, graph_node(tx.txid, tx.txdata) });
@@ -98,7 +98,7 @@ unsigned txgraph::insert_token_data (
     for (graph_node * node : latest) {
         for (const txhash & input_txid : input_map[node->txid]) {
             if (! token.graph.count(input_txid)) {
-                spdlog::warn("insert_token_data: input_txid not found in tokengraph {}", decompress_txhash(input_txid));
+                spdlog::warn("insert_token_data: input_txid not found in tokengraph {}", input_txid.decompress());
                 continue;
             }
 
@@ -112,17 +112,18 @@ unsigned txgraph::insert_token_data (
 bool txgraph::save_token_to_disk(const txhash tokenid)
 {
     std::shared_lock lock(lookup_mtx);
-    spdlog::info("saving token to disk {}", tokenid);
+    std::string tokenid_str = tokenid.decompress();
+    spdlog::info("saving token to disk {}", tokenid_str);
 
-    const std::filesystem::path tokendir = get_tokendir(tokenid);
+    const std::filesystem::path tokendir = get_tokendir(tokenid_str);
     std::filesystem::create_directories(tokendir);
 
-    const std::filesystem::path tokenpath(tokendir / tokenid);
+    const std::filesystem::path tokenpath(tokendir / tokenid_str);
     std::ofstream outf(tokenpath, std::ofstream::binary);
 
     for (auto it : tokens[tokenid].graph) {
         auto node = it.second;
-        outf.write(node.txid.data(), node.txid.size());
+        outf.write(reinterpret_cast<const char *>(node.txid.data()), node.txid.size());
 
         const std::size_t txdata_size = node.txdata.size();
         outf.write(reinterpret_cast<const char *>(&txdata_size), sizeof(std::size_t));
@@ -133,7 +134,7 @@ bool txgraph::save_token_to_disk(const txhash tokenid)
         outf.write(reinterpret_cast<const char *>(&inputs_size), sizeof(std::size_t));
 
         for (graph_node* input : node.inputs) {
-            outf.write(input->txid.data(), input->txid.size());
+            outf.write(reinterpret_cast<const char *>(input->txid.data()), input->txid.size());
         }
     }
 
@@ -143,9 +144,8 @@ bool txgraph::save_token_to_disk(const txhash tokenid)
 std::vector<transaction> txgraph::load_token_from_disk(const txhash tokenid)
 {
     std::shared_lock lock(lookup_mtx);
-    constexpr std::size_t txid_size = 64;
 
-    std::filesystem::path tokenpath = get_tokendir(tokenid) / tokenid;
+    std::filesystem::path tokenpath = get_tokendir(tokenid) / tokenid.decompress();
     std::ifstream file(tokenpath, std::ios::binary);
     spdlog::info("loading token from disk {}", tokenpath.string());
     std::vector<std::uint8_t> fbuf(std::istreambuf_iterator<char>(file), {});
@@ -154,9 +154,9 @@ std::vector<transaction> txgraph::load_token_from_disk(const txhash tokenid)
 
     auto it = std::begin(fbuf);
     while (it != std::end(fbuf)) {
-        txhash txid(txid_size, '\0');
-        std::copy(it, it+txid_size, std::begin(txid));
-        it += txid_size;
+        txhash txid;
+        std::copy(it, it+txid.size(), std::begin(txid));
+        it += txid.size();
 
         std::size_t txdata_size;
         std::copy(it, it+sizeof(std::size_t), reinterpret_cast<char*>(&txdata_size));
@@ -173,9 +173,9 @@ std::vector<transaction> txgraph::load_token_from_disk(const txhash tokenid)
         std::vector<txhash> inputs;
         inputs.reserve(inputs_size);
         for (std::size_t i=0; i<inputs_size; ++i) {
-            txhash input(txid_size, '\0');
-            std::copy(it, it+txid_size, std::begin(input));
-            it += txid_size;
+            txhash input;
+            std::copy(it, it+txid.size(), std::begin(input));
+            it += txid.size();
             inputs.emplace_back(input);
         }
 

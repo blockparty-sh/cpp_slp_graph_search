@@ -35,7 +35,7 @@ std::vector<txhash> mdatabase::get_all_token_ids()
         const auto el = doc["tokenDetails"]["tokenIdHex"];
         assert(el && el.type() == bsoncxx::type::k_utf8);
         const std::string tokenIdHex_str = bsoncxx::string::to_string(el.get_utf8().value);
-        ret.emplace_back(tokenIdHex_str);
+        ret.emplace_back(txhash(tokenIdHex_str));
     }
 
     return ret;
@@ -103,7 +103,7 @@ void mdatabase::watch_for_status_update(
 
                 for (auto it : block_data) {
                     spdlog::info("block: {} token: {}\t{}\t({}/{})",
-                        h, decompress_txhash(it.first),
+                        h, it.first.decompress(),
                         g.insert_token_data(it.first, it.second),
                         tid, block_data.size()
                     );
@@ -130,7 +130,7 @@ std::vector<transaction> mdatabase::load_token(
 
     mongocxx::pipeline pipe{};
     pipe.match(make_document(
-        kvp("tokenDetails.tokenIdHex", tokenid)
+        kvp("tokenDetails.tokenIdHex", tokenid.decompress())
     ));
     pipe.lookup(make_document(
         kvp("from", "confirmed"),
@@ -194,10 +194,10 @@ std::vector<transaction> mdatabase::load_token(
             auto input_txid_el = input_s_el["txid"];
             assert(input_txid_el && input_txid_el.type() == bsoncxx::type::k_utf8);
             const std::string input_txid_str = bsoncxx::string::to_string(input_txid_el.get_utf8().value);
-            inputs.emplace_back(compress_txhash(input_txid_str));
+            inputs.emplace_back(txhash(input_txid_str));
         }
 
-        ret.emplace_back(transaction(compress_txhash(txid_str), txdata_str, inputs));
+        ret.emplace_back(transaction(txhash(txid_str), txdata_str, inputs));
     }
 
     return ret;
@@ -252,7 +252,7 @@ absl::flat_hash_map<txhash, std::vector<transaction>> mdatabase::load_block(
         const auto tokenidhex_el = doc["slp"]["detail"]["tokenIdHex"];
         assert(tokenidhex_el && tokenidhex_el.type() == bsoncxx::type::k_utf8);
         const std::string tokenidhex_str = bsoncxx::string::to_string(tokenidhex_el.get_utf8().value);
-        const txhash ctokenidhex_str = compress_txhash(tokenidhex_str);
+        const txhash tokenidhex = txhash(tokenidhex_str);
 
 
         const auto graph_el = doc["graph"];
@@ -274,14 +274,14 @@ absl::flat_hash_map<txhash, std::vector<transaction>> mdatabase::load_block(
                 auto input_txid_el = input_s_el["txid"];
                 assert(input_txid_el && input_txid_el.type() == bsoncxx::type::k_utf8);
                 const std::string input_txid_str = bsoncxx::string::to_string(input_txid_el.get_utf8().value);
-                inputs.emplace_back(compress_txhash(input_txid_str));
+                inputs.emplace_back(txhash(input_txid_str));
             }
 
-            if (! ret.count(ctokenidhex_str)) {
-                ret.insert({ ctokenidhex_str, {} });
+            if (! ret.count(tokenidhex)) {
+                ret.insert({ tokenidhex, {} });
             }
 
-            ret[ctokenidhex_str].emplace_back(transaction(compress_txhash(txid_str), txdata_str, inputs));
+            ret[tokenidhex].emplace_back(transaction(txhash(txid_str), txdata_str, inputs));
 
             break; // this is used for $lookup so just 1 item
         }

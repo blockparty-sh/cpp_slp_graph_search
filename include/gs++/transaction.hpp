@@ -19,12 +19,7 @@ struct transaction
     : txid(txid)
     , txdata(txdata)
     , inputs(inputs)
-    {
-        assert(txid.size() == 32);
-        for (auto in : inputs) {
-            assert(in.size() == 32);
-        }
-    }
+    {}
 };
 
 #endif

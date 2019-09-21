@@ -32,8 +32,9 @@ txgraph g;
 
 std::filesystem::path get_tokendir(const txhash tokenid)
 {
-    const std::string p1 = tokenid.substr(0, 1);
-    const std::string p2 = tokenid.substr(1, 1);
+    const std::string tokenid_str = tokenid.decompress();
+    const std::string p1 = tokenid_str.substr(0, 1);
+    const std::string p2 = tokenid_str.substr(1, 1);
     return std::filesystem::path("cache") / p1 / p2;
 }
 
@@ -52,7 +53,7 @@ class GraphSearchServiceImpl final
         const graphsearch::GraphSearchRequest* request,
         graphsearch::GraphSearchReply* reply
     ) override {
-        const txhash lookup_txid = request->txid();
+        const std::string lookup_txid = request->txid();
 
         const auto start = std::chrono::steady_clock::now();
 
@@ -61,7 +62,7 @@ class GraphSearchServiceImpl final
         static const std::regex txid_regex("^[0-9a-fA-F]{64}$");
         const bool rmatch = std::regex_match(lookup_txid, txid_regex);
         if (rmatch) {
-            result = g.graph_search__ptr(compress_txhash(lookup_txid));
+            result = g.graph_search__ptr(txhash(lookup_txid));
 
             if (result.first == graph_search_status::OK) {
                 for (auto i : result.second) {
@@ -171,21 +172,25 @@ int main(int argc, char * argv[])
             return EXIT_FAILURE;
         }
 
+        // skip 1 second delay below
+        if (running) {
+            break;
+        }
+
         const std::chrono::milliseconds await_time { 1000 };
         std::this_thread::sleep_for(await_time);
     }
 
-
     try {
-        const std::vector<std::string> token_ids = mdb.get_all_token_ids();
+        const std::vector<txhash> token_ids = mdb.get_all_token_ids();
 
         unsigned cnt = 0;
-        for (auto tokenid : token_ids) {
+        for (const txhash & tokenid : token_ids) {
             auto txs = mdb.load_token(tokenid, current_block_height);
-            const unsigned txs_inserted = g.insert_token_data(compress_txhash(tokenid), txs);
+            const unsigned txs_inserted = g.insert_token_data(tokenid, txs);
 
             ++cnt;
-            spdlog::info("loaded: {} {}\t({}/{})", tokenid, txs_inserted, cnt, token_ids.size());
+            spdlog::info("loaded: {} {}\t({}/{})", tokenid.decompress(), txs_inserted, cnt, token_ids.size());
         }
     } catch (const std::logic_error& e) {
         spdlog::error(e.what());
