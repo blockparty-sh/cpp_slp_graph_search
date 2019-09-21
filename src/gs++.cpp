@@ -16,7 +16,7 @@
 #include <spdlog/spdlog.h>
 #include <gs++/gs++.hpp>
 #include <gs++/transaction.hpp>
-#include <gs++/txhash.hpp>
+#include <gs++/bhash.hpp>
 #include <gs++/mdatabase.hpp>
 #include <gs++/txgraph.hpp>
 #include "graphsearch.grpc.pb.h"
@@ -28,7 +28,7 @@ bool exit_early = false;
 txgraph g;
 
 
-std::filesystem::path get_tokendir(const txhash tokenid)
+std::filesystem::path get_tokendir(const bhash<btokenid> tokenid)
 {
     const std::string tokenid_str = tokenid.decompress();
     const std::string p1 = tokenid_str.substr(0, 1);
@@ -67,7 +67,7 @@ class GraphSearchServiceImpl final
         static const std::regex txid_regex("^[0-9a-fA-F]{64}$");
         const bool rmatch = std::regex_match(lookup_txid, txid_regex);
         if (rmatch) {
-            result = g.graph_search__ptr(txhash(lookup_txid));
+            result = g.graph_search__ptr(bhash<btxid>(lookup_txid));
 
             if (result.first == graph_search_status::OK) {
                 for (auto i : result.second) {
@@ -191,10 +191,10 @@ int main(int argc, char * argv[])
     }
 
     try {
-        const std::vector<txhash> token_ids = mdb.get_all_token_ids();
+        const std::vector<bhash<btokenid>> token_ids = mdb.get_all_token_ids();
 
         unsigned cnt = 0;
-        for (const txhash & tokenid : token_ids) {
+        for (const bhash<btokenid> & tokenid : token_ids) {
             if (exit_early) {
                 return EXIT_SUCCESS;
             }

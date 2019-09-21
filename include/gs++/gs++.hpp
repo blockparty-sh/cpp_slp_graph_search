@@ -2,9 +2,9 @@
 #define GS_HPP
 
 #include <filesystem>
-#include "txhash.hpp"
+#include <gs++/bhash.hpp>
 
-std::filesystem::path get_tokendir(const txhash tokenid);
+std::filesystem::path get_tokendir(const bhash<btokenid> tokenid);
 void signal_handler(int signal);
 
 #endif

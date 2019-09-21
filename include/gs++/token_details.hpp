@@ -3,17 +3,17 @@
 
 #include <absl/container/node_hash_map.h>
 #include "graph_node.hpp"
-#include "txhash.hpp"
+#include "bhash.hpp"
 
 
 struct token_details
 {
-    txhash                                  tokenid;
-    absl::node_hash_map<txhash, graph_node> graph;
+    bhash<btokenid>                               tokenid;
+    absl::node_hash_map<bhash<btxid>, graph_node> graph;
 
     token_details () {}
 
-    token_details (txhash tokenid)
+    token_details (bhash<btokenid> tokenid)
     : tokenid(tokenid)
     {}
 };

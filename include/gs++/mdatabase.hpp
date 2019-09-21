@@ -15,7 +15,7 @@
 #include <mongocxx/pool.hpp>
 #include <mongocxx/instance.hpp>
 #include "transaction.hpp"
-#include "txhash.hpp"
+#include "bhash.hpp"
 #include "txgraph.hpp"
 
 struct mdatabase
@@ -30,7 +30,7 @@ struct mdatabase
     , db_name(db_name)
     {}
 
-    std::vector<txhash> get_all_token_ids();
+    std::vector<bhash<btokenid>> get_all_token_ids();
 
     int get_current_block_height(bool & running);
 
@@ -41,11 +41,11 @@ struct mdatabase
     );
 
     std::vector<transaction> load_token(
-        const txhash tokenid,
+        const bhash<btokenid> tokenid,
         const int max_block_height
     );
 
-    absl::flat_hash_map<txhash, std::vector<transaction>> load_block(
+    absl::flat_hash_map<bhash<btokenid>, std::vector<transaction>> load_block(
         const int block_height
     ); 
 };

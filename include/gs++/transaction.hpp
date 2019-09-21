@@ -3,18 +3,18 @@
 
 #include <string>
 #include <vector>
-#include "txhash.hpp"
+#include "bhash.hpp"
 
 struct transaction
 {
-    txhash txid;
+    bhash<btxid> txid;
     std::string txdata;
-    std::vector<txhash> inputs;
+    std::vector<bhash<btxid>> inputs;
 
     transaction(
-        txhash txid,
-        std::string txdata,
-        std::vector<txhash> inputs
+        bhash<btxid>              txid,
+        std::string               txdata,
+        std::vector<bhash<btxid>> inputs
     )
     : txid(txid)
     , txdata(txdata)

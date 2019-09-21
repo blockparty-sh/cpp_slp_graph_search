@@ -9,7 +9,7 @@
 #include <absl/container/node_hash_map.h>
 #include "graph_node.hpp"
 #include "token_details.hpp"
-#include "txhash.hpp"
+#include "bhash.hpp"
 #include "transaction.hpp"
 
 enum class graph_search_status
@@ -21,8 +21,8 @@ enum class graph_search_status
 
 struct txgraph
 {
-    absl::node_hash_map<txhash, token_details>  tokens;        // tokenid -> token
-    absl::node_hash_map<txhash, token_details*> txid_to_token; // txid -> token
+    absl::node_hash_map<bhash<btokenid>, token_details>  tokens;        // tokenid -> token
+    absl::node_hash_map<bhash<btxid>,    token_details*> txid_to_token; // txid -> token
     std::shared_mutex lookup_mtx; // IMPORTANT: tokens and txid_to_token must be guarded with the lookup_mtx
 
     txgraph()
@@ -35,21 +35,21 @@ struct txgraph
     ) const;
 
     std::pair<graph_search_status, std::vector<std::string>>
-    graph_search__ptr(const txhash lookup_txid);
+    graph_search__ptr(const bhash<btxid> lookup_txid);
 
-    // void clear_token_data (const txhash tokenid);
+    // void clear_token_data (const bhash<btokenid> tokenid);
 
     unsigned insert_token_data (
-        const txhash & tokenid,
+        const bhash<btokenid> & tokenid,
         const std::vector<transaction> & txs
     );
 
     // TODO save writes into buffer to prevent many tiny writes
     // should improve performance
-    bool save_token_to_disk(const txhash tokenid);
+    bool save_token_to_disk(const bhash<btokenid> tokenid);
 
 
-    std::vector<transaction> load_token_from_disk(const txhash tokenid);
+    std::vector<transaction> load_token_from_disk(const bhash<btokenid> tokenid);
 };
 
 #endif
