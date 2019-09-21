@@ -1,4 +1,3 @@
-#include <iostream>
 #include <vector>
 #include <thread>
 #include <atomic>
@@ -34,8 +33,8 @@ std::vector<txhash> mdatabase::get_all_token_ids()
     for (auto&& doc : cursor) {
         const auto el = doc["tokenDetails"]["tokenIdHex"];
         assert(el && el.type() == bsoncxx::type::k_utf8);
-        const std::string tokenIdHex_str = bsoncxx::string::to_string(el.get_utf8().value);
-        ret.emplace_back(txhash(tokenIdHex_str));
+        const std::string tokenidhex_str = bsoncxx::string::to_string(el.get_utf8().value);
+        ret.emplace_back(txhash(tokenidhex_str));
     }
 
     return ret;
@@ -98,7 +97,7 @@ void mdatabase::watch_for_status_update(
         if (running && block_height > 0 && current_block_height < block_height) {
             for (int h=current_block_height+1; h<=block_height; ++h) {
                 spdlog::info("block: {}", h);
-                absl::flat_hash_map<txhash, std::vector<transaction>> block_data = load_block(h);
+                const absl::flat_hash_map<txhash, std::vector<transaction>> block_data = load_block(h);
                 int tid = 1;
 
                 for (auto it : block_data) {

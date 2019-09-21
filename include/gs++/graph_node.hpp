@@ -14,7 +14,10 @@ struct graph_node
 
     graph_node () {}
 
-    graph_node (txhash txid, std::string txdata)
+    graph_node (
+        const txhash & txid,
+        const std::string & txdata
+    )
     : txid(txid)
     , txdata(txdata)
     {}

@@ -9,16 +9,13 @@
 #include <cstdlib>
 #include <cstdint>
 #include <csignal>
-#include <cassert>
 #include <unistd.h>
 #include <getopt.h>
 
-#include <absl/container/node_hash_map.h>
 #include <grpc++/grpc++.h>
 #include <spdlog/spdlog.h>
 #include <gs++/gs++.hpp>
 #include <gs++/transaction.hpp>
-#include <gs++/graph_node.hpp>
 #include <gs++/txhash.hpp>
 #include <gs++/mdatabase.hpp>
 #include <gs++/txgraph.hpp>
