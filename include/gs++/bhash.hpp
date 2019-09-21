@@ -35,7 +35,7 @@ struct bhash
         }
     }
 
-    constexpr std::size_t size() const
+    constexpr auto size() -> decltype(v.size()) const
     { return v.size(); }
 
     auto data()  -> decltype(v.data())

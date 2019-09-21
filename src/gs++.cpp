@@ -22,7 +22,7 @@
 #include "graphsearch.grpc.pb.h"
 
 std::unique_ptr<grpc::Server> gserver;
-std::atomic<int> current_block_height = { -1 };
+std::atomic<int>  current_block_height    = { -1 };
 std::atomic<bool> continue_watching_mongo = { true };
 bool exit_early = false;
 gs::txgraph g;
@@ -40,7 +40,7 @@ void signal_handler(int signal)
 {
     spdlog::info("received signal {} requesting to shut down", signal);
 
-    exit_early = true;
+    exit_early              = true;
     continue_watching_mongo = false;
 
     if (gserver) {
@@ -106,6 +106,8 @@ class GraphSearchServiceImpl final
 
 int main(int argc, char * argv[])
 {
+    spdlog::info("hello");
+
     std::signal(SIGINT, signal_handler);
     std::signal(SIGTERM, signal_handler);
 
@@ -235,5 +237,6 @@ int main(int argc, char * argv[])
 
     mongo_status_update_thread.join();
 
+    spdlog::info("goodbye");
     return EXIT_SUCCESS;
 }
