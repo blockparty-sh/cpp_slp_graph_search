@@ -15,7 +15,7 @@
 void txgraph::recursive_walk__ptr (
     const graph_node* node,
     absl::flat_hash_set<const graph_node*> & seen
-) {
+) const {
     for (const graph_node* n : node->inputs) {
         if (! seen.count(n)) {
             seen.insert(n);
