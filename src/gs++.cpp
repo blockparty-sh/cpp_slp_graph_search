@@ -24,6 +24,7 @@
 std::unique_ptr<grpc::Server> gserver;
 std::atomic<int> current_block_height = { -1 };
 std::atomic<bool> continue_watching_mongo = { true };
+bool exit_early = false;
 txgraph g;
 
 
@@ -38,8 +39,15 @@ std::filesystem::path get_tokendir(const txhash tokenid)
 void signal_handler(int signal)
 {
     spdlog::info("received signal {} requesting to shut down", signal);
-    gserver->Shutdown();
+
+    exit_early = true;
     continue_watching_mongo = false;
+
+    if (gserver) {
+        const auto deadline = std::chrono::system_clock::now() +
+                              std::chrono::milliseconds(1000);
+        gserver->Shutdown(deadline);
+    }
 }
 
 class GraphSearchServiceImpl final
@@ -159,6 +167,10 @@ int main(int argc, char * argv[])
     spdlog::info("waiting for slpdb to sync...");
     bool running = false;
     while (! running) {
+        if (exit_early) {
+            return EXIT_SUCCESS;
+        }
+
         current_block_height = mdb.get_current_block_height(running);
 
         if (current_block_height < 0) {
@@ -183,6 +195,10 @@ int main(int argc, char * argv[])
 
         unsigned cnt = 0;
         for (const txhash & tokenid : token_ids) {
+            if (exit_early) {
+                return EXIT_SUCCESS;
+            }
+
             auto txs = mdb.load_token(tokenid, current_block_height);
             const unsigned txs_inserted = g.insert_token_data(tokenid, txs);
 
@@ -210,11 +226,13 @@ int main(int argc, char * argv[])
     grpc::ServerBuilder builder;
     builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
     builder.RegisterService(&graphsearch_service);
-    std::unique_ptr<grpc::Server> gserver(builder.BuildAndStart());
+    gserver = builder.BuildAndStart();
     spdlog::info("gs++ listening on {}", server_address);
 
-    gserver->Wait();
-    gserver->Shutdown();
+    if (gserver) {
+        gserver->Wait();
+    }
+
     mongo_status_update_thread.join();
 
     return EXIT_SUCCESS;
