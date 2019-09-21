@@ -25,10 +25,10 @@ std::unique_ptr<grpc::Server> gserver;
 std::atomic<int> current_block_height = { -1 };
 std::atomic<bool> continue_watching_mongo = { true };
 bool exit_early = false;
-txgraph g;
+gs::txgraph g;
 
 
-std::filesystem::path get_tokendir(const bhash<btokenid> tokenid)
+std::filesystem::path get_tokendir(const gs::tokenid tokenid)
 {
     const std::string tokenid_str = tokenid.decompress();
     const std::string p1 = tokenid_str.substr(0, 1);
@@ -62,14 +62,14 @@ class GraphSearchServiceImpl final
 
         const auto start = std::chrono::steady_clock::now();
 
-        std::pair<graph_search_status, std::vector<std::string>> result;
+        std::pair<gs::graph_search_status, std::vector<std::string>> result;
         // cowardly validating user provided data
         static const std::regex txid_regex("^[0-9a-fA-F]{64}$");
         const bool rmatch = std::regex_match(lookup_txid, txid_regex);
         if (rmatch) {
-            result = g.graph_search__ptr(bhash<btxid>(lookup_txid));
+            result = g.graph_search__ptr(gs::txid(lookup_txid));
 
-            if (result.first == graph_search_status::OK) {
+            if (result.first == gs::graph_search_status::OK) {
                 for (auto i : result.second) {
                     reply->add_txdata(i);
                 }
@@ -84,12 +84,12 @@ class GraphSearchServiceImpl final
             spdlog::info("lookup: {} {} ({} ms)", lookup_txid, result.second.size(), diff_ms);
 
             switch (result.first) {
-                case graph_search_status::OK:
+                case gs::graph_search_status::OK:
                     return { grpc::Status::OK };
-                case graph_search_status::NOT_FOUND:
+                case gs::graph_search_status::NOT_FOUND:
                     return { grpc::StatusCode::NOT_FOUND,
                             "txid not found" };
-                case graph_search_status::NOT_IN_TOKENGRAPH:
+                case gs::graph_search_status::NOT_IN_TOKENGRAPH:
                     spdlog::error("graph_search__ptr: txid not found in tokengraph {}", lookup_txid);
                     return { grpc::StatusCode::INTERNAL, 
                             "txid found but not in tokengraph" };
@@ -161,7 +161,7 @@ int main(int argc, char * argv[])
         }
     }
 
-    mdatabase mdb(mongo_db_name);
+    gs::mdatabase mdb(mongo_db_name);
 
 
     spdlog::info("waiting for slpdb to sync...");
@@ -191,10 +191,10 @@ int main(int argc, char * argv[])
     }
 
     try {
-        const std::vector<bhash<btokenid>> token_ids = mdb.get_all_token_ids();
+        const std::vector<gs::tokenid> token_ids = mdb.get_all_token_ids();
 
         unsigned cnt = 0;
-        for (const bhash<btokenid> & tokenid : token_ids) {
+        for (const gs::tokenid & tokenid : token_ids) {
             if (exit_early) {
                 return EXIT_SUCCESS;
             }

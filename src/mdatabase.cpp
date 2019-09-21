@@ -15,8 +15,9 @@
 #include <gs++/bhash.hpp>
 #include <gs++/mdatabase.hpp>
 
+namespace gs {
 
-std::vector<bhash<btokenid>> mdatabase::get_all_token_ids()
+std::vector<gs::tokenid> mdatabase::get_all_token_ids()
 {
     auto client = pool.acquire();
     auto collection = (*client)[db_name]["tokens"];
@@ -28,13 +29,13 @@ std::vector<bhash<btokenid>> mdatabase::get_all_token_ids()
     << bsoncxx::builder::stream::finalize
     );
 
-    std::vector<bhash<btokenid>> ret;
+    std::vector<gs::tokenid> ret;
     auto cursor = collection.find({}, opts);
     for (auto&& doc : cursor) {
         const auto el = doc["tokenDetails"]["tokenIdHex"];
         assert(el && el.type() == bsoncxx::type::k_utf8);
         const std::string tokenidhex_str = bsoncxx::string::to_string(el.get_utf8().value);
-        ret.emplace_back(bhash<btokenid>(tokenidhex_str));
+        ret.emplace_back(gs::tokenid(tokenidhex_str));
     }
 
     return ret;
@@ -97,7 +98,7 @@ void mdatabase::watch_for_status_update(
         if (running && block_height > 0 && current_block_height < block_height) {
             for (int h=current_block_height+1; h<=block_height; ++h) {
                 spdlog::info("block: {}", h);
-                const absl::flat_hash_map<bhash<btokenid>, std::vector<transaction>> block_data = load_block(h);
+                const absl::flat_hash_map<gs::tokenid, std::vector<transaction>> block_data = load_block(h);
                 int tid = 1;
 
                 for (auto it : block_data) {
@@ -118,7 +119,7 @@ void mdatabase::watch_for_status_update(
 }
 
 std::vector<transaction> mdatabase::load_token(
-    const bhash<btokenid> tokenid,
+    const gs::tokenid tokenid,
     const int max_block_height
 ) {
     using bsoncxx::builder::basic::make_document;
@@ -184,7 +185,7 @@ std::vector<transaction> mdatabase::load_token(
             break; // this is used for $lookup so just 1 item
         }
 
-        std::vector<bhash<btxid>> inputs;
+        std::vector<gs::txid> inputs;
         const auto inputs_el = doc["graphTxn"]["inputs"];
         assert(inputs_el && inputs_el.type() == bsoncxx::type::k_array);
         const bsoncxx::array::view inputs_sarr { inputs_el.get_array().value };
@@ -193,16 +194,16 @@ std::vector<transaction> mdatabase::load_token(
             auto input_txid_el = input_s_el["txid"];
             assert(input_txid_el && input_txid_el.type() == bsoncxx::type::k_utf8);
             const std::string input_txid_str = bsoncxx::string::to_string(input_txid_el.get_utf8().value);
-            inputs.emplace_back(bhash<btxid>(input_txid_str));
+            inputs.emplace_back(gs::txid(input_txid_str));
         }
 
-        ret.emplace_back(transaction(bhash<btxid>(txid_str), txdata_str, inputs));
+        ret.emplace_back(transaction(gs::txid(txid_str), txdata_str, inputs));
     }
 
     return ret;
 }
 
-absl::flat_hash_map<bhash<btokenid>, std::vector<transaction>> mdatabase::load_block(
+absl::flat_hash_map<gs::tokenid, std::vector<transaction>> mdatabase::load_block(
     const int block_height
 ) {
     using bsoncxx::builder::basic::make_document;
@@ -229,7 +230,7 @@ absl::flat_hash_map<bhash<btokenid>, std::vector<transaction>> mdatabase::load_b
         kvp("graph.graphTxn.inputs.txid", 1)
     ));
 
-    absl::flat_hash_map<bhash<btokenid>, std::vector<transaction>> ret;
+    absl::flat_hash_map<gs::tokenid, std::vector<transaction>> ret;
     auto cursor = collection.aggregate(pipe, mongocxx::options::aggregate{});
     for (auto&& doc : cursor) {
         const auto txid_el = doc["tx"]["h"];
@@ -251,7 +252,7 @@ absl::flat_hash_map<bhash<btokenid>, std::vector<transaction>> mdatabase::load_b
         const auto tokenidhex_el = doc["slp"]["detail"]["tokenIdHex"];
         assert(tokenidhex_el && tokenidhex_el.type() == bsoncxx::type::k_utf8);
         const std::string tokenidhex_str = bsoncxx::string::to_string(tokenidhex_el.get_utf8().value);
-        const bhash<btokenid> tokenidhex = bhash<btokenid>(tokenidhex_str);
+        const gs::tokenid tokenidhex = gs::tokenid(tokenidhex_str);
 
 
         const auto graph_el = doc["graph"];
@@ -263,7 +264,7 @@ absl::flat_hash_map<bhash<btokenid>, std::vector<transaction>> mdatabase::load_b
             continue;
         }
         for (bsoncxx::array::element graph_s_el : graph_sarr) {
-            std::vector<bhash<btxid>> inputs;
+            std::vector<gs::txid> inputs;
 
             const auto inputs_el = graph_s_el["graphTxn"]["inputs"];
             assert(inputs_el && inputs_el.type() == bsoncxx::type::k_array);
@@ -273,18 +274,20 @@ absl::flat_hash_map<bhash<btokenid>, std::vector<transaction>> mdatabase::load_b
                 auto input_txid_el = input_s_el["txid"];
                 assert(input_txid_el && input_txid_el.type() == bsoncxx::type::k_utf8);
                 const std::string input_txid_str = bsoncxx::string::to_string(input_txid_el.get_utf8().value);
-                inputs.emplace_back(bhash<btxid>(input_txid_str));
+                inputs.emplace_back(gs::txid(input_txid_str));
             }
 
             if (! ret.count(tokenidhex)) {
                 ret.insert({ tokenidhex, {} });
             }
 
-            ret[tokenidhex].emplace_back(transaction(bhash<btxid>(txid_str), txdata_str, inputs));
+            ret[tokenidhex].emplace_back(transaction(gs::txid(txid_str), txdata_str, inputs));
 
             break; // this is used for $lookup so just 1 item
         }
     }
 
     return ret;
+}
+
 }

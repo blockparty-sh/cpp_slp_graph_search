@@ -6,7 +6,7 @@
 
 int create_txgraph()
 {
-    txgraph g;
+    gs::txgraph g;
     return 1;
 }
 

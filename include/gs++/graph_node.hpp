@@ -6,21 +6,25 @@
 #include "graph_node.hpp"
 #include "bhash.hpp"
 
+namespace gs {
+
 struct graph_node
 {
-    bhash<btxid>             txid;
+    gs::txid             txid;
     std::vector<graph_node*> inputs;
     std::string              txdata;
 
     graph_node () {}
 
     graph_node (
-        const bhash<btxid> & txid,
+        const gs::txid & txid,
         const std::string  & txdata
     )
     : txid(txid)
     , txdata(txdata)
     {}
 };
+
+}
 
 #endif

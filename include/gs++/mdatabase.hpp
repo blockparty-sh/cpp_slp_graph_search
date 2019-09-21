@@ -18,6 +18,8 @@
 #include "bhash.hpp"
 #include "txgraph.hpp"
 
+namespace gs {
+
 struct mdatabase
 {
     mongocxx::instance inst{};
@@ -30,7 +32,7 @@ struct mdatabase
     , db_name(db_name)
     {}
 
-    std::vector<bhash<btokenid>> get_all_token_ids();
+    std::vector<gs::tokenid> get_all_token_ids();
 
     int get_current_block_height(bool & running);
 
@@ -41,13 +43,15 @@ struct mdatabase
     );
 
     std::vector<transaction> load_token(
-        const bhash<btokenid> tokenid,
+        const gs::tokenid tokenid,
         const int max_block_height
     );
 
-    absl::flat_hash_map<bhash<btokenid>, std::vector<transaction>> load_block(
+    absl::flat_hash_map<gs::tokenid, std::vector<transaction>> load_block(
         const int block_height
     ); 
 };
+
+}
 
 #endif

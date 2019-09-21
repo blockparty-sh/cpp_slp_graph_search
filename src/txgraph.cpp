@@ -12,6 +12,8 @@
 #include <gs++/transaction.hpp>
 #include <gs++/txgraph.hpp>
 
+namespace gs {
+
 void txgraph::recursive_walk__ptr (
     const graph_node* node,
     absl::flat_hash_set<const graph_node*> & seen
@@ -25,7 +27,7 @@ void txgraph::recursive_walk__ptr (
 }
 
 std::pair<graph_search_status, std::vector<std::string>>
-txgraph::graph_search__ptr(const bhash<btxid> lookup_txid)
+txgraph::graph_search__ptr(const gs::txid lookup_txid)
 {
     std::shared_lock lock(lookup_mtx);
 
@@ -54,7 +56,7 @@ txgraph::graph_search__ptr(const bhash<btxid> lookup_txid)
 }
 
 /* TODO
-void txgraph::clear_token_data (const bhash<btokenid> tokenid)
+void txgraph::clear_token_data (const gs::tokenid tokenid)
 {
     if (tokens.count(tokenid)) {
         tokens.erase(tokenid);
@@ -63,7 +65,7 @@ void txgraph::clear_token_data (const bhash<btokenid> tokenid)
 */
 
 unsigned txgraph::insert_token_data (
-    const bhash<btokenid> & tokenid,
+    const gs::tokenid & tokenid,
     const std::vector<transaction> & txs
 ) {
     std::lock_guard lock(lookup_mtx);
@@ -74,7 +76,7 @@ unsigned txgraph::insert_token_data (
 
     token_details& token = tokens[tokenid];
 
-    absl::flat_hash_map<bhash<btxid>, std::vector<bhash<btxid>>> input_map;
+    absl::flat_hash_map<gs::txid, std::vector<gs::txid>> input_map;
 
     unsigned ret = 0;
 
@@ -94,7 +96,7 @@ unsigned txgraph::insert_token_data (
 
     // second pass to add inputs
     for (graph_node * node : latest) {
-        for (const bhash<btxid> & input_txid : input_map[node->txid]) {
+        for (const gs::txid & input_txid : input_map[node->txid]) {
             if (! token.graph.count(input_txid)) {
                 spdlog::warn("insert_token_data: input_txid not found in tokengraph {}", input_txid.decompress());
                 continue;
@@ -107,7 +109,7 @@ unsigned txgraph::insert_token_data (
     return ret;
 }
 
-bool txgraph::save_token_to_disk(const bhash<btokenid> tokenid)
+bool txgraph::save_token_to_disk(const gs::tokenid tokenid)
 {
     std::shared_lock lock(lookup_mtx);
     std::string tokenid_str = tokenid.decompress();
@@ -139,7 +141,7 @@ bool txgraph::save_token_to_disk(const bhash<btokenid> tokenid)
     return true;
 }
 
-std::vector<transaction> txgraph::load_token_from_disk(const bhash<btokenid> tokenid)
+std::vector<transaction> txgraph::load_token_from_disk(const gs::tokenid tokenid)
 {
     std::shared_lock lock(lookup_mtx);
 
@@ -152,7 +154,7 @@ std::vector<transaction> txgraph::load_token_from_disk(const bhash<btokenid> tok
 
     auto it = std::begin(fbuf);
     while (it != std::end(fbuf)) {
-        bhash<btxid> txid;
+        gs::txid txid;
         std::copy(it, it+txid.size(), std::begin(txid));
         it += txid.size();
 
@@ -168,10 +170,10 @@ std::vector<transaction> txgraph::load_token_from_disk(const bhash<btokenid> tok
         std::copy(it, it+sizeof(inputs_size), reinterpret_cast<char*>(&inputs_size));
         it += sizeof(inputs_size);
 
-        std::vector<bhash<btxid>> inputs;
+        std::vector<gs::txid> inputs;
         inputs.reserve(inputs_size);
         for (std::size_t i=0; i<inputs_size; ++i) {
-            bhash<btxid> input;
+            gs::txid input;
             std::copy(it, it+txid.size(), std::begin(input));
             it += txid.size();
             inputs.emplace_back(input);
@@ -182,4 +184,6 @@ std::vector<transaction> txgraph::load_token_from_disk(const bhash<btokenid> tok
     file.close();
 
     return ret;
+}
+
 }

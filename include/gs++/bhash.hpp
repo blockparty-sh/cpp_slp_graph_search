@@ -7,16 +7,9 @@
 #include <absl/hash/internal/hash.h>
 
 
-/* TODO
- * this is just a first pass at making this more type safe.
- * the idea is to create bhash<btxid> to clarify intent between the different
- * types of hashes used (tokenid, txid, block hash, etc).
- *
- * maybe in future this can be made nicer
- */
-struct btxid {};
-struct btokenid {};
+namespace gs {
 
+// do not use this directly, instead use one of the typedefs below
 template <typename Tag, unsigned Size = 32>
 struct bhash
 {
@@ -81,5 +74,10 @@ struct bhash
         return ret;
     }
 };
+
+using txid    = bhash<struct btxid>;
+using tokenid = bhash<struct btokenid>;
+
+}
 
 #endif

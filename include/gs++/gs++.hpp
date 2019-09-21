@@ -4,7 +4,7 @@
 #include <filesystem>
 #include <gs++/bhash.hpp>
 
-std::filesystem::path get_tokendir(const bhash<btokenid> tokenid);
+std::filesystem::path get_tokendir(const gs::tokenid tokenid);
 void signal_handler(int signal);
 
 #endif

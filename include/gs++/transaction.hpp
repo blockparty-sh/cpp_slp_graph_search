@@ -5,21 +5,25 @@
 #include <vector>
 #include "bhash.hpp"
 
+namespace gs {
+
 struct transaction
 {
-    bhash<btxid> txid;
+    gs::txid txid;
     std::string txdata;
-    std::vector<bhash<btxid>> inputs;
+    std::vector<gs::txid> inputs;
 
     transaction(
-        bhash<btxid>              txid,
-        std::string               txdata,
-        std::vector<bhash<btxid>> inputs
+        gs::txid              txid,
+        std::string           txdata,
+        std::vector<gs::txid> inputs
     )
     : txid(txid)
     , txdata(txdata)
     , inputs(inputs)
     {}
 };
+
+}
 
 #endif
