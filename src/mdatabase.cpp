@@ -51,7 +51,7 @@ int mdatabase::get_current_block_height(bool & running)
     opts.projection(
         bsoncxx::builder::stream::document{}
     << "state" << 1
-    << "blockHeight" << 1
+    << "slpProcessedBlockHeight" << 1
     << bsoncxx::builder::stream::finalize
     );
 
@@ -63,7 +63,13 @@ int mdatabase::get_current_block_height(bool & running)
         const std::string state_str = bsoncxx::string::to_string(state_el.get_utf8().value);
         running = state_str == "RUNNING";
 
-        auto height_el = doc["blockHeight"];
+        const auto height_el = doc["slpProcessedBlockHeight"];
+
+        // it's ok if its not set but obviously not ready yet
+        if (height_el && height_el.type() == bsoncxx::type::k_null) {
+            return 0;
+        }
+
         assert(height_el && (
             height_el.type() == bsoncxx::type::k_int32 ||
             height_el.type() == bsoncxx::type::k_int64)
