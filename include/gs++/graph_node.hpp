@@ -10,14 +10,14 @@ namespace gs {
 
 struct graph_node
 {
-    gs::txid             txid;
+    gs::txid                 txid;
     std::vector<graph_node*> inputs;
     std::string              txdata;
 
     graph_node () {}
 
     graph_node (
-        const gs::txid & txid,
+        const gs::txid     & txid,
         const std::string  & txdata
     )
     : txid(txid)

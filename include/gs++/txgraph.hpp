@@ -23,8 +23,8 @@ enum class graph_search_status
 
 struct txgraph
 {
-    absl::node_hash_map<gs::tokenid, token_details>  tokens;        // tokenid -> token
-    absl::node_hash_map<gs::txid,    token_details*> txid_to_token; // txid -> token
+    absl::node_hash_map<gs::tokenid, token_details>  tokens;
+    absl::node_hash_map<gs::txid,    token_details*> txid_to_token;
     std::shared_mutex lookup_mtx; // IMPORTANT: tokens and txid_to_token must be guarded with the lookup_mtx
 
     txgraph()
@@ -49,7 +49,6 @@ struct txgraph
     // TODO save writes into buffer to prevent many tiny writes
     // should improve performance
     bool save_token_to_disk(const gs::tokenid tokenid);
-
 
     std::vector<transaction> load_token_from_disk(const gs::tokenid tokenid);
 };

@@ -9,11 +9,11 @@ namespace gs {
 
 struct transaction
 {
-    gs::txid txid;
-    std::string txdata;
+    gs::txid              txid;
+    std::string           txdata;
     std::vector<gs::txid> inputs;
 
-    transaction(
+    transaction (
         gs::txid              txid,
         std::string           txdata,
         std::vector<gs::txid> inputs

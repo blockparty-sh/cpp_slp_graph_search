@@ -88,8 +88,6 @@ void mdatabase::watch_for_status_update(
     const std::atomic<bool> & continue_watching_mongo
 ) {
     const std::chrono::milliseconds await_time { 1000 };
-    auto client = pool.acquire();
-    auto collection = (*client)[db_name]["statuses"];
 
     while (continue_watching_mongo) {
         bool running = false;
