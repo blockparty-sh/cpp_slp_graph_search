@@ -102,7 +102,14 @@ void mdatabase::watch_for_status_update(
         if (running && block_height > 0 && current_block_height < block_height) {
             for (int h=current_block_height+1; h<=block_height; ++h) {
                 spdlog::info("block: {}", h);
-                const absl::flat_hash_map<gs::tokenid, std::vector<transaction>> block_data = load_block(h);
+                bool load_block_success = false;
+                const absl::flat_hash_map<gs::tokenid, std::vector<transaction>> block_data = load_block(h, load_block_success);
+                if (! load_block_success) {
+                    spdlog::warn("block load failed");
+                    break;
+                } else {
+                    spdlog::info("block: {} successfully loaded", h);
+                }
                 int tid = 1;
 
                 for (auto it : block_data) {
@@ -208,7 +215,8 @@ std::vector<transaction> mdatabase::load_token(
 }
 
 absl::flat_hash_map<gs::tokenid, std::vector<transaction>> mdatabase::load_block(
-    const int block_height
+    const int block_height,
+    bool & success
 ) {
     using bsoncxx::builder::basic::make_document;
     using bsoncxx::builder::basic::kvp;
@@ -236,6 +244,7 @@ absl::flat_hash_map<gs::tokenid, std::vector<transaction>> mdatabase::load_block
 
     absl::flat_hash_map<gs::tokenid, std::vector<transaction>> ret;
     auto cursor = collection.aggregate(pipe, mongocxx::options::aggregate{});
+    success = true; // will be set to false on failed associated tx lookup
     for (auto&& doc : cursor) {
         const auto txid_el = doc["tx"]["h"];
         assert(txid_el && txid_el.type() == bsoncxx::type::k_utf8);
@@ -264,8 +273,9 @@ absl::flat_hash_map<gs::tokenid, std::vector<transaction>> mdatabase::load_block
         const bsoncxx::array::view graph_sarr { graph_el.get_array().value };
 
         if (graph_sarr.empty()) {
+            success = false;
             spdlog::warn("load_block: associated tx not found in graphs {}", txid_str);
-            continue;
+            break;
         }
         for (bsoncxx::array::element graph_s_el : graph_sarr) {
             std::vector<gs::txid> inputs;

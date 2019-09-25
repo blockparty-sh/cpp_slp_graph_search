@@ -48,7 +48,8 @@ struct mdatabase
     );
 
     absl::flat_hash_map<gs::tokenid, std::vector<transaction>> load_block(
-        const int block_height
+        const int block_height,
+        bool & success
     ); 
 };
 
