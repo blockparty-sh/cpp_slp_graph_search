@@ -38,11 +38,11 @@ txgraph::graph_search__ptr(const gs::txid lookup_txid)
 
     token_details* token = txid_to_token[lookup_txid];
 
-    absl::flat_hash_set<const graph_node*> seen;
-
     if (token->graph.count(lookup_txid) == 0) {
         return { graph_search_status::NOT_IN_TOKENGRAPH, {} };
     }
+
+    absl::flat_hash_set<const graph_node*> seen = { &token->graph[lookup_txid] };
     recursive_walk__ptr(&token->graph[lookup_txid], seen);
 
     std::vector<std::string> ret;
