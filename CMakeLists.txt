@@ -37,8 +37,6 @@ if(${PROJECT_NAME}_SUPERBUILD)
         PREFIX absl
         GIT_REPOSITORY "https://github.com/abseil/abseil-cpp.git"
         GIT_TAG "20190808"
-        GIT_PROGRESS    1
-        GIT_SHALLOW     1
         INSTALL_DIR     "${CMAKE_BINARY_DIR}/absl"
         CMAKE_CACHE_ARGS
             -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/absl
@@ -49,8 +47,6 @@ if(${PROJECT_NAME}_SUPERBUILD)
         PREFIX base64
         GIT_REPOSITORY "https://github.com/BurningEnlightenment/base64-cmake.git"
         GIT_TAG "d20517370228473c72cdf3fe51f299e628f1d538"
-        GIT_PROGRESS    1
-        GIT_SHALLOW     1
         INSTALL_DIR     "${CMAKE_BINARY_DIR}/base64"
         CMAKE_CACHE_ARGS
             -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/base64
@@ -62,8 +58,6 @@ if(${PROJECT_NAME}_SUPERBUILD)
 		PREFIX ${CMAKE_BINARY_DIR}/catch
 		GIT_REPOSITORY "https://github.com/philsquared/Catch.git"
         GIT_TAG "v2.9.2"
-        GIT_PROGRESS    1
-        GIT_SHALLOW     1
         INSTALL_DIR     "${CMAKE_BINARY_DIR}/catch2"
         CMAKE_CACHE_ARGS
             -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/catch2
@@ -76,8 +70,6 @@ if(${PROJECT_NAME}_SUPERBUILD)
         PREFIX spdlog
         GIT_REPOSITORY "https://github.com/gabime/spdlog.git"
         GIT_TAG "v1.3.1"
-        GIT_PROGRESS    1
-        GIT_SHALLOW     1
         INSTALL_DIR     "${CMAKE_BINARY_DIR}/spdlog"
         CMAKE_CACHE_ARGS
             -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/spdlog
@@ -90,8 +82,6 @@ if(${PROJECT_NAME}_SUPERBUILD)
     ExternalProject_Add(libmongoc
         GIT_REPOSITORY  "https://github.com/mongodb/mongo-c-driver.git"
         GIT_TAG         "1.12.0"
-        GIT_PROGRESS    1
-        GIT_SHALLOW     1
         SOURCE_DIR      "${CMAKE_BINARY_DIR}/libmongoc"
         BINARY_DIR      "${CMAKE_BINARY_DIR}/libmongoc-build"
         INSTALL_DIR     "${CMAKE_BINARY_DIR}/libmongoc-install"
@@ -110,8 +100,6 @@ if(${PROJECT_NAME}_SUPERBUILD)
     ExternalProject_Add(libmongocxx
         GIT_REPOSITORY  "https://github.com/mongodb/mongo-cxx-driver.git"
         GIT_TAG         "r3.3.1"
-        GIT_PROGRESS    1
-        GIT_SHALLOW     1
         SOURCE_DIR      "${CMAKE_BINARY_DIR}/libmongocxx"
         BINARY_DIR      "${CMAKE_BINARY_DIR}/libmongocxx-build"
         INSTALL_DIR     "${CMAKE_BINARY_DIR}/libmongocxx-install"
