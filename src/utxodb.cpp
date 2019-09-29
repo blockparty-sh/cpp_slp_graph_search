@@ -16,14 +16,13 @@
 
 #include <mio/mmap.hpp>
 
-#include <httplib/httplib.h>
-#include <nlohmann/json.hpp>
 
 #include <gs++/bhash.hpp>
 #include <gs++/output.hpp>
 #include <gs++/pk_script.hpp>
 #include <gs++/utxodb.hpp>
 #include <gs++/util.hpp>
+#include <gs++/rpc.hpp>
 
 #include <3rdparty/picosha2.h>
 
@@ -104,78 +103,12 @@ bool utxodb::load_from_bchd_checkpoint(const std::string & path)
     return true;
 }
 
-std::shared_ptr<httplib::Response> rpc_query(
-    httplib::Client & cli,
-    const std::string & method,
-    const nlohmann::json & params
-) {
-    nlohmann::json robj {{
-        { "jsonrpc", "2.0" },
-        { "method", method },
-        { "params", params },
-        { "id", 0 }
-    }};
 
-	return cli.Post("/", {
-            httplib::make_basic_authentication_header("user", "password919191828282777wq")
-        },
-        robj.dump(),
-        "text/plain"
-    );
-}
-
-std::vector<std::uint8_t> utxodb::get_raw_block(
-    httplib::Client & cli,
+void utxodb::process_block(
+    gs::rpc & rpc,
     const std::size_t height
 ) {
-    std::cout << height << std::endl;
-
-    std::string block_hash;
-    {
-        std::shared_ptr<httplib::Response> res = rpc_query(cli, "getblockhash", nlohmann::json::array({ height }));
-        if (res->status == 200) {
-            auto jbody = nlohmann::json::parse(res->body);
-            // std::cout << jbody << std::endl;
-
-            if (jbody.size() > 0) {
-                if (! jbody[0]["error"].is_null()) {
-                    std::cerr << jbody[0]["error"] << "\n";
-                }
-
-                block_hash = jbody[0]["result"].get<std::string>();
-            }
-        }
-    }
-
-    std::string block_data_str;
-    {
-        std::shared_ptr<httplib::Response> res = rpc_query(cli, "getblock", nlohmann::json::array({ block_hash, 0 }));
-        if (res->status == 200) {
-            auto jbody = nlohmann::json::parse(res->body);
-
-            if (jbody.size() > 0) {
-                if (! jbody[0]["error"].is_null()) {
-                    std::cerr << jbody[0]["error"] << "\n";
-                }
-
-                block_data_str = jbody[0]["result"].get<std::string>();
-            }
-        }
-    }
-
-
-    std::vector<std::uint8_t> block_data;
-    block_data.reserve(block_data_str.size() / 2);
-    for (unsigned i=0; i<block_data_str.size() / 2; ++i) {
-        const std::uint8_t p1 = block_data_str[(i<<1)+0];
-        const std::uint8_t p2 = block_data_str[(i<<1)+1];
-
-        assert((p1 >= '0' && p1 <= '9') || (p1 >= 'a' && p1 <= 'f'));
-        assert((p2 >= '0' && p2 <= '9') || (p2 >= 'a' && p2 <= 'f'));
-
-        block_data[i] = ((p1 >= '0' && p1 <= '9' ? p1 - '0' : p1 - 'a' + 10) << 4)
-                      +  (p2 >= '0' && p2 <= '9' ? p2 - '0' : p2 - 'a' + 10);
-    }
+    std::vector<std::uint8_t> block_data = rpc.get_raw_block(600000);
 
     auto it = block_data.begin();
     const std::uint32_t version { gs::util::extract_u32(it) };
@@ -311,23 +244,23 @@ std::vector<std::uint8_t> utxodb::get_raw_block(
         }
         
     }
-
-    return block_data;
 }
 
 }
 
 
 int main() {
-	httplib::Client cli("0.0.0.0", 8332);
+    gs::rpc rpc("0.0.0.0", 8332, "user", "password919191828282777wq");
     gs::utxodb utxodb;
-    utxodb.get_raw_block(cli, 600000);
+    utxodb.process_block(rpc, 600000);
 
 	// 582680
-    utxodb.load_from_bchd_checkpoint("../utxo-checkpoints/QmXkBQJrMKkCKNbwv4m5xtnqwU9Sq7kucPigvZW8mWxcrv");
+    // utxodb.load_from_bchd_checkpoint("../utxo-checkpoints/QmXkBQJrMKkCKNbwv4m5xtnqwU9Sq7kucPigvZW8mWxcrv");
 
     for (std::uint32_t h=582680; h<602365; ++h) {
-        utxodb.get_raw_block(cli, h);
+        std::cout << h << std::endl;
+
+        utxodb.process_block(rpc, h);
     }
 
     return 0;

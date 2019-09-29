@@ -6,6 +6,7 @@
 #include <absl/container/node_hash_map.h>
 #include <absl/container/flat_hash_set.h>
 #include <gs++/output.hpp>
+#include <gs++/rpc.hpp>
 
 namespace gs {
 
@@ -16,8 +17,8 @@ struct utxodb
 
     bool load_from_bchd_checkpoint(const std::string & path);
 
-    std::vector<std::uint8_t> get_raw_block(
-        httplib::Client & cli,
+    void process_block(
+        gs::rpc & rpc,
         const std::size_t height
     );
 };
