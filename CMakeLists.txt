@@ -5,6 +5,19 @@ add_definitions(-DGS_VERSION=0.1)
 cmake_minimum_required(VERSION 3.9)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# test that filesystem header actually is there and works
+try_compile(HAS_FS "${CMAKE_BINARY_DIR}/temp"
+"${CMAKE_SOURCE_DIR}/test/has_filesystem.cpp"
+            CMAKE_FLAGS -DCMAKE_CXX_STANDARD=17 -DCMAKE_CXX_STANDARD_REQUIRED=ON
+            LINK_LIBRARIES stdc++fs)
+if(HAS_FS)
+    message(STATUS "Compiler has filesystem support")
+else()
+    message(FATAL_ERROR "Compiler is missing filesystem capabilities")
+endif(HAS_FS)
+
 
 set(JSON_BuildTests OFF CACHE INTERNAL "")
 set(BUILD_TESTING OFF)
@@ -57,6 +70,10 @@ if(${PROJECT_NAME}_SUPERBUILD)
         INSTALL_DIR     "${CMAKE_BINARY_DIR}/base64"
         CMAKE_CACHE_ARGS
             -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/base64
+            -BASE64_WITH_AVX2:BOOL=OFF
+            -BASE64_WITH_AVX:BOOL=OFF
+            -BASE64_WITH_SSE41:BOOL=OFF
+            -BASE64_WITH_SSE42:BOOL=OFF
     )
     set(base64_DIR "${CMAKE_CURRENT_BINARY_DIR}/base64/src/base64")
 
@@ -85,6 +102,47 @@ if(${PROJECT_NAME}_SUPERBUILD)
             -DSPDLOG_BUILD_BENCH:BOOL=OFF
     )
     set(spdlog_DIR "${CMAKE_CURRENT_BINARY_DIR}/spdlog/src/spdlog")
+
+    ExternalProject_Add(mio
+        PREFIX mio
+        GIT_REPOSITORY "https://github.com/mandreyel/mio"
+        GIT_TAG "76251b8dde16bdac44acf2547be2470fd75703e1"
+        INSTALL_DIR     "${CMAKE_BINARY_DIR}/mio"
+        CMAKE_CACHE_ARGS
+            -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/mio
+    )
+    set(mio_DIR "${CMAKE_CURRENT_BINARY_DIR}/mio/src/mio")
+
+    ExternalProject_Add(cpp-httplib
+        PREFIX cpp-httplib
+        GIT_REPOSITORY "https://github.com/yhirose/cpp-httplib.git"
+        GIT_TAG "v0.2.4"
+        INSTALL_DIR     "${CMAKE_BINARY_DIR}/cpp-httplib"
+        CMAKE_CACHE_ARGS
+            -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/cpp-httplib
+    )
+    set(cpp-httplib_DIR "${CMAKE_CURRENT_BINARY_DIR}/cpp-httplib/src/cpp-httplib")
+
+    ExternalProject_Add(cppzmq
+        PREFIX cppzmq
+        GIT_REPOSITORY "https://github.com/zeromq/cppzmq.git"
+        GIT_TAG "v4.4.1"
+        INSTALL_DIR     "${CMAKE_BINARY_DIR}/cppzmq.git"
+        CMAKE_CACHE_ARGS
+            -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/cppzmq
+            -DCPPZMQ_BUILD_TESTS:BOOL=OFF
+    )
+    set(cppzmq_DIR "${CMAKE_CURRENT_BINARY_DIR}/cppzmq/src/cppzmq")
+
+    ExternalProject_Add(nlohmann-json
+        PREFIX nlohmann-json
+        GIT_REPOSITORY "https://github.com/nlohmann/json.git"
+        GIT_TAG "v3.7.0"
+        INSTALL_DIR     "${CMAKE_BINARY_DIR}/nlohmann-json.git"
+        CMAKE_CACHE_ARGS
+            -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/nlohmann-json
+    )
+    set(nlohmann-json_DIR "${CMAKE_CURRENT_BINARY_DIR}/nlohmann-json/src/nlohmann-json")
 
     ExternalProject_Add(libmongoc
         GIT_REPOSITORY  "https://github.com/mongodb/mongo-c-driver.git"
@@ -153,6 +211,10 @@ if(${PROJECT_NAME}_SUPERBUILD)
 			-Dcatch_DIR:PATH=${catch_DIR}
 			-DCATCH_INCLUDE_DIR:PATH=${CATCH_INCLUDE_DIR}
             -Dspdlog_DIR:PATH=${spdlog_DIR}
+            -Dmio_DIR:PATH=${mio_DIR}
+            -Dcpp-httplib_DIR:PATH=${cpp-httplib_DIR}
+            -Dcppzmq_DIR:PATH=${cppzmq_DIR}
+            -Dnlohmann-json_DIR:PATH=${nlohmann-json_DIR}
         INSTALL_COMMAND ""
         DEPENDS
             libmongocxx
@@ -160,6 +222,10 @@ if(${PROJECT_NAME}_SUPERBUILD)
             base64
             catch
             spdlog
+            mio
+            cpp-httplib
+            cppzmq
+            nlohmann-json
     )
     ExternalProject_AlwaysConfigure(${PROJECT_NAME})
     return()
@@ -172,9 +238,15 @@ add_subdirectory(${absl_DIR})
 add_subdirectory(${base64_DIR})
 add_subdirectory(${catch_DIR})
 add_subdirectory(${spdlog_DIR})
+add_subdirectory(${mio_DIR})
+add_subdirectory(${cpp-httplib_DIR})
+add_subdirectory(${cppzmq_DIR})
+add_subdirectory(${nlohmann-json_DIR})
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CATCH_INCLUDE_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}/cpp-httplib/include
+    ${CMAKE_CURRENT_BINARY_DIR}/nlohmann-json/include
 )
 
 set (PROTOS
@@ -193,6 +265,7 @@ add_executable(gs++
     ${CMAKE_CURRENT_SOURCE_DIR}/src/gs++.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/mdatabase.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/txgraph.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/utxodb.cpp
     ${PROTO_SRCS}
     ${GRPC_SRCS}
 )
@@ -209,6 +282,7 @@ target_link_libraries(gs++
 )
 target_include_directories(gs++ PUBLIC
     ${LIBMONGOCXX_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_BINARY_DIR}/mio/include
 )
 target_compile_definitions(gs++ PUBLIC
     ${LIBMONGOCXX_DEFINITIONS}
@@ -247,4 +321,21 @@ target_link_libraries(internals_test
     gRPC::grpc++_reflection
     protobuf::libprotobuf
 	base64
+)
+
+add_executable(utxodb
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/utxodb.cpp
+)
+target_include_directories(utxodb PUBLIC
+	${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_BINARY_DIR}/mio/include
+    ${CMAKE_CURRENT_BINARY_DIR}/cpp-httplib/include
+)
+target_link_libraries(utxodb
+    absl::flat_hash_map
+    absl::node_hash_map
+	mio
+    httplib
+    cppzmq
+    ${CMAKE_THREAD_LIBS_INIT}
 )
