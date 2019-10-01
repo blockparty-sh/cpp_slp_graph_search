@@ -14,7 +14,7 @@
 #include <mongocxx/uri.hpp>
 #include <mongocxx/pool.hpp>
 #include <mongocxx/instance.hpp>
-#include "transaction.hpp"
+#include "gs_tx.hpp"
 #include "bhash.hpp"
 #include "txgraph.hpp"
 
@@ -42,12 +42,12 @@ struct mdatabase
         const std::atomic<bool> & continue_watching_mongo
     );
 
-    std::vector<transaction> load_token(
+    std::vector<gs_tx> load_token(
         const gs::tokenid tokenid,
         const int max_block_height
     );
 
-    absl::flat_hash_map<gs::tokenid, std::vector<transaction>> load_block(
+    absl::flat_hash_map<gs::tokenid, std::vector<gs_tx>> load_block(
         const int block_height,
         bool & success
     ); 

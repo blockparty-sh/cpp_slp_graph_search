@@ -15,7 +15,6 @@
 #include <grpc++/grpc++.h>
 #include <spdlog/spdlog.h>
 #include <gs++/gs++.hpp>
-#include <gs++/transaction.hpp>
 #include <gs++/bhash.hpp>
 #include <gs++/mdatabase.hpp>
 #include <gs++/txgraph.hpp>

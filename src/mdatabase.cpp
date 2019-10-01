@@ -11,7 +11,7 @@
 #include <mongocxx/pool.hpp>
 #include <mongocxx/instance.hpp>
 #include <spdlog/spdlog.h>
-#include <gs++/transaction.hpp>
+#include <gs++/gs_tx.hpp>
 #include <gs++/bhash.hpp>
 #include <gs++/mdatabase.hpp>
 
@@ -103,7 +103,7 @@ void mdatabase::watch_for_status_update(
             for (int h=current_block_height+1; h<=block_height; ++h) {
                 spdlog::info("block: {}", h);
                 bool load_block_success = false;
-                const absl::flat_hash_map<gs::tokenid, std::vector<transaction>> block_data = load_block(h, load_block_success);
+                const absl::flat_hash_map<gs::tokenid, std::vector<gs_tx>> block_data = load_block(h, load_block_success);
                 if (! load_block_success) {
                     spdlog::warn("block load failed");
                     break;
@@ -129,7 +129,7 @@ void mdatabase::watch_for_status_update(
     }
 }
 
-std::vector<transaction> mdatabase::load_token(
+std::vector<gs_tx> mdatabase::load_token(
     const gs::tokenid tokenid,
     const int max_block_height
 ) {
@@ -164,7 +164,7 @@ std::vector<transaction> mdatabase::load_token(
         kvp("tx.tx.raw", 1)
     ));
 
-    std::vector<transaction> ret;
+    std::vector<gs_tx> ret;
     auto cursor = collection.aggregate(pipe, mongocxx::options::aggregate{});
     for (auto&& doc : cursor) {
         const auto txid_el = doc["graphTxn"]["txid"];
@@ -208,13 +208,13 @@ std::vector<transaction> mdatabase::load_token(
             inputs.emplace_back(gs::txid(input_txid_str));
         }
 
-        ret.emplace_back(transaction(gs::txid(txid_str), txdata_str, inputs));
+        ret.emplace_back(gs_tx(gs::txid(txid_str), txdata_str, inputs));
     }
 
     return ret;
 }
 
-absl::flat_hash_map<gs::tokenid, std::vector<transaction>> mdatabase::load_block(
+absl::flat_hash_map<gs::tokenid, std::vector<gs_tx>> mdatabase::load_block(
     const int block_height,
     bool & success
 ) {
@@ -242,7 +242,7 @@ absl::flat_hash_map<gs::tokenid, std::vector<transaction>> mdatabase::load_block
         kvp("graph.graphTxn.inputs.txid", 1)
     ));
 
-    absl::flat_hash_map<gs::tokenid, std::vector<transaction>> ret;
+    absl::flat_hash_map<gs::tokenid, std::vector<gs_tx>> ret;
     auto cursor = collection.aggregate(pipe, mongocxx::options::aggregate{});
     success = true; // will be set to false on failed associated tx lookup
     for (auto&& doc : cursor) {
@@ -295,7 +295,7 @@ absl::flat_hash_map<gs::tokenid, std::vector<transaction>> mdatabase::load_block
                 ret.insert({ tokenidhex, {} });
             }
 
-            ret[tokenidhex].emplace_back(transaction(gs::txid(txid_str), txdata_str, inputs));
+            ret[tokenidhex].emplace_back(gs_tx(gs::txid(txid_str), txdata_str, inputs));
 
             break; // this is used for $lookup so just 1 item
         }

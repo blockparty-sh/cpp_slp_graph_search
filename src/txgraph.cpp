@@ -9,7 +9,7 @@
 #include <gs++/graph_node.hpp>
 #include <gs++/token_details.hpp>
 #include <gs++/bhash.hpp>
-#include <gs++/transaction.hpp>
+#include <gs++/gs_tx.hpp>
 #include <gs++/txgraph.hpp>
 
 namespace gs {
@@ -66,7 +66,7 @@ void txgraph::clear_token_data (const gs::tokenid tokenid)
 
 unsigned txgraph::insert_token_data (
     const gs::tokenid & tokenid,
-    const std::vector<transaction> & txs
+    const std::vector<gs_tx> & txs
 ) {
     std::lock_guard lock(lookup_mtx);
 
@@ -141,7 +141,7 @@ bool txgraph::save_token_to_disk(const gs::tokenid tokenid)
     return true;
 }
 
-std::vector<transaction> txgraph::load_token_from_disk(const gs::tokenid tokenid)
+std::vector<gs_tx> txgraph::load_token_from_disk(const gs::tokenid tokenid)
 {
     std::shared_lock lock(lookup_mtx);
 
@@ -149,7 +149,7 @@ std::vector<transaction> txgraph::load_token_from_disk(const gs::tokenid tokenid
     std::ifstream file(tokenpath, std::ios::binary);
     spdlog::info("loading token from disk {}", tokenpath.string());
     std::vector<std::uint8_t> fbuf(std::istreambuf_iterator<char>(file), {});
-    std::vector<transaction> ret;
+    std::vector<gs_tx> ret;
 
 
     auto it = std::begin(fbuf);
@@ -179,7 +179,7 @@ std::vector<transaction> txgraph::load_token_from_disk(const gs::tokenid tokenid
             inputs.emplace_back(input);
         }
 
-        ret.emplace_back(transaction(txid, txdata, inputs));
+        ret.emplace_back(gs_tx(txid, txdata, inputs));
     }
     file.close();
 
