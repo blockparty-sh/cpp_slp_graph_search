@@ -278,11 +278,15 @@ target_link_libraries(gs++
     ${LIBMONGOCXX_LIBRARIES}
     ${CMAKE_THREAD_LIBS_INIT}
     spdlog
+    mio
+    httplib
+    cppzmq
     stdc++fs
 )
 target_include_directories(gs++ PUBLIC
     ${LIBMONGOCXX_INCLUDE_DIRS}
     ${CMAKE_CURRENT_BINARY_DIR}/mio/include
+    ${CMAKE_CURRENT_BINARY_DIR}/cpp-httplib/include
 )
 target_compile_definitions(gs++ PUBLIC
     ${LIBMONGOCXX_DEFINITIONS}
@@ -323,19 +327,19 @@ target_link_libraries(internals_test
 	base64
 )
 
-add_executable(utxodb
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/utxodb.cpp
-)
-target_include_directories(utxodb PUBLIC
-	${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_BINARY_DIR}/mio/include
-    ${CMAKE_CURRENT_BINARY_DIR}/cpp-httplib/include
-)
-target_link_libraries(utxodb
-    absl::flat_hash_map
-    absl::node_hash_map
-	mio
-    httplib
-    cppzmq
-    ${CMAKE_THREAD_LIBS_INIT}
-)
+#add_executable(utxodb
+#    ${CMAKE_CURRENT_SOURCE_DIR}/src/utxodb.cpp
+#)
+#target_include_directories(utxodb PUBLIC
+#	${CMAKE_CURRENT_SOURCE_DIR}/include
+#    ${CMAKE_CURRENT_BINARY_DIR}/mio/include
+#    ${CMAKE_CURRENT_BINARY_DIR}/cpp-httplib/include
+#)
+#target_link_libraries(utxodb
+#    absl::flat_hash_map
+#    absl::node_hash_map
+#	mio
+#    httplib
+#    cppzmq
+#    ${CMAKE_THREAD_LIBS_INIT}
+#)

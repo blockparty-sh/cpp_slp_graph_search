@@ -16,6 +16,8 @@ struct utxodb
 {
     constexpr static std::uint32_t rollback_depth { 10 };
 
+    std::shared_mutex lookup_mtx; // IMPORTANT: lookups/inserts must be guarded with the lookup_mtx
+
     std::uint32_t current_block_height;
     std::string   current_block_hash;
 
@@ -38,15 +40,23 @@ struct utxodb
     );
 
     void process_block(
-        gs::rpc & rpc,
-        const std::uint32_t height,
+        const std::vector<std::uint8_t>& block_data,
         const bool save_rollback
     );
 
-    void process_mempool_tx(const std::vector<std::uint8_t>& msg_data);
-
+    void process_mempool_tx(
+        const std::vector<std::uint8_t>& msg_data
+    );
 
     void rollback();
+
+    std::vector<gs::output> get_outputs_by_outpoints(
+        const std::vector<gs::outpoint> outpoints
+    );
+
+    std::vector<gs::output> get_outputs_by_pubkey(
+        const gs::pk_script pk_script
+    );
 
     template <typename H>
     friend H AbslHashValue(H h, const utxodb& m)

@@ -16,16 +16,15 @@
 
 #include <mio/mmap.hpp>
 #include <zmq.hpp>
+#include <3rdparty/picosha2.h>
 
 #include <gs++/bhash.hpp>
 #include <gs++/output.hpp>
 #include <gs++/pk_script.hpp>
-#include <gs++/utxodb.hpp>
 #include <gs++/util.hpp>
-#include <gs++/rpc.hpp>
 #include <gs++/transaction.hpp>
+#include <gs++/utxodb.hpp>
 
-#include <3rdparty/picosha2.h>
 
 
 namespace gs {
@@ -40,6 +39,8 @@ bool utxodb::load_from_bchd_checkpoint (
     const std::uint32_t block_height,
     const std::string block_hash
 ) {
+    std::lock_guard lock(lookup_mtx);
+
     const int fd = open(path.c_str(), O_RDONLY);
     if (fd == -1) {
         return false;
@@ -116,17 +117,21 @@ bool utxodb::load_from_bchd_checkpoint (
 }
 
 
+// TODO we need to check for memory leaks/bugs
+// they most likely would exist in this function 
+// especially around the mempool utxo set
 void utxodb::process_block(
-    gs::rpc & rpc,
-    const std::uint32_t height,
+    const std::vector<std::uint8_t>& block_data,
     const bool save_rollback
 ) {
-    std::vector<std::uint8_t> block_data = rpc.get_raw_block(600000);
+    std::lock_guard lock(lookup_mtx);
+
+    ++current_block_height;
 
     auto it = block_data.begin();
     const std::uint32_t version { gs::util::extract_u32(it) };
 
-    gs::txid prev_block;
+    gs::txid prev_block; // TODO detect re-org
     std::reverse_copy(it, it+32, reinterpret_cast<char*>(prev_block.begin()));
     it+=32;
 
@@ -155,7 +160,7 @@ void utxodb::process_block(
     std::vector<gs::output>   blk_outputs;
 
     for (std::uint64_t i=0; i<txn_count; ++i) {
-        gs::transaction tx(it, height);
+        gs::transaction tx(it, current_block_height);
 
         for (auto & m : tx.inputs) {
             blk_inputs.emplace_back(m);
@@ -179,6 +184,12 @@ void utxodb::process_block(
 		} else {
 			pk_script_to_output[m.pk_script].emplace(oid);
 		}
+
+        outpoint_map.erase(outpoint);
+		if (mempool_pk_script_to_output.count(m.pk_script) > 0) {
+			mempool_pk_script_to_output.at(m.pk_script).erase(oid);
+		}
+        mempool_spent_confirmed_outpoints.erase(gs::outpoint(oid->prev_tx_id, oid->prev_out_idx));
 
         if (save_rollback) {
             this_block_added.push_back(outpoint);
@@ -207,6 +218,7 @@ void utxodb::process_block(
         if (addr_map.empty()) {
             pk_script_to_output.erase(pk_script);
         }
+        mempool_spent_confirmed_outpoints.erase(gs::outpoint(o.prev_tx_id, o.prev_out_idx));
     }
 
     if (save_rollback) {
@@ -222,8 +234,58 @@ void utxodb::process_block(
     }
 }
 
+void utxodb::process_mempool_tx(const std::vector<std::uint8_t>& msg_data)
+{
+    std::lock_guard lock(lookup_mtx);
+
+    gs::transaction tx(msg_data.begin(), 0);
+    std::cout << "txid: " << tx.txid.decompress() << std::endl;
+    std::cout << "\tversion: " << tx.version << std::endl;
+    std::cout << "\tlock_time: " << tx.lock_time << std::endl;
+
+    for (auto & m : tx.outputs) {
+        std::cout << "\toutput txid: " << m.prev_tx_id.decompress() << "\t" << m.prev_out_idx << std::endl; 
+
+
+        const gs::outpoint outpoint(m.prev_tx_id, m.prev_out_idx);
+        gs::output* const oid = &(*mempool_outpoint_map.insert({ outpoint, m }).first).second;
+
+        if (! pk_script_to_output.count(m.pk_script)) {
+            mempool_pk_script_to_output.insert({ m.pk_script, { oid } });
+        } else {
+            mempool_pk_script_to_output[m.pk_script].emplace(oid);
+        }
+    }
+
+    for (auto & m : tx.inputs) {
+        std::cout << "\tinput txid: " << m.txid.decompress() << ":" << m.vout << "\n";
+
+        if (mempool_outpoint_map.count(m) == 0) {
+            mempool_spent_confirmed_outpoints.insert(m);
+            continue;
+        }
+
+        const gs::output& o           = mempool_outpoint_map.at(m);
+        const gs::pk_script pk_script = o.pk_script;
+
+        if (! mempool_pk_script_to_output.count(pk_script)) {
+            continue;
+        }
+        absl::flat_hash_set<gs::output*> & addr_map = mempool_pk_script_to_output.at(pk_script);
+        if (addr_map.erase(&o)) {
+            // std::cout << height << "\tremoved: " << m.txid.decompress() << ":" << m.vout << "\n";
+        }
+        if (addr_map.empty()) {
+            mempool_pk_script_to_output.erase(pk_script);
+        }
+    }
+}
+
+
 void utxodb::rollback()
 {
+    std::lock_guard lock(lookup_mtx);
+
     if (last_block_removed.empty() || last_block_added.empty()) {
         return;
     }
@@ -269,104 +331,78 @@ void utxodb::rollback()
     }
 }
 
-void utxodb::process_mempool_tx(const std::vector<std::uint8_t>& msg_data)
-{
-    gs::transaction tx(msg_data.begin(), 0);
-    std::cout << "txid: " << tx.txid.decompress() << std::endl;
-    std::cout << "\tversion: " << tx.version << std::endl;
-    std::cout << "\tlock_time: " << tx.lock_time << std::endl;
 
-    for (auto & m : tx.outputs) {
-        std::cout << "\toutput txid: " << m.prev_tx_id.decompress() << "\t" << m.prev_out_idx << std::endl; 
+std::vector<gs::output> utxodb::get_outputs_by_outpoints(
+    const std::vector<gs::outpoint> outpoints
+) {
+    std::shared_lock lock(lookup_mtx);
 
+    std::vector<output> ret;
+    ret.reserve(outpoints.size()); // most of the time this will be same size
 
-        const gs::outpoint outpoint(m.prev_tx_id, m.prev_out_idx);
-        gs::output* const oid = &(*mempool_outpoint_map.insert({ outpoint, m }).first).second;
-
-        if (! pk_script_to_output.count(m.pk_script)) {
-            mempool_pk_script_to_output.insert({ m.pk_script, { oid } });
+    for (auto o : outpoints) {
+        const auto outpoint_map_search = outpoint_map.find(o);
+        if (outpoint_map_search != outpoint_map.end()) {
+            if (mempool_spent_confirmed_outpoints.count(o) == 0) {
+                ret.push_back(outpoint_map_search->second);
+            }
         } else {
-            mempool_pk_script_to_output[m.pk_script].emplace(oid);
+            const auto mempool_outpoint_map_search = mempool_outpoint_map.find(o);
+            if (mempool_outpoint_map_search != mempool_outpoint_map.end()) {
+                ret.push_back(mempool_outpoint_map_search->second);
+            }
         }
     }
 
-    for (auto & m : tx.inputs) {
-        std::cout << "\tinput txid: " << m.txid.decompress() << ":" << m.vout << "\n";
+    return ret;
+}
 
-        if (mempool_outpoint_map.count(m) == 0) {
-            mempool_spent_confirmed_outpoints.insert(m);
-            continue;
-        }
+std::vector<gs::output> utxodb::get_outputs_by_pubkey(
+    const gs::pk_script pk_script
+) {
+    std::shared_lock lock(lookup_mtx);
 
-        const gs::output& o           = mempool_outpoint_map.at(m);
-        const gs::pk_script pk_script = o.pk_script;
+    if (mempool_pk_script_to_output.count(pk_script) == 0) {
+        return {};
+    }
 
-        if (! mempool_pk_script_to_output.count(pk_script)) {
-            continue;
-        }
-        absl::flat_hash_set<gs::output*> & addr_map = mempool_pk_script_to_output.at(pk_script);
-        if (addr_map.erase(&o)) {
-            // std::cout << height << "\tremoved: " << m.txid.decompress() << ":" << m.vout << "\n";
-        }
-        if (addr_map.empty()) {
-            mempool_pk_script_to_output.erase(pk_script);
+    std::vector<output> ret;
+    const absl::flat_hash_set<gs::output*>& pk_utxos = pk_script_to_output.at(pk_script);
+
+    for (auto u : pk_utxos) {
+        if (mempool_spent_confirmed_outpoints.count(gs::outpoint(u->prev_tx_id, u->prev_out_idx)) == 0) {
+            ret.push_back(*u);
         }
     }
+
+    const absl::flat_hash_set<gs::output*>& mempool_pk_utxos = mempool_pk_script_to_output.at(pk_script);
+
+    for (auto u : mempool_pk_utxos) {
+        ret.push_back(*u);
+    }
+
+    return ret;
 }
 
+
 }
 
 
+/*
 int main()
 {
-    gs::utxodb utxodb;
-    
-    zmq::context_t context(1);
-    zmq::socket_t sock(context, ZMQ_SUB);
-    sock.connect("tcp://127.0.0.1:28332");
-    sock.setsockopt(ZMQ_SUBSCRIBE, "rawtx", strlen("rawtx"));
-
-    while(true)
-    {
-        zmq::message_t env;
-        sock.recv(&env);
-        std::string env_str = std::string(static_cast<char*>(env.data()), env.size());
-
-        if (env_str == "rawtx") {
-            std::cout << "Received envelope '" << env_str << "'" << std::endl;
-
-            zmq::message_t msg;
-            sock.recv(&msg);
-
-            std::vector<std::uint8_t> msg_data;
-            msg_data.reserve(msg.size());
-
-            std::copy(
-                static_cast<std::uint8_t*>(msg.data()),
-                static_cast<std::uint8_t*>(msg.data())+msg.size(),
-                std::back_inserter(msg_data)
-            );
-
-            utxodb.process_mempool_tx(msg_data);
-        }
-    }
-
-
-
-
-    gs::rpc rpc("0.0.0.0", 8332, "user", "password919191828282777wq");
     // utxodb.process_block(rpc, 600000);
 
-    /*
-    utxodb.load_from_bchd_checkpoint(
+   utxodb.load_from_bchd_checkpoint(
 		"../utxo-checkpoints/QmXkBQJrMKkCKNbwv4m5xtnqwU9Sq7kucPigvZW8mWxcrv",
 		582680, "0000000000000000000000000000000000000000000000000000000000000000"
-	);*/
+	);
 
     // for (std::uint32_t h=582680; h<602365; ++h) {
     for (std::uint32_t h=582680; h<582780; ++h) {
         std::cout << h << std::endl;
-        utxodb.process_block(rpc, h, h>582760);
+        const std::vector<std::uint8_t> block_data = rpc.get_raw_block(h);
+        utxodb.process_block(block_data, true);
     }
 
     std::cout << "s1: " << utxodb.outpoint_map.size() << std::endl;
@@ -380,3 +416,4 @@ int main()
 
     return 0;
 }
+*/

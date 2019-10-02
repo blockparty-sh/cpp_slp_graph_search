@@ -9,6 +9,8 @@ package graphsearch;
 
 service GraphSearchService {
   rpc GraphSearch (GraphSearchRequest) returns (GraphSearchReply) {}
+  rpc UtxoSearchByOutpoints (UtxoSearchByOutpointsRequest) returns (UtxoSearchReply) {}
+  rpc UtxoSearchByScriptSig (UtxoSearchByScriptSigRequest) returns (UtxoSearchReply) {}
 }
 
 message GraphSearchRequest {
@@ -17,4 +19,29 @@ message GraphSearchRequest {
 
 message GraphSearchReply {
     repeated bytes txdata = 1;
+}
+
+message Outpoint {
+    string txid = 1;
+    uint32 vout = 2;
+}
+
+message Output {
+    bytes  prev_tx_id   = 1;
+    uint32 prev_out_idx = 2;
+    uint32 height       = 3;
+    uint64 value        = 4;
+    bytes  pk_script    = 5;
+}
+
+message UtxoSearchByOutpointsRequest {
+    repeated Outpoint outpoints = 1;
+}
+
+message UtxoSearchByScriptSigRequest {
+    bytes scriptSig = 1;
+}
+
+message UtxoSearchReply {
+    repeated Output outputs = 1;
 }

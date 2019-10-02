@@ -14,10 +14,13 @@
 
 #include <grpc++/grpc++.h>
 #include <spdlog/spdlog.h>
+#include <zmq.hpp>
 #include <gs++/gs++.hpp>
 #include <gs++/bhash.hpp>
 #include <gs++/mdatabase.hpp>
 #include <gs++/txgraph.hpp>
+#include <gs++/rpc.hpp>
+#include <gs++/utxodb.hpp>
 #include "graphsearch.grpc.pb.h"
 
 std::unique_ptr<grpc::Server> gserver;
@@ -25,6 +28,7 @@ std::atomic<int>  current_block_height    = { -1 };
 std::atomic<bool> continue_watching_mongo = { true };
 bool exit_early = false;
 gs::txgraph g;
+gs::utxodb utxodb;
 
 
 std::filesystem::path get_tokendir(const gs::tokenid tokenid)
@@ -100,6 +104,37 @@ class GraphSearchServiceImpl final
             spdlog::info("lookup: {} {} ({} ms)", std::string('*', 64), result.second.size(), diff_ms);
             return { grpc::StatusCode::INVALID_ARGUMENT, "txid did not match regex" };
         }
+    }
+
+    grpc::Status UtxoSearchByOutpoints (
+        grpc::ServerContext* context,
+        const graphsearch::UtxoSearchByOutpointsRequest* request,
+        graphsearch::UtxoSearchReply* reply
+    ) override {
+        std::vector<gs::outpoint> outpoints;
+        for (auto o : request->outpoints()) {
+            outpoints.push_back(gs::outpoint(o.txid(), o.vout()));
+        }
+
+        const auto start = std::chrono::steady_clock::now();
+
+        std::vector<gs::output> outputs = utxodb.get_outputs_by_outpoints(outpoints);
+
+        for (auto o : outputs) {
+            graphsearch::Output* el = reply->add_outputs();
+            el->set_prev_tx_id(o.prev_tx_id.begin(), o.prev_tx_id.size());
+            el->set_prev_out_idx(o.prev_out_idx);
+            el->set_height(o.height);
+            el->set_value(o.value);
+            el->set_pk_script(o.pk_script.data(), o.pk_script.size());
+        }
+
+        const auto end = std::chrono::steady_clock::now();
+        const auto diff = end - start;
+        const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
+
+        spdlog::info("utxo-outpoints: ({} ms)", diff_ms);
+        return { grpc::Status::OK };
     }
 };
 
@@ -218,6 +253,54 @@ int main(int argc, char * argv[])
             current_block_height,
             continue_watching_mongo
         );
+    });
+
+    // setup utxodb stuff
+    gs::rpc rpc("0.0.0.0", 8332, "user", "password919191828282777wq");
+    utxodb.load_from_bchd_checkpoint(
+		"../utxo-checkpoints/QmXkBQJrMKkCKNbwv4m5xtnqwU9Sq7kucPigvZW8mWxcrv",
+		582680, "0000000000000000000000000000000000000000000000000000000000000000"
+    );
+    // TODO load until current block
+    for (std::uint32_t h=582680; h<582780; ++h) {
+        std::cout << h << std::endl;
+        const std::vector<std::uint8_t> block_data = rpc.get_raw_block(h);
+        utxodb.process_block(block_data, true);
+    }
+    std::thread zmq_listener([&] {
+        zmq::context_t context(1);
+        zmq::socket_t sock(context, ZMQ_SUB);
+        sock.connect("tcp://127.0.0.1:28332");
+        sock.setsockopt(ZMQ_SUBSCRIBE, "rawtx", strlen("rawtx"));
+
+        while (true) {
+            zmq::message_t env;
+            sock.recv(&env);
+            std::string env_str = std::string(static_cast<char*>(env.data()), env.size());
+
+            if (env_str == "rawtx" || env_str == "rawblock") {
+                std::cout << "Received envelope '" << env_str << "'" << std::endl;
+
+                zmq::message_t msg;
+                sock.recv(&msg);
+
+                std::vector<std::uint8_t> msg_data;
+                msg_data.reserve(msg.size());
+
+                std::copy(
+                    static_cast<std::uint8_t*>(msg.data()),
+                    static_cast<std::uint8_t*>(msg.data())+msg.size(),
+                    std::back_inserter(msg_data)
+                );
+
+                if (env_str == "rawtx") {
+                    utxodb.process_mempool_tx(msg_data);
+                }
+                if (env_str == "rawblock") {
+                    utxodb.process_block(msg_data, true);
+                }
+            }
+        }
     });
 
 

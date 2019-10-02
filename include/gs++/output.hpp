@@ -40,6 +40,8 @@ struct outpoint
 	gs::txid      txid;
 	std::uint32_t vout;
 
+	outpoint(){}
+
 	outpoint(
 		const gs::txid      txid,
 		const std::uint32_t vout
