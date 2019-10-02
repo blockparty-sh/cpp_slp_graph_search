@@ -197,6 +197,8 @@ int main(int argc, char * argv[])
         }
     }
 
+    /*
+     *
     gs::mdatabase mdb(mongo_db_name);
 
 
@@ -254,19 +256,25 @@ int main(int argc, char * argv[])
             continue_watching_mongo
         );
     });
+    */
 
     // setup utxodb stuff
     gs::rpc rpc("0.0.0.0", 8332, "user", "password919191828282777wq");
     utxodb.load_from_bchd_checkpoint(
+		//"../utxo-checkpoints/QmXkBQJrMKkCKNbwv4m5xtnqwU9Sq7kucPigvZW8mWxcrv",
 		"../utxo-checkpoints/QmXkBQJrMKkCKNbwv4m5xtnqwU9Sq7kucPigvZW8mWxcrv",
 		582680, "0000000000000000000000000000000000000000000000000000000000000000"
     );
+    /*
     // TODO load until current block
     for (std::uint32_t h=582680; h<582780; ++h) {
         std::cout << h << std::endl;
         const std::vector<std::uint8_t> block_data = rpc.get_raw_block(h);
         utxodb.process_block(block_data, true);
-    }
+    }*/
+    utxodb.save_bchd_checkpoint("../utxo-checkpoints/test");
+
+    /*
     std::thread zmq_listener([&] {
         zmq::context_t context(1);
         zmq::socket_t sock(context, ZMQ_SUB);
@@ -320,5 +328,6 @@ int main(int argc, char * argv[])
     mongo_status_update_thread.join();
 
     spdlog::info("goodbye");
+    */
     return EXIT_SUCCESS;
 }

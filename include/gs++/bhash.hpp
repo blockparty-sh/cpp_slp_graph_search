@@ -60,8 +60,14 @@ struct bhash
         return H::combine(std::move(h), m.v);
     }
 
-    std::string decompress() const
+    std::string decompress(const bool reverse = false) const
     {
+        if (reverse) {
+            auto w = v;
+            std::reverse(w.begin(), w.end());
+            return gs::util::decompress_hex(w);
+        }
+
         return gs::util::decompress_hex(v);
     }
 };

@@ -12,9 +12,9 @@ namespace gs {
 
 struct rpc
 {
-	httplib::Client cli;
     std::string     rpc_user;
     std::string     rpc_pass;
+    httplib::Client cli;
 
     rpc(
         const std::string   rpc_addr,
@@ -38,7 +38,7 @@ std::shared_ptr<httplib::Response> query(
         { "id", 0 }
     }};
 
-	return cli.Post("/", {
+    return cli.Post("/", {
             httplib::make_basic_authentication_header(rpc_user, "password919191828282777wq")
         },
         robj.dump(),

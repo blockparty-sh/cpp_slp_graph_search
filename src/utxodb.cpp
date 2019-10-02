@@ -52,7 +52,7 @@ bool utxodb::load_from_bchd_checkpoint (
 	std::size_t i =0;
 	for (auto it = mmap.begin(); it != mmap.end();) {
         gs::txid prev_tx_id;
-		std::reverse_copy(it, it+32, reinterpret_cast<char*>(prev_tx_id.begin()));
+		std::copy(it, it+32, reinterpret_cast<char*>(prev_tx_id.begin()));
         it+=32;
 
 		std::uint32_t prev_out_idx;
@@ -105,13 +105,65 @@ bool utxodb::load_from_bchd_checkpoint (
 		std::cout << script_len << std::endl;
         */
 		++i;
-		if (i % 100000 == 0) {
-			std::cout << i << "\n";
+		if (i % 10000 == 0) {
+			std::cout << i << "\t" << prev_tx_id.decompress(true) << "\n";
 		}
 	}
 
     current_block_height = block_height;
     current_block_hash   = block_hash;
+
+    return true;
+}
+
+bool utxodb::save_bchd_checkpoint (
+    const std::string & path
+) {
+    std::lock_guard lock(lookup_mtx);
+
+    std::ofstream outf(path, std::ofstream::binary);
+
+	std::size_t i =0;
+
+    std::vector<gs::output> outputs;
+    outputs.reserve(outpoint_map.size());
+
+    for (std::pair<gs::outpoint, gs::output> m : outpoint_map) {
+        outputs.emplace_back(m.second);
+    }
+
+    std::sort(outputs.begin(), outputs.end(), [](gs::output a, gs::output b) -> bool {
+        for (std::size_t i=0; i<a.prev_tx_id.v.size(); ++i) {
+            if (a.prev_tx_id.v[i] < b.prev_tx_id.v[i]) return 1;
+            if (a.prev_tx_id.v[i] > b.prev_tx_id.v[i]) return 0;
+        }
+
+        return a.prev_out_idx < b.prev_out_idx;
+    });
+
+    for (gs::output m : outputs) {
+        std::cout << m.prev_tx_id.decompress() << ":" << m.prev_out_idx << "\n";
+        outf.write(reinterpret_cast<const char *>(m.prev_tx_id.data()), m.prev_tx_id.size());
+        outf.write(reinterpret_cast<const char *>(&m.prev_out_idx), sizeof(m.prev_out_idx));
+        outf.write(reinterpret_cast<const char *>(&m.height), sizeof(m.height));
+        outf.write(reinterpret_cast<const char *>(&m.value), sizeof(m.value));
+        const std::uint32_t script_len = static_cast<std::uint32_t>(m.pk_script.size());
+        outf.write(reinterpret_cast<const char *>(&script_len), sizeof(script_len));
+        outf.write(reinterpret_cast<const char *>(m.pk_script.data()), m.pk_script.size());
+
+
+		// std::cout << prev_tx_id.decompress() << "\t" << prev_out_idx << std::endl; 
+        /*
+		std::cout << (int) is_coinbase << std::endl;
+		std::cout << height << std::endl;
+		std::cout << value << std::endl;
+		std::cout << script_len << std::endl;
+        */
+		++i;
+		if (i % 100000 == 0) {
+			std::cout << i << "\n";
+		}
+	}
 
     return true;
 }
@@ -132,11 +184,11 @@ void utxodb::process_block(
     const std::uint32_t version { gs::util::extract_u32(it) };
 
     gs::txid prev_block; // TODO detect re-org
-    std::reverse_copy(it, it+32, reinterpret_cast<char*>(prev_block.begin()));
+    std::copy(it, it+32, reinterpret_cast<char*>(prev_block.begin()));
     it+=32;
 
     gs::txid merkle_root;
-    std::reverse_copy(it, it+32, reinterpret_cast<char*>(merkle_root.begin()));
+    std::copy(it, it+32, reinterpret_cast<char*>(merkle_root.begin()));
     it+=32;
 
     const std::uint32_t timestamp { gs::util::extract_u32(it) };

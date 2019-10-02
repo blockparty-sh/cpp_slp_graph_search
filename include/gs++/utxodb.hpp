@@ -39,6 +39,10 @@ struct utxodb
         const std::string block_hash
     );
 
+    bool save_bchd_checkpoint(
+        const std::string & path
+    );
+
     void process_block(
         const std::vector<std::uint8_t>& block_data,
         const bool save_rollback

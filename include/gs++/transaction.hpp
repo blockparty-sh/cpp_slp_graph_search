@@ -33,7 +33,7 @@ struct transaction
         this->inputs.reserve(in_count);
         for (std::uint32_t in_i=0; in_i<in_count; ++in_i) {
             gs::txid prev_tx_id;
-            std::reverse_copy(it, it+32, reinterpret_cast<char*>(prev_tx_id.begin()));
+            std::copy(it, it+32, reinterpret_cast<char*>(prev_tx_id.begin()));
             it+=32;
 
             const std::uint32_t prev_out_idx { gs::util::extract_u32(it) };
@@ -77,7 +77,7 @@ struct transaction
 
         picosha2::hash256(serialized_tx, this->txid.v);
         picosha2::hash256(this->txid.v, this->txid.v);
-        std::reverse(this->txid.begin(), this->txid.end());
+        // std::reverse(this->txid.begin(), this->txid.end());
 
         for (auto & m : this->outputs) {
             m.prev_tx_id = this->txid;
