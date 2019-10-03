@@ -125,6 +125,7 @@ bool utxodb::save_bchd_checkpoint (
 
 	std::size_t i =0;
 
+    /*
     std::vector<gs::output> outputs;
     outputs.reserve(outpoint_map.size());
 
@@ -140,16 +141,17 @@ bool utxodb::save_bchd_checkpoint (
 
         return a.prev_out_idx < b.prev_out_idx;
     });
+    */
 
-    for (gs::output m : outputs) {
-        std::cout << m.prev_tx_id.decompress() << ":" << m.prev_out_idx << "\n";
-        outf.write(reinterpret_cast<const char *>(m.prev_tx_id.data()), m.prev_tx_id.size());
-        outf.write(reinterpret_cast<const char *>(&m.prev_out_idx), sizeof(m.prev_out_idx));
-        outf.write(reinterpret_cast<const char *>(&m.height), sizeof(m.height));
-        outf.write(reinterpret_cast<const char *>(&m.value), sizeof(m.value));
-        const std::uint32_t script_len = static_cast<std::uint32_t>(m.pk_script.size());
+    for (std::pair<gs::outpoint, gs::output> m : outpoint_map) {
+        // std::cout << m.second.prev_tx_id.decompress() << ":" << m.second.prev_out_idx << "\n";
+        outf.write(reinterpret_cast<const char *>(m.second.prev_tx_id.data()), m.second.prev_tx_id.size());
+        outf.write(reinterpret_cast<const char *>(&m.second.prev_out_idx), sizeof(m.second.prev_out_idx));
+        outf.write(reinterpret_cast<const char *>(&m.second.height), sizeof(m.second.height));
+        outf.write(reinterpret_cast<const char *>(&m.second.value), sizeof(m.second.value));
+        const std::uint32_t script_len = static_cast<std::uint32_t>(m.second.pk_script.size());
         outf.write(reinterpret_cast<const char *>(&script_len), sizeof(script_len));
-        outf.write(reinterpret_cast<const char *>(m.pk_script.data()), m.pk_script.size());
+        outf.write(reinterpret_cast<const char *>(m.second.pk_script.data()), m.second.pk_script.size());
 
 
 		// std::cout << prev_tx_id.decompress() << "\t" << prev_out_idx << std::endl; 

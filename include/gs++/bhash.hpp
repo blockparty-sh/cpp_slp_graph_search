@@ -22,17 +22,21 @@ struct bhash
 
     bhash(const std::string & v_)
     {
-        assert(v.size() == Size*2);
+        assert(v.size() == Size || v.size() == Size*2);
 
-        for (unsigned i=0; i<Size; ++i) {
-            const char p1 = v_[(i<<1)+0];
-            const char p2 = v_[(i<<1)+1];
+        if (v_.size() == Size) {
+            std::copy(v_.begin(), v_.end(), v.data());
+        } else {
+            for (unsigned i=0; i<Size; ++i) {
+                const char p1 = v_[(i<<1)+0];
+                const char p2 = v_[(i<<1)+1];
 
-            assert((p1 >= '0' && p1 <= '9') || (p1 >= 'a' && p1 <= 'f'));
-            assert((p2 >= '0' && p2 <= '9') || (p2 >= 'a' && p2 <= 'f'));
+                assert((p1 >= '0' && p1 <= '9') || (p1 >= 'a' && p1 <= 'f'));
+                assert((p2 >= '0' && p2 <= '9') || (p2 >= 'a' && p2 <= 'f'));
 
-            v[i] = ((p1 >= '0' && p1 <= '9' ? p1 - '0' : p1 - 'a' + 10) << 4)
-                 +  (p2 >= '0' && p2 <= '9' ? p2 - '0' : p2 - 'a' + 10);
+                v[i] = ((p1 >= '0' && p1 <= '9' ? p1 - '0' : p1 - 'a' + 10) << 4)
+                     +  (p2 >= '0' && p2 <= '9' ? p2 - '0' : p2 - 'a' + 10);
+            }
         }
     }
 
