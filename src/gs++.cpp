@@ -77,9 +77,9 @@ class GraphSearchServiceImpl final
         const graphsearch::GraphSearchRequest* request,
         graphsearch::GraphSearchReply* reply
     ) override {
-        const std::string lookup_txid = request->txid();
-
         const auto start = std::chrono::steady_clock::now();
+
+        const std::string lookup_txid = request->txid();
 
         std::pair<gs::graph_search_status, std::vector<std::string>> result;
         // cowardly validating user provided data
@@ -129,14 +129,14 @@ class GraphSearchServiceImpl final
         const graphsearch::UtxoSearchByOutpointsRequest* request,
         graphsearch::UtxoSearchReply* reply
     ) override {
+        const auto start = std::chrono::steady_clock::now();
+
         std::vector<gs::outpoint> outpoints;
         for (auto o : request->outpoints()) {
             outpoints.push_back(gs::outpoint(o.txid(), o.vout()));
         }
 
-        const auto start = std::chrono::steady_clock::now();
-
-        std::vector<gs::output> outputs = utxodb.get_outputs_by_outpoints(outpoints);
+        const std::vector<gs::output> outputs = utxodb.get_outputs_by_outpoints(outpoints);
 
         for (auto o : outputs) {
             graphsearch::Output* el = reply->add_outputs();
@@ -151,7 +151,34 @@ class GraphSearchServiceImpl final
         const auto diff = end - start;
         const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
 
-        spdlog::info("utxo-outpoints: ({} ms)", diff_ms);
+        spdlog::info("utxo-outpoints: {} ({} ms)", outputs.size(), diff_ms);
+        return { grpc::Status::OK };
+    }
+
+    grpc::Status UtxoSearchByScriptSig (
+        grpc::ServerContext* context,
+        const graphsearch::UtxoSearchByScriptSigRequest* request,
+        graphsearch::UtxoSearchReply* reply
+    ) override {
+        const auto start = std::chrono::steady_clock::now();
+
+        const std::string script_sig = request->scriptsig();
+        const std::vector<gs::output> outputs = utxodb.get_outputs_by_pubkey(gs::pk_script(script_sig));
+
+        for (auto o : outputs) {
+            graphsearch::Output* el = reply->add_outputs();
+            el->set_prev_tx_id(o.prev_tx_id.begin(), o.prev_tx_id.size());
+            el->set_prev_out_idx(o.prev_out_idx);
+            el->set_height(o.height);
+            el->set_value(o.value);
+            el->set_pk_script(o.pk_script.data(), o.pk_script.size());
+        }
+
+        const auto end = std::chrono::steady_clock::now();
+        const auto diff = end - start;
+        const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
+
+        spdlog::info("utxo-scriptsig: {} ({} ms)", outputs.size(), diff_ms);
         return { grpc::Status::OK };
     }
 #endif

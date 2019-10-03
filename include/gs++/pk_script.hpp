@@ -15,6 +15,10 @@ struct pk_script
     pk_script()
     {}
 
+    pk_script(const std::string v_)
+    : v(v_.begin(), v_.end())
+    {}
+
     pk_script(const std::size_t size)
     {
         v.reserve(size);

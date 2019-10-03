@@ -45,21 +45,80 @@ public:
         }
     }
 
-    bool UtxoSearchByOutpoint(const std::string& txid_human, const std::uint32_t vout)
-    {
+    bool UtxoSearchByOutpoints(
+        const std::vector<std::pair<std::string, std::uint32_t>> outpoints
+    ) {
         graphsearch::UtxoSearchByOutpointsRequest request;
 
-        gs::txid txid(txid_human);
-        std::reverse(txid.v.begin(), txid.v.end());
-
-        auto * outpoint = request.add_outpoints();
-        outpoint->set_txid(txid.decompress());
-        outpoint->set_vout(vout);
+        for (auto o : outpoints) {
+            auto * outpoint = request.add_outpoints();
+            outpoint->set_txid(o.first);
+            outpoint->set_vout(o.second);
+        }
 
         graphsearch::UtxoSearchReply reply;
 
         grpc::ClientContext context;
         grpc::Status status = stub_->UtxoSearchByOutpoints(&context, request, &reply);
+
+        if (status.ok()) {
+            for (auto n : reply.outputs()) {
+                const std::string   prev_tx_id_str = n.prev_tx_id();
+                const std::uint32_t prev_out_idx   = n.prev_out_idx();
+                const std::uint32_t height         = n.height();
+                const std::uint64_t value          = n.value();
+                const std::string   pk_script_str  = n.pk_script();
+
+                gs::txid prev_tx_id(prev_tx_id_str);
+
+                std::string pk_script_b64(pk_script_str.size()*1.5, '\0');
+                std::size_t pk_script_b64_len = 0;
+                base64_encode(
+                    pk_script_str.data(),
+                    pk_script_str.size(),
+                    const_cast<char*>(pk_script_b64.data()),
+                    &pk_script_b64_len,
+                    0
+                );
+                pk_script_b64.resize(pk_script_b64_len);
+
+                std::cout
+                    << "prev_tx_id:   " << prev_tx_id.decompress(true) << "\n"
+                    << "prev_out_idx: " << prev_out_idx                << "\n"
+                    << "height:       " << height                      << "\n"
+                    << "value:        " << value                       << "\n"
+                    << "pk_script:    " << pk_script_b64               << "\n\n";
+            }
+
+            return true;
+        } else {
+            std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+            return false;
+        }
+    }
+
+    bool UtxoSearchByScriptSig(const std::string script_sig_b64)
+    {
+        graphsearch::UtxoSearchByScriptSigRequest request;
+
+        std::string script_sig('\0', script_sig_b64.size());
+        std::size_t script_sig_len;
+
+        base64_decode(
+            script_sig_b64.data(),
+            script_sig_b64.size(),
+            script_sig.data(),
+            &script_sig_len,
+            0
+        );
+        script_sig.resize(script_sig_len);
+
+        request.set_scriptsig(script_sig);
+
+        graphsearch::UtxoSearchReply reply;
+
+        grpc::ClientContext context;
+        grpc::Status status = stub_->UtxoSearchByScriptSig(&context, request, &reply);
 
         if (status.ok()) {
             for (auto n : reply.outputs()) {
@@ -108,7 +167,7 @@ int main(int argc, char* argv[])
     std::string query_type = "graphsearch";
 
     const std::string usage_str = "usage: gs++-cli [--version] [--help] [--host host_address] [--port port]\n"
-                                  "[--graphsearch TXID] [--utxo TXID VOUT] [--utxo_address PK]\n";
+                                  "[--graphsearch TXID] [--utxo TXID:VOUT] [--utxo_scriptsig PK]\n";
 
     while (true) {
         static struct option long_options[] = {
@@ -119,7 +178,7 @@ int main(int argc, char* argv[])
 
             { "graphsearch",  no_argument,   nullptr, 1000 },
             { "utxo",         no_argument,   nullptr, 1001 },
-            { "utxo_address", no_argument,   nullptr, 1002 },
+            { "utxo_scriptsig", no_argument,   nullptr, 1002 },
         };
 
         int option_index = 0;
@@ -149,7 +208,7 @@ int main(int argc, char* argv[])
 
             case 1000: query_type = "graphsearch";  break;
             case 1001: query_type = "utxo";         break;
-            case 1002: query_type = "utxo_address"; break;
+            case 1002: query_type = "utxo_scriptsig"; break;
 
             case '?':
                 return EXIT_FAILURE;
@@ -176,15 +235,38 @@ int main(int argc, char* argv[])
     if (query_type == "graphsearch") {
         graphsearch.GraphSearch(argv[argc-1]);
     } else if (query_type == "utxo") {
-        std::string txid(argv[argc-2]);
+        std::vector<std::pair<std::string, std::uint32_t>> outpoints;
+        for (int optidx=optind; optidx < argc; ++optidx) {
+            std::vector<std::string> seglist;
+            {
+                std::stringstream ss(argv[optidx]);
+                std::string segment;
 
-        std::uint32_t vout = 0;
-        std::stringstream ss(argv[argc-1]);
-        ss >> vout;
+                while (std::getline(ss, segment, ':')) {
+                    seglist.push_back(segment);
+                }
+            }
 
-        graphsearch.UtxoSearchByOutpoint(txid, vout);
-    } else if (query_type == "utxo_address") {
-        // graphsearch.UtxoSearchByAddress
+            if (seglist.size() != 2) {
+                std::cerr << "bad format: expected TXID:VOUT\n";
+                return EXIT_FAILURE;
+            }
+
+            gs::txid txid(seglist[0]);
+            std::reverse(txid.v.begin(), txid.v.end());
+            std::uint32_t vout = 0;
+            {
+                std::stringstream ss(seglist[1]);
+                ss >> vout;
+            }
+
+            outpoints.push_back({ txid.decompress(), vout });
+        }
+
+        graphsearch.UtxoSearchByOutpoints(outpoints);
+    } else if (query_type == "utxo_scriptsig") {
+        const std::string script_sig = argv[argc-1];
+        graphsearch.UtxoSearchByScriptSig(script_sig);
     }
 
     return EXIT_SUCCESS;

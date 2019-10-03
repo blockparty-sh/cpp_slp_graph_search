@@ -416,23 +416,24 @@ std::vector<gs::output> utxodb::get_outputs_by_pubkey(
 ) {
     std::shared_lock lock(lookup_mtx);
 
-    if (mempool_pk_script_to_output.count(pk_script) == 0) {
-        return {};
-    }
+    std::vector<gs::output> ret;
 
-    std::vector<output> ret;
-    const absl::flat_hash_set<gs::output*>& pk_utxos = pk_script_to_output.at(pk_script);
+    if (pk_script_to_output.count(pk_script) > 0) {
+        const absl::flat_hash_set<gs::output*>& pk_utxos = pk_script_to_output.at(pk_script);
 
-    for (auto u : pk_utxos) {
-        if (mempool_spent_confirmed_outpoints.count(gs::outpoint(u->prev_tx_id, u->prev_out_idx)) == 0) {
-            ret.push_back(*u);
+        for (const gs::output* u : pk_utxos) {
+            if (mempool_spent_confirmed_outpoints.count(gs::outpoint(u->prev_tx_id, u->prev_out_idx)) == 0) {
+                ret.push_back(*u);
+            }
         }
     }
 
-    const absl::flat_hash_set<gs::output*>& mempool_pk_utxos = mempool_pk_script_to_output.at(pk_script);
+    if (mempool_pk_script_to_output.count(pk_script) > 0) {
+        const absl::flat_hash_set<gs::output*>& pk_utxos = mempool_pk_script_to_output.at(pk_script);
 
-    for (auto u : mempool_pk_utxos) {
-        ret.push_back(*u);
+        for (const gs::output* u : pk_utxos) {
+            ret.push_back(*u);
+        }
     }
 
     return ret;
@@ -440,34 +441,3 @@ std::vector<gs::output> utxodb::get_outputs_by_pubkey(
 
 
 }
-
-
-/*
-int main()
-{
-    // utxodb.process_block(rpc, 600000);
-
-   utxodb.load_from_bchd_checkpoint(
-		"../utxo-checkpoints/QmXkBQJrMKkCKNbwv4m5xtnqwU9Sq7kucPigvZW8mWxcrv",
-		582680, "0000000000000000000000000000000000000000000000000000000000000000"
-	);
-
-    // for (std::uint32_t h=582680; h<602365; ++h) {
-    for (std::uint32_t h=582680; h<582780; ++h) {
-        std::cout << h << std::endl;
-        const std::vector<std::uint8_t> block_data = rpc.get_raw_block(h);
-        utxodb.process_block(block_data, true);
-    }
-
-    std::cout << "s1: " << utxodb.outpoint_map.size() << std::endl;
-    utxodb.rollback();
-    utxodb.rollback();
-    utxodb.rollback();
-    utxodb.process_block(rpc, 582757, true);
-    utxodb.process_block(rpc, 582758, true);
-    utxodb.process_block(rpc, 582759, true);
-    std::cout << "s2: " << utxodb.outpoint_map.size() << std::endl;
-
-    return 0;
-}
-*/
