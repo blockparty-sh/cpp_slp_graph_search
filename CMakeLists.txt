@@ -273,6 +273,7 @@ add_executable(gs++
 target_link_libraries(gs++
     absl::flat_hash_map
     absl::node_hash_map
+    base64
     gRPC::grpc++_reflection
     protobuf::libprotobuf
     ${LIBMONGOCXX_LIBRARIES}

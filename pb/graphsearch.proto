@@ -39,7 +39,7 @@ message UtxoSearchByOutpointsRequest {
 }
 
 message UtxoSearchByScriptSigRequest {
-    bytes scriptSig = 1;
+    bytes pk_script = 1;
 }
 
 message UtxoSearchReply {

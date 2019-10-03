@@ -15,6 +15,8 @@
 #include <grpc++/grpc++.h>
 #include <spdlog/spdlog.h>
 #include <zmq.hpp>
+#include <libbase64.h>
+
 #include <gs++/gs++.hpp>
 #include <gs++/bhash.hpp>
 #include "graphsearch.grpc.pb.h"
@@ -162,23 +164,44 @@ class GraphSearchServiceImpl final
     ) override {
         const auto start = std::chrono::steady_clock::now();
 
-        const std::string script_sig = request->scriptsig();
-        const std::vector<gs::output> outputs = utxodb.get_outputs_by_pubkey(gs::pk_script(script_sig));
+        std::cout << "1\n";
+
+        const gs::pk_script pk_script = gs::pk_script(request->pk_script());
+        std::cout << "2\n";
+        const std::vector<gs::output> outputs = utxodb.get_outputs_by_pubkey(pk_script);
+        std::cout << "3\n";
 
         for (auto o : outputs) {
+            std::cout << "4\n";
             graphsearch::Output* el = reply->add_outputs();
             el->set_prev_tx_id(o.prev_tx_id.begin(), o.prev_tx_id.size());
             el->set_prev_out_idx(o.prev_out_idx);
             el->set_height(o.height);
             el->set_value(o.value);
             el->set_pk_script(o.pk_script.data(), o.pk_script.size());
+            std::cout << "5\n";
         }
 
         const auto end = std::chrono::steady_clock::now();
         const auto diff = end - start;
         const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
 
-        spdlog::info("utxo-scriptsig: {} ({} ms)", outputs.size(), diff_ms);
+        std::cout << "6\n";
+        std::string pk_script_b64(pk_script.v.size()*1.5, '\0');
+        std::cout << "7\n";
+        std::size_t pk_script_b64_len = 0;
+        base64_encode(
+            reinterpret_cast<const char*>(pk_script.v.data()),
+            pk_script.v.size(),
+            pk_script_b64.data(),
+            &pk_script_b64_len,
+            0
+        );
+        std::cout << "8\n";
+        pk_script_b64.resize(pk_script_b64_len);
+        std::cout << "9\n";
+
+        spdlog::info("utxo-pk_script: {} {} ({} ms)", pk_script_b64, outputs.size(), diff_ms);
         return { grpc::Status::OK };
     }
 #endif

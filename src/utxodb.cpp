@@ -46,69 +46,69 @@ bool utxodb::load_from_bchd_checkpoint (
         return false;
     }
 
-	outpoint_map.reserve(40000000);
+    outpoint_map.reserve(40000000);
     mio::mmap_source mmap(fd, 0, mio::map_entire_file);
 
-	std::size_t i =0;
-	for (auto it = mmap.begin(); it != mmap.end();) {
+    std::size_t i =0;
+    for (auto it = mmap.begin(); it != mmap.end();) {
         gs::txid prev_tx_id;
-		std::copy(it, it+32, reinterpret_cast<char*>(prev_tx_id.begin()));
+        std::copy(it, it+32, reinterpret_cast<char*>(prev_tx_id.begin()));
         it+=32;
 
-		std::uint32_t prev_out_idx;
-		std::copy(it, it+4, reinterpret_cast<char*>(&prev_out_idx));
+        std::uint32_t prev_out_idx;
+        std::copy(it, it+4, reinterpret_cast<char*>(&prev_out_idx));
         it+=4;
 
 
-		std::uint32_t height;
-		std::copy(it, it+4, reinterpret_cast<char*>(&height));
+        std::uint32_t height;
+        std::copy(it, it+4, reinterpret_cast<char*>(&height));
         it+=4;
 
-		std::uint64_t value;
-		std::copy(it, it+8, reinterpret_cast<char*>(&value));
+        std::uint64_t value;
+        std::copy(it, it+8, reinterpret_cast<char*>(&value));
         it+=8;
 
-		bool is_coinbase; // TODO
+        bool is_coinbase; // TODO
 
-		std::uint32_t script_len;
-		std::copy(it, it+4, reinterpret_cast<std::uint8_t*>(&script_len));
+        std::uint32_t script_len;
+        std::copy(it, it+4, reinterpret_cast<std::uint8_t*>(&script_len));
         it+=4;
 
         gs::pk_script pk_script(script_len);
-		std::copy(it, it+script_len, std::back_inserter(pk_script.v));
+        std::copy(it, it+script_len, std::back_inserter(pk_script.v));
         it+=script_len;
 
 
-		const gs::outpoint op(prev_tx_id, prev_out_idx);
+        const gs::outpoint op(prev_tx_id, prev_out_idx);
         gs::output* const oid = &(*outpoint_map.insert({
-			op,
-			gs::output(
-				prev_tx_id,
-				prev_out_idx,
-				height,
-				value,
-				pk_script
-			)
-		}).first).second;
+            op,
+            gs::output(
+                prev_tx_id,
+                prev_out_idx,
+                height,
+                value,
+                pk_script
+            )
+        }).first).second;
 
-		if (! pk_script_to_output.count(pk_script)) {
-			pk_script_to_output.insert({ pk_script, { oid } });
-		} else {
-			pk_script_to_output[pk_script].emplace(oid);
-		}
+        if (! pk_script_to_output.count(pk_script)) {
+            pk_script_to_output.insert({ pk_script, { oid } });
+        } else {
+            pk_script_to_output[pk_script].emplace(oid);
+        }
 
-		// std::cout << prev_tx_id.decompress(true) << "\t" << prev_out_idx << std::endl; 
+        // std::cout << prev_tx_id.decompress(true) << "\t" << prev_out_idx << std::endl; 
         /*
-		std::cout << (int) is_coinbase << std::endl;
-		std::cout << height << std::endl;
-		std::cout << value << std::endl;
-		std::cout << script_len << std::endl;
+        std::cout << (int) is_coinbase << std::endl;
+        std::cout << height << std::endl;
+        std::cout << value << std::endl;
+        std::cout << script_len << std::endl;
         */
-		++i;
-		if (i % 10000 == 0) {
-			std::cout << i << "\t" << prev_tx_id.decompress(true) << "\n";
-		}
-	}
+        ++i;
+        if (i % 10000 == 0) {
+            std::cout << i << "\t" << prev_tx_id.decompress(true) << "\n";
+        }
+    }
 
     current_block_height = block_height;
     current_block_hash   = block_hash;
@@ -123,7 +123,7 @@ bool utxodb::save_bchd_checkpoint (
 
     std::ofstream outf(path, std::ofstream::binary);
 
-	std::size_t i =0;
+    std::size_t i =0;
 
     /*
     std::vector<gs::output> outputs;
@@ -154,18 +154,18 @@ bool utxodb::save_bchd_checkpoint (
         outf.write(reinterpret_cast<const char *>(m.second.pk_script.data()), m.second.pk_script.size());
 
 
-		// std::cout << prev_tx_id.decompress(true) << "\t" << prev_out_idx << std::endl; 
+        // std::cout << prev_tx_id.decompress(true) << "\t" << prev_out_idx << std::endl; 
         /*
-		std::cout << (int) is_coinbase << std::endl;
-		std::cout << height << std::endl;
-		std::cout << value << std::endl;
-		std::cout << script_len << std::endl;
+        std::cout << (int) is_coinbase << std::endl;
+        std::cout << height << std::endl;
+        std::cout << value << std::endl;
+        std::cout << script_len << std::endl;
         */
-		++i;
-		if (i % 100000 == 0) {
-			std::cout << i << "\n";
-		}
-	}
+        ++i;
+        if (i % 100000 == 0) {
+            std::cout << i << "\n";
+        }
+    }
 
     return true;
 }
@@ -233,16 +233,16 @@ void utxodb::process_block(
         const gs::outpoint outpoint(m.prev_tx_id, m.prev_out_idx);
         gs::output* const oid = &(*outpoint_map.insert({ outpoint, m }).first).second;
 
-		if (! pk_script_to_output.count(m.pk_script)) {
-			pk_script_to_output.insert({ m.pk_script, { oid } });
-		} else {
-			pk_script_to_output[m.pk_script].emplace(oid);
-		}
+        if (! pk_script_to_output.count(m.pk_script)) {
+            pk_script_to_output.insert({ m.pk_script, { oid } });
+        } else {
+            pk_script_to_output[m.pk_script].emplace(oid);
+        }
 
         outpoint_map.erase(outpoint);
-		if (mempool_pk_script_to_output.count(m.pk_script) > 0) {
-			mempool_pk_script_to_output.at(m.pk_script).erase(oid);
-		}
+        if (mempool_pk_script_to_output.count(m.pk_script) > 0) {
+            mempool_pk_script_to_output.at(m.pk_script).erase(oid);
+        }
         mempool_spent_confirmed_outpoints.erase(gs::outpoint(oid->prev_tx_id, oid->prev_out_idx));
 
         if (save_rollback) {
@@ -352,14 +352,14 @@ void utxodb::rollback()
     for (auto m : rb_removed) {
         gs::output* const oid = &(*outpoint_map.insert({
             gs::outpoint(m.prev_tx_id, m.prev_out_idx),
-			m
-		}).first).second;
+            m
+        }).first).second;
 
-		if (! pk_script_to_output.count(m.pk_script)) {
-			pk_script_to_output.insert({ m.pk_script, { oid } });
-		} else {
-			pk_script_to_output[m.pk_script].emplace(oid);
-		}
+        if (! pk_script_to_output.count(m.pk_script)) {
+            pk_script_to_output.insert({ m.pk_script, { oid } });
+        } else {
+            pk_script_to_output[m.pk_script].emplace(oid);
+        }
 
         // std::cout << "\tadded: " << m.prev_tx_id.decompress(true) << ":" << m.prev_out_idx << "\n";
     }

@@ -16,7 +16,7 @@ struct pk_script
     {}
 
     pk_script(const std::string v_)
-    : v(v_.begin(), v_.end())
+	: v(v_.begin(), v_.end())
     {}
 
     pk_script(const std::size_t size)
@@ -27,13 +27,13 @@ struct pk_script
     constexpr auto size() -> decltype(v.size()) const
     { return v.size(); }
 
-    auto data()  -> decltype(v.data())
+    auto data() -> decltype(v.data())
     { return v.data(); }
 
     auto begin() -> decltype(v.begin())
     { return v.begin(); }
 
-    auto end()   -> decltype(v.end())
+    auto end() -> decltype(v.end())
     { return v.end(); }
 
     bool operator==(const pk_script& o) const
