@@ -179,6 +179,10 @@ int main(int argc, char * argv[])
     bool disable_mongowatch       = false;
     bool disable_grpc             = false;
 
+    std::string   utxo_chkpnt_file         = "../utxo-checkpoints/latest";
+    std::uint32_t utxo_chkpnt_block_height = 0;
+    std::string   utxo_chkpnt_block_hash   = "";
+
     while (true) {
         static struct option long_options[] = {
             { "help",     no_argument,       nullptr, 'h' },
@@ -197,6 +201,9 @@ int main(int argc, char * argv[])
             { "disable_zmq",                 no_argument, nullptr, 2004 },
             { "disable_mongowatch",          no_argument, nullptr, 2005 },
             { "disable_grpc",                no_argument, nullptr, 2006 },
+            { "utxo_chkpnt_file",         required_argument, nullptr, 3000 },
+            { "utxo_chkpnt_block_height", required_argument, nullptr, 3001 },
+            { "utxo_chkpnt_block_hash",   required_argument, nullptr, 3002 },
         };
 
         int option_index = 0;
@@ -241,6 +248,10 @@ int main(int argc, char * argv[])
             case 2004: disable_zmq              = true; break;
             case 2005: disable_mongowatch       = true; break;
             case 2006: disable_grpc             = true; break;
+
+            case 3000: ss >> utxo_chkpnt_file;         break;
+            case 3001: ss >> utxo_chkpnt_block_height; break;
+            case 3002: ss >> utxo_chkpnt_block_hash;   break;
 
             case '?':
                 return EXIT_FAILURE;
@@ -324,8 +335,9 @@ int main(int argc, char * argv[])
 
     if (! disable_utxo_chkpnt_load) {
         utxodb.load_from_bchd_checkpoint(
-            "../utxo-checkpoints/QmXkBQJrMKkCKNbwv4m5xtnqwU9Sq7kucPigvZW8mWxcrv",
-            582680, "0000000000000000000000000000000000000000000000000000000000000000"
+            utxo_chkpnt_file,
+            utxo_chkpnt_block_height,
+            utxo_chkpnt_block_hash
         );
     }
 

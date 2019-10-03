@@ -77,18 +77,18 @@ if(${PROJECT_NAME}_SUPERBUILD)
     )
     set(base64_DIR "${CMAKE_CURRENT_BINARY_DIR}/base64/src/base64")
 
-	ExternalProject_Add(
-		catch
-		PREFIX ${CMAKE_BINARY_DIR}/catch
-		GIT_REPOSITORY "https://github.com/philsquared/Catch.git"
+    ExternalProject_Add(
+        catch
+        PREFIX ${CMAKE_BINARY_DIR}/catch
+        GIT_REPOSITORY "https://github.com/philsquared/Catch.git"
         GIT_TAG "v2.9.2"
         INSTALL_DIR     "${CMAKE_BINARY_DIR}/catch2"
         CMAKE_CACHE_ARGS
             -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/catch2
-	)
+    )
     set(catch_DIR "${CMAKE_CURRENT_BINARY_DIR}/catch/src/catch")
-	ExternalProject_Get_Property(catch source_dir)
-	set(CATCH_INCLUDE_DIR ${source_dir}/include CACHE INTERNAL "Path to include folder for Catch")
+    ExternalProject_Get_Property(catch source_dir)
+    set(CATCH_INCLUDE_DIR ${source_dir}/include CACHE INTERNAL "Path to include folder for Catch")
 
     ExternalProject_Add(spdlog
         PREFIX spdlog
@@ -208,8 +208,8 @@ if(${PROJECT_NAME}_SUPERBUILD)
             -Dlibmongocxx_DIR:PATH=${libmongocxx_DIR}
             -Dabsl_DIR:PATH=${absl_DIR}
             -Dbase64_DIR:PATH=${base64_DIR}
-			-Dcatch_DIR:PATH=${catch_DIR}
-			-DCATCH_INCLUDE_DIR:PATH=${CATCH_INCLUDE_DIR}
+            -Dcatch_DIR:PATH=${catch_DIR}
+            -DCATCH_INCLUDE_DIR:PATH=${CATCH_INCLUDE_DIR}
             -Dspdlog_DIR:PATH=${spdlog_DIR}
             -Dmio_DIR:PATH=${mio_DIR}
             -Dcpp-httplib_DIR:PATH=${cpp-httplib_DIR}
@@ -303,7 +303,9 @@ add_executable(gs++-cli
 target_link_libraries(gs++-cli
     gRPC::grpc++_reflection
     protobuf::libprotobuf
-	base64
+    absl::flat_hash_map
+    absl::node_hash_map
+    base64
 )
 target_compile_options(gs++-cli PRIVATE -Wall -pedantic)
 
@@ -316,29 +318,29 @@ target_compile_options(gs++-cli PRIVATE -Wall -pedantic)
 #)
 #target_include_directories(internals_test PUBLIC
 #    ${CATCH_INCLUDE_DIR}
-#	${CMAKE_CURRENT_SOURCE_DIR}/include
+#    ${CMAKE_CURRENT_SOURCE_DIR}/include
 #)
 #target_link_libraries(internals_test
-#	Catch2::Catch2
+#    Catch2::Catch2
 #    absl::flat_hash_map
 #    absl::node_hash_map
 #    gRPC::grpc++_reflection
 #    protobuf::libprotobuf
-#	base64
+#    base64
 #)
 
 #add_executable(utxodb
 #    ${CMAKE_CURRENT_SOURCE_DIR}/src/utxodb.cpp
 #)
 #target_include_directories(utxodb PUBLIC
-#	${CMAKE_CURRENT_SOURCE_DIR}/include
+#    ${CMAKE_CURRENT_SOURCE_DIR}/include
 #    ${CMAKE_CURRENT_BINARY_DIR}/mio/include
 #    ${CMAKE_CURRENT_BINARY_DIR}/cpp-httplib/include
 #)
 #target_link_libraries(utxodb
 #    absl::flat_hash_map
 #    absl::node_hash_map
-#	mio
+#    mio
 #    httplib
 #    cppzmq
 #    ${CMAKE_THREAD_LIBS_INIT}

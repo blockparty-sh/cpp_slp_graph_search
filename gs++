@@ -1,22 +1,28 @@
-#!/bin/sh
+#!/bin/bash
 
 if [ ! -f "./build/gs++" ]; then
     echo "please build gs++ according to README"
     exit 1
 fi
 
-./build/gs++ \
-    --host "0.0.0.0" \
-    --port "50051" \
-    --db "slpdb_test2" \
-    --rpc_host "0.0.0.0" \
-    --rpc_port "8332" \
-    --rpc_user "user" \
-    --rpc_pass "password919191828282777wq" \
-#    --disable_slpsync          \
-    --disable_utxo_chkpnt_load \
-    --disable_utxo_chkpnt_save \
-    --disable_utxosync         \
-#    --disable_zmq              \
-#    --disable_mongowatch       \
-#    --disable_grpc             
+cfg=(
+    --host "0.0.0.0"
+    --port "50051"
+    --db "slpdb_test2"
+    --rpc_host "0.0.0.0"
+    --rpc_port "8332"
+    --rpc_user "user"
+    --rpc_pass "password919191828282777wq"
+    --disable_slpsync
+#    --disable_utxo_chkpnt_load
+    --disable_utxo_chkpnt_save
+    --disable_utxosync
+#    --disable_zmq
+#    --disable_mongowatch
+#    --disable_grpc
+    --utxo_chkpnt_file         "./utxo-checkpoints/QmXkBQJrMKkCKNbwv4m5xtnqwU9Sq7kucPigvZW8mWxcrv"
+    --utxo_chkpnt_block_height "582680"
+    --utxo_chkpnt_block_hash   "0000000000000000000000000000000000000000000000000000000000000000"
+)
+
+./build/gs++ "${cfg[@]}"

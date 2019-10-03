@@ -97,7 +97,7 @@ bool utxodb::load_from_bchd_checkpoint (
 			pk_script_to_output[pk_script].emplace(oid);
 		}
 
-		// std::cout << prev_tx_id.decompress() << "\t" << prev_out_idx << std::endl; 
+		// std::cout << prev_tx_id.decompress(true) << "\t" << prev_out_idx << std::endl; 
         /*
 		std::cout << (int) is_coinbase << std::endl;
 		std::cout << height << std::endl;
@@ -144,7 +144,7 @@ bool utxodb::save_bchd_checkpoint (
     */
 
     for (std::pair<gs::outpoint, gs::output> m : outpoint_map) {
-        // std::cout << m.second.prev_tx_id.decompress() << ":" << m.second.prev_out_idx << "\n";
+        // std::cout << m.second.prev_tx_id.decompress(true) << ":" << m.second.prev_out_idx << "\n";
         outf.write(reinterpret_cast<const char *>(m.second.prev_tx_id.data()), m.second.prev_tx_id.size());
         outf.write(reinterpret_cast<const char *>(&m.second.prev_out_idx), sizeof(m.second.prev_out_idx));
         outf.write(reinterpret_cast<const char *>(&m.second.height), sizeof(m.second.height));
@@ -154,7 +154,7 @@ bool utxodb::save_bchd_checkpoint (
         outf.write(reinterpret_cast<const char *>(m.second.pk_script.data()), m.second.pk_script.size());
 
 
-		// std::cout << prev_tx_id.decompress() << "\t" << prev_out_idx << std::endl; 
+		// std::cout << prev_tx_id.decompress(true) << "\t" << prev_out_idx << std::endl; 
         /*
 		std::cout << (int) is_coinbase << std::endl;
 		std::cout << height << std::endl;
@@ -202,8 +202,8 @@ void utxodb::process_block(
     /*
     std::cout
         << version << "\n"
-        << prev_block.decompress() << "\n"
-        << merkle_root.decompress() << "\n"
+        << prev_block.decompress(true) << "\n"
+        << merkle_root.decompress(true) << "\n"
         << timestamp << "\n"
         << bits << "\n"
         << nonce << "\n"
@@ -248,7 +248,7 @@ void utxodb::process_block(
         if (save_rollback) {
             this_block_added.push_back(outpoint);
         }
-        // std::cout << height << "\tadded: " << m.prev_tx_id.decompress() << ":" << m.prev_out_idx << "\n";
+        // std::cout << height << "\tadded: " << m.prev_tx_id.decompress(true) << ":" << m.prev_out_idx << "\n";
     }
 
     for (auto & m : blk_inputs) {
@@ -267,7 +267,7 @@ void utxodb::process_block(
             this_block_removed.push_back(o);
         }
         if (addr_map.erase(&o)) {
-            // std::cout << height << "\tremoved: " << m.txid.decompress() << ":" << m.vout << "\n";
+            // std::cout << height << "\tremoved: " << m.txid.decompress(true) << ":" << m.vout << "\n";
         }
         if (addr_map.empty()) {
             pk_script_to_output.erase(pk_script);
@@ -293,12 +293,12 @@ void utxodb::process_mempool_tx(const std::vector<std::uint8_t>& msg_data)
     std::lock_guard lock(lookup_mtx);
 
     gs::transaction tx(msg_data.begin(), 0);
-    std::cout << "txid: " << tx.txid.decompress() << std::endl;
+    std::cout << "txid: " << tx.txid.decompress(true) << std::endl;
     std::cout << "\tversion: " << tx.version << std::endl;
     std::cout << "\tlock_time: " << tx.lock_time << std::endl;
 
     for (auto & m : tx.outputs) {
-        std::cout << "\toutput txid: " << m.prev_tx_id.decompress() << "\t" << m.prev_out_idx << std::endl; 
+        std::cout << "\toutput txid: " << m.prev_tx_id.decompress(true) << "\t" << m.prev_out_idx << std::endl; 
 
 
         const gs::outpoint outpoint(m.prev_tx_id, m.prev_out_idx);
@@ -312,7 +312,7 @@ void utxodb::process_mempool_tx(const std::vector<std::uint8_t>& msg_data)
     }
 
     for (auto & m : tx.inputs) {
-        std::cout << "\tinput txid: " << m.txid.decompress() << ":" << m.vout << "\n";
+        std::cout << "\tinput txid: " << m.txid.decompress(true) << ":" << m.vout << "\n";
 
         if (mempool_outpoint_map.count(m) == 0) {
             mempool_spent_confirmed_outpoints.insert(m);
@@ -327,7 +327,7 @@ void utxodb::process_mempool_tx(const std::vector<std::uint8_t>& msg_data)
         }
         absl::flat_hash_set<gs::output*> & addr_map = mempool_pk_script_to_output.at(pk_script);
         if (addr_map.erase(&o)) {
-            // std::cout << height << "\tremoved: " << m.txid.decompress() << ":" << m.vout << "\n";
+            // std::cout << height << "\tremoved: " << m.txid.decompress(true) << ":" << m.vout << "\n";
         }
         if (addr_map.empty()) {
             mempool_pk_script_to_output.erase(pk_script);
@@ -361,7 +361,7 @@ void utxodb::rollback()
 			pk_script_to_output[m.pk_script].emplace(oid);
 		}
 
-        // std::cout << "\tadded: " << m.prev_tx_id.decompress() << ":" << m.prev_out_idx << "\n";
+        // std::cout << "\tadded: " << m.prev_tx_id.decompress(true) << ":" << m.prev_out_idx << "\n";
     }
 
     for (auto m : rb_added) {
@@ -377,7 +377,7 @@ void utxodb::rollback()
         }
         absl::flat_hash_set<gs::output*> & addr_map = pk_script_to_output.at(pk_script);
         if (addr_map.erase(&o)) {
-            // std::cout << "\tremoved: " << m.txid.decompress() << ":" << m.vout << "\n";
+            // std::cout << "\tremoved: " << m.txid.decompress(true) << ":" << m.vout << "\n";
         }
         if (addr_map.empty()) {
             pk_script_to_output.erase(pk_script);
