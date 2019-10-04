@@ -60,10 +60,6 @@ struct transaction
             std::copy(it, it+script_len, std::back_inserter(pk_script.v));
             it+=script_len;
 
-            // skip OP_RETURN
-            if (pk_script.v[0] == 0x6a) {
-                continue;
-            }
             this->outputs.push_back(gs::output({}, out_i, height, value, pk_script));
         }
 

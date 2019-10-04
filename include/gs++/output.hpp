@@ -33,6 +33,11 @@ struct output
 	, value(value)
 	, pk_script(pk_script)
 	{}
+
+    bool is_op_return() const
+    {
+        return pk_script.v[0] == 0x6a;
+    }
 };
 
 struct outpoint

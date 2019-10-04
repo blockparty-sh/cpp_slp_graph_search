@@ -237,6 +237,10 @@ void utxodb::process_block(
     std::vector<gs::output>   this_block_removed;
 
     for (auto & m : blk_outputs) {
+        if (m.is_op_return()) {
+            continue;
+        }
+
         const gs::outpoint outpoint(m.prev_tx_id, m.prev_out_idx);
         gs::output* const oid = &(*outpoint_map.insert({ outpoint, m }).first).second;
 
@@ -261,37 +265,13 @@ void utxodb::process_block(
     for (auto & m : blk_inputs) {
         bool found = false;
 
-        if (mempool_outpoint_map.count(m) > 0) {
-            found = true;
-
-            const gs::output& o           = mempool_outpoint_map.at(m);
-            const gs::pk_script pk_script = o.pk_script;
-
-            if (mempool_pk_script_to_output.count(pk_script)) {
-                absl::flat_hash_set<gs::output*> & addr_map = mempool_pk_script_to_output.at(pk_script);
-
-                if (addr_map.erase(&o)) {
-                    // std::cout << height << "\tremoved: " << m.txid.decompress(true) << ":" << m.vout << "\n";
-                }
-                if (addr_map.empty()) {
-                    mempool_pk_script_to_output.erase(pk_script);
-                }
-            }
-
-            if (save_rollback) {
-                this_block_removed.push_back(o);
-            }
-
-            mempool_outpoint_map.erase(m);
-        }
-
         if (outpoint_map.count(m) > 0) {
             found = true;
 
             const gs::output& o           = outpoint_map.at(m);
             const gs::pk_script pk_script = o.pk_script;
 
-            if (pk_script_to_output.count(pk_script)) {
+            if (pk_script_to_output.count(pk_script) > 0) {
                 absl::flat_hash_set<gs::output*> & addr_map = pk_script_to_output.at(pk_script);
 
                 if (addr_map.erase(&o)) {
@@ -310,6 +290,31 @@ void utxodb::process_block(
 
             outpoint_map.erase(m);
         }
+
+        if (mempool_outpoint_map.count(m) > 0) {
+            found = true;
+
+            const gs::output& o           = mempool_outpoint_map.at(m);
+            const gs::pk_script pk_script = o.pk_script;
+
+            if (mempool_pk_script_to_output.count(pk_script) > 0) {
+                absl::flat_hash_set<gs::output*> & addr_map = mempool_pk_script_to_output.at(pk_script);
+
+                if (addr_map.erase(&o)) {
+                    // std::cout << height << "\tremoved: " << m.txid.decompress(true) << ":" << m.vout << "\n";
+                }
+                if (addr_map.empty()) {
+                    mempool_pk_script_to_output.erase(pk_script);
+                }
+            }
+
+            if (save_rollback) {
+                this_block_removed.push_back(o);
+            }
+
+            mempool_outpoint_map.erase(m);
+        }
+
 
         assert(found);
     }
@@ -340,7 +345,9 @@ void utxodb::process_mempool_tx(const std::vector<std::uint8_t>& msg_data)
 
     for (auto & m : tx.outputs) {
         // std::cout << "\toutput txid: " << m.prev_tx_id.decompress(true) << "\t" << m.prev_out_idx << std::endl; 
-
+        if (m.is_op_return()) {
+            continue;
+        }
 
         const gs::outpoint outpoint(m.prev_tx_id, m.prev_out_idx);
         gs::output* const oid = &(*mempool_outpoint_map.insert({ outpoint, m }).first).second;

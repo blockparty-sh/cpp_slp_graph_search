@@ -19,7 +19,7 @@ cfg=(
     --disable_slpsync
 #    --disable_utxo_chkpnt_load
     --disable_utxo_chkpnt_save
-#    --disable_utxosync
+    --disable_utxosync
 #    --disable_zmq
     --disable_mongowatch
 #    --disable_grpc
