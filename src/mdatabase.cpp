@@ -59,7 +59,7 @@ int mdatabase::get_current_block_height(bool & running)
 
     for (auto&& doc : cursor) {
         auto state_el = doc["state"];
-        assert(state_el && el.type() == bsoncxx::type::k_utf8);
+        assert(state_el && state_el.type() == bsoncxx::type::k_utf8);
         const std::string state_str = bsoncxx::string::to_string(state_el.get_utf8().value);
         running = state_str == "RUNNING";
 

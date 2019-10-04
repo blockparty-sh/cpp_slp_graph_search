@@ -16,6 +16,7 @@
 
 #include <mio/mmap.hpp>
 #include <zmq.hpp>
+#include <spdlog/spdlog.h>
 #include <3rdparty/picosha2.h>
 
 #include <gs++/bhash.hpp>
@@ -41,18 +42,13 @@ bool utxodb::load_from_bchd_checkpoint (
 ) {
     std::lock_guard lock(lookup_mtx);
 
-    std::cout << "n1\n";
-
     const int fd = open(path.c_str(), O_RDONLY);
     if (fd == -1) {
         return false;
     }
-    std::cout << "n2\n";
 
     outpoint_map.reserve(40000000);
-    std::cout << "n3\n";
     mio::mmap_source mmap(fd, 0, mio::map_entire_file);
-    std::cout << "n4\n";
 
     std::size_t i =0;
     for (auto it = mmap.begin(); it != mmap.end();) {
@@ -72,22 +68,18 @@ bool utxodb::load_from_bchd_checkpoint (
         std::uint64_t value;
         std::copy(it, it+8, reinterpret_cast<char*>(&value));
         it+=8;
-        std::cout << "n5\n";
 
         bool is_coinbase; // TODO
 
         std::uint32_t script_len;
         std::copy(it, it+4, reinterpret_cast<std::uint8_t*>(&script_len));
         it+=4;
-        std::cout << "n6\n";
 
         gs::pk_script pk_script(script_len);
         std::copy(it, it+script_len, std::back_inserter(pk_script.v));
         it+=script_len;
-        std::cout << "n7\n";
 
 
-        std::cout << "111\n";
         const gs::outpoint op(prev_tx_id, prev_out_idx);
         gs::output* const oid = &(*outpoint_map.insert({
             op,
@@ -99,16 +91,12 @@ bool utxodb::load_from_bchd_checkpoint (
                 pk_script
             )
         }).first).second;
-        std::cout << "222\n";
 
         if (! pk_script_to_output.count(pk_script)) {
-            std::cout << "333\n";
             pk_script_to_output.insert({ pk_script, { oid } });
         } else {
-            std::cout << "444\n";
             pk_script_to_output[pk_script].emplace(oid);
         }
-        std::cout << "555\n";
 
         // std::cout << prev_tx_id.decompress(true) << "\t" << prev_out_idx << std::endl; 
         /*
@@ -121,6 +109,11 @@ bool utxodb::load_from_bchd_checkpoint (
         if (i % 10000 == 0) {
             std::cout << i << "\t" << prev_tx_id.decompress(true) << "\n";
         }
+
+        // // TODO TESTING
+        // if (i % 1000000 == 0) {
+        //     break;
+        // }
     }
 
     current_block_height = block_height;
@@ -194,6 +187,7 @@ void utxodb::process_block(
     std::lock_guard lock(lookup_mtx);
 
     ++current_block_height;
+    spdlog::info("processing block {}", current_block_height);
 
     auto it = block_data.begin();
     const std::uint32_t version { gs::util::extract_u32(it) };
@@ -265,28 +259,59 @@ void utxodb::process_block(
     }
 
     for (auto & m : blk_inputs) {
-        if (outpoint_map.count(m) == 0) {
-            continue;
+        bool found = false;
+
+        if (mempool_outpoint_map.count(m) > 0) {
+            found = true;
+
+            const gs::output& o           = mempool_outpoint_map.at(m);
+            const gs::pk_script pk_script = o.pk_script;
+
+            if (mempool_pk_script_to_output.count(pk_script)) {
+                absl::flat_hash_set<gs::output*> & addr_map = mempool_pk_script_to_output.at(pk_script);
+
+                if (addr_map.erase(&o)) {
+                    // std::cout << height << "\tremoved: " << m.txid.decompress(true) << ":" << m.vout << "\n";
+                }
+                if (addr_map.empty()) {
+                    mempool_pk_script_to_output.erase(pk_script);
+                }
+            }
+
+            if (save_rollback) {
+                this_block_removed.push_back(o);
+            }
+
+            mempool_outpoint_map.erase(m);
         }
 
-        const gs::output& o           = outpoint_map.at(m);
-        const gs::pk_script pk_script = o.pk_script;
+        if (outpoint_map.count(m) > 0) {
+            found = true;
 
-        if (! pk_script_to_output.count(pk_script)) {
-            continue;
+            const gs::output& o           = outpoint_map.at(m);
+            const gs::pk_script pk_script = o.pk_script;
+
+            if (pk_script_to_output.count(pk_script)) {
+                absl::flat_hash_set<gs::output*> & addr_map = pk_script_to_output.at(pk_script);
+
+                if (addr_map.erase(&o)) {
+                    // std::cout << height << "\tremoved: " << m.txid.decompress(true) << ":" << m.vout << "\n";
+                }
+                if (addr_map.empty()) {
+                    pk_script_to_output.erase(pk_script);
+                }
+
+                mempool_spent_confirmed_outpoints.erase(gs::outpoint(o.prev_tx_id, o.prev_out_idx));
+            }
+
+            if (save_rollback) {
+                this_block_removed.push_back(o);
+            }
+
+            outpoint_map.erase(m);
         }
-        absl::flat_hash_set<gs::output*> & addr_map = pk_script_to_output.at(pk_script);
-        if (save_rollback) {
-            this_block_removed.push_back(o);
-        }
-        if (addr_map.erase(&o)) {
-            // std::cout << height << "\tremoved: " << m.txid.decompress(true) << ":" << m.vout << "\n";
-        }
-        if (addr_map.empty()) {
-            pk_script_to_output.erase(pk_script);
-        }
-        mempool_spent_confirmed_outpoints.erase(gs::outpoint(o.prev_tx_id, o.prev_out_idx));
-        outpoint_map.erase(m);
+
+        assert(found);
     }
 
     if (save_rollback) {
@@ -307,12 +332,14 @@ void utxodb::process_mempool_tx(const std::vector<std::uint8_t>& msg_data)
     std::lock_guard lock(lookup_mtx);
 
     gs::transaction tx(msg_data.begin(), 0);
-    std::cout << "txid: " << tx.txid.decompress(true) << std::endl;
-    std::cout << "\tversion: " << tx.version << std::endl;
-    std::cout << "\tlock_time: " << tx.lock_time << std::endl;
+    spdlog::info("processing tx {}", tx.txid.decompress(true));
+
+    // std::cout << "txid: " << tx.txid.decompress(true) << std::endl;
+    // std::cout << "\tversion: " << tx.version << std::endl;
+    // std::cout << "\tlock_time: " << tx.lock_time << std::endl;
 
     for (auto & m : tx.outputs) {
-        std::cout << "\toutput txid: " << m.prev_tx_id.decompress(true) << "\t" << m.prev_out_idx << std::endl; 
+        // std::cout << "\toutput txid: " << m.prev_tx_id.decompress(true) << "\t" << m.prev_out_idx << std::endl; 
 
 
         const gs::outpoint outpoint(m.prev_tx_id, m.prev_out_idx);
@@ -326,7 +353,7 @@ void utxodb::process_mempool_tx(const std::vector<std::uint8_t>& msg_data)
     }
 
     for (auto & m : tx.inputs) {
-        std::cout << "\tinput txid: " << m.txid.decompress(true) << ":" << m.vout << "\n";
+        // std::cout << "\tinput txid: " << m.txid.decompress(true) << ":" << m.vout << "\n";
 
         if (mempool_outpoint_map.count(m) == 0) {
             mempool_spent_confirmed_outpoints.insert(m);
@@ -428,43 +455,27 @@ std::vector<gs::output> utxodb::get_outputs_by_outpoints(
 std::vector<gs::output> utxodb::get_outputs_by_pubkey(
     const gs::pk_script pk_script
 ) {
-    std::cout  << "a1\n";
     std::shared_lock lock(lookup_mtx);
 
-    std::cout  << "a2\n";
     std::vector<gs::output> ret;
 
-    std::cout  << "a3\n";
     if (pk_script_to_output.count(pk_script) > 0) {
         const absl::flat_hash_set<gs::output*>& pk_utxos = pk_script_to_output.at(pk_script);
-        std::cout  << "a4\n";
 
         for (const gs::output* u : pk_utxos) {
-            std::cout  << "a5\n";
             if (mempool_spent_confirmed_outpoints.count(gs::outpoint(u->prev_tx_id, u->prev_out_idx)) == 0) {
-                std::cout  << "a6\n";
-                if (u == nullptr) {
-                    std::cout << "aXY\n";
-                }
                 ret.push_back(*u);
-                std::cout  << "aXX\n";
             }
         }
     }
 
-    std::cout  << "a7\n";
     if (mempool_pk_script_to_output.count(pk_script) > 0) {
-        std::cout  << "a8\n";
         const absl::flat_hash_set<gs::output*>& pk_utxos = mempool_pk_script_to_output.at(pk_script);
-        std::cout  << "a9\n";
 
         for (const gs::output* u : pk_utxos) {
-            std::cout  << "a10\n";
             ret.push_back(*u);
-            std::cout  << "a11\n";
         }
     }
-    std::cout  << "a12\n";
 
     return ret;
 }

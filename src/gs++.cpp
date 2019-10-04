@@ -149,31 +149,23 @@ class GraphSearchServiceImpl final
     ) override {
         const auto start = std::chrono::steady_clock::now();
 
-        std::cout << "1\n";
-
         const gs::pk_script pk_script = gs::pk_script(request->pk_script());
-        std::cout << "2\n";
         const std::vector<gs::output> outputs = utxodb.get_outputs_by_pubkey(pk_script);
-        std::cout << "3\n";
 
         for (auto o : outputs) {
-            std::cout << "4\n";
             graphsearch::Output* el = reply->add_outputs();
             el->set_prev_tx_id(o.prev_tx_id.begin(), o.prev_tx_id.size());
             el->set_prev_out_idx(o.prev_out_idx);
             el->set_height(o.height);
             el->set_value(o.value);
             el->set_pk_script(o.pk_script.data(), o.pk_script.size());
-            std::cout << "5\n";
         }
 
         const auto end = std::chrono::steady_clock::now();
         const auto diff = end - start;
         const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
 
-        std::cout << "6\n";
         std::string pk_script_b64(pk_script.v.size()*1.5, '\0');
-        std::cout << "7\n";
         std::size_t pk_script_b64_len = 0;
         base64_encode(
             reinterpret_cast<const char*>(pk_script.v.data()),
@@ -182,9 +174,7 @@ class GraphSearchServiceImpl final
             &pk_script_b64_len,
             0
         );
-        std::cout << "8\n";
         pk_script_b64.resize(pk_script_b64_len);
-        std::cout << "9\n";
 
         spdlog::info("utxo-pk_script: {} {} ({} ms)", pk_script_b64, outputs.size(), diff_ms);
         return { grpc::Status::OK };
@@ -384,7 +374,6 @@ int main(int argc, char * argv[])
         const std::uint32_t best_block_height = rpc.get_best_block_height();
         std::cout << "best block height: " << best_block_height << "\n";
         for (std::uint32_t h=utxo_chkpnt_block_height; h<best_block_height; ++h) {
-            std::cout << "block: " << h << "\n";
             const std::vector<std::uint8_t> block_data = rpc.get_raw_block(h);
             utxodb.process_block(block_data, true);
         }
@@ -409,7 +398,7 @@ int main(int argc, char * argv[])
             std::string env_str = std::string(static_cast<char*>(env.data()), env.size());
 
             if (env_str == "rawtx" || env_str == "rawblock") {
-                std::cout << "Received envelope '" << env_str << "'" << std::endl;
+                // std::cout << "Received envelope '" << env_str << "'" << std::endl;
 
                 zmq::message_t msg;
                 sock.recv(&msg);
