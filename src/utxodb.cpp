@@ -81,21 +81,22 @@ bool utxodb::load_from_bchd_checkpoint (
 
 
         const gs::outpoint op(prev_tx_id, prev_out_idx);
-        gs::output* const oid = &(*outpoint_map.insert({
-            op,
-            gs::output(
-                prev_tx_id,
-                prev_out_idx,
-                height,
-                value,
-                pk_script
-            )
-        }).first).second;
+        const gs::output out = gs::output(
+            prev_tx_id,
+            prev_out_idx,
+            height,
+            value,
+            pk_script
+        );
 
-        if (! pk_script_to_output.count(pk_script)) {
-            pk_script_to_output.insert({ pk_script, { oid } });
-        } else {
-            pk_script_to_output[pk_script].emplace(oid);
+        if (! out.is_op_return()) {
+            gs::output* const oid = &(*outpoint_map.insert({ op, out }).first).second;
+
+            if (! pk_script_to_output.count(pk_script)) {
+                pk_script_to_output.insert({ pk_script, { oid } });
+            } else {
+                pk_script_to_output[pk_script].emplace(oid);
+            }
         }
 
         // std::cout << prev_tx_id.decompress(true) << "\t" << prev_out_idx << std::endl; 
@@ -168,10 +169,9 @@ bool utxodb::save_bchd_checkpoint (
         std::cout << script_len << std::endl;
         */
         ++i;
-        if (i % 100000 == 0) {
-            std::cout << i << "\n";
-        }
     }
+
+    spdlog::info("saved utxo checkpoint: {}", path);
 
     return true;
 }
@@ -187,7 +187,6 @@ void utxodb::process_block(
     std::lock_guard lock(lookup_mtx);
 
     ++current_block_height;
-    spdlog::info("processing block {}", current_block_height);
 
     auto it = block_data.begin();
     const std::uint32_t version { gs::util::extract_u32(it) };
@@ -220,15 +219,24 @@ void utxodb::process_block(
     std::vector<gs::outpoint> blk_inputs;
     std::vector<gs::output>   blk_outputs;
 
+    std::size_t total_added = 0;
+    std::size_t total_removed = 0;
+
     for (std::uint64_t i=0; i<txn_count; ++i) {
         gs::transaction tx(it, current_block_height);
 
         for (auto & m : tx.inputs) {
             blk_inputs.emplace_back(m);
+            ++total_removed;
         }
 
         for (auto & m : tx.outputs) {
+            if (m.is_op_return()) {
+                continue;
+            }
+
             blk_outputs.emplace_back(m);
+            ++total_added;
         }
     }
 
@@ -237,10 +245,6 @@ void utxodb::process_block(
     std::vector<gs::output>   this_block_removed;
 
     for (auto & m : blk_outputs) {
-        if (m.is_op_return()) {
-            continue;
-        }
-
         const gs::outpoint outpoint(m.prev_tx_id, m.prev_out_idx);
         gs::output* const oid = &(*outpoint_map.insert({ outpoint, m }).first).second;
 
@@ -268,17 +272,16 @@ void utxodb::process_block(
         if (outpoint_map.count(m) > 0) {
             found = true;
 
-            const gs::output& o           = outpoint_map.at(m);
-            const gs::pk_script pk_script = o.pk_script;
+            const gs::output& o = outpoint_map.at(m);
 
-            if (pk_script_to_output.count(pk_script) > 0) {
-                absl::flat_hash_set<gs::output*> & addr_map = pk_script_to_output.at(pk_script);
+            if (pk_script_to_output.count(o.pk_script) > 0) {
+                absl::flat_hash_set<gs::output*> & addr_map = pk_script_to_output.at(o.pk_script);
 
                 if (addr_map.erase(&o)) {
                     // std::cout << height << "\tremoved: " << m.txid.decompress(true) << ":" << m.vout << "\n";
                 }
                 if (addr_map.empty()) {
-                    pk_script_to_output.erase(pk_script);
+                    pk_script_to_output.erase(o.pk_script);
                 }
 
                 mempool_spent_confirmed_outpoints.erase(gs::outpoint(o.prev_tx_id, o.prev_out_idx));
@@ -294,17 +297,16 @@ void utxodb::process_block(
         if (mempool_outpoint_map.count(m) > 0) {
             found = true;
 
-            const gs::output& o           = mempool_outpoint_map.at(m);
-            const gs::pk_script pk_script = o.pk_script;
+            const gs::output& o = mempool_outpoint_map.at(m);
 
-            if (mempool_pk_script_to_output.count(pk_script) > 0) {
-                absl::flat_hash_set<gs::output*> & addr_map = mempool_pk_script_to_output.at(pk_script);
+            if (mempool_pk_script_to_output.count(o.pk_script) > 0) {
+                absl::flat_hash_set<gs::output*> & addr_map = mempool_pk_script_to_output.at(o.pk_script);
 
                 if (addr_map.erase(&o)) {
                     // std::cout << height << "\tremoved: " << m.txid.decompress(true) << ":" << m.vout << "\n";
                 }
                 if (addr_map.empty()) {
-                    mempool_pk_script_to_output.erase(pk_script);
+                    mempool_pk_script_to_output.erase(o.pk_script);
                 }
             }
 
@@ -330,6 +332,8 @@ void utxodb::process_block(
             last_block_removed.pop_front();
         }
     }
+
+    spdlog::info("processed block {} +{} -{}", current_block_height, total_added, total_removed);
 }
 
 void utxodb::process_mempool_tx(const std::vector<std::uint8_t>& msg_data)
@@ -367,18 +371,17 @@ void utxodb::process_mempool_tx(const std::vector<std::uint8_t>& msg_data)
             continue;
         }
 
-        const gs::output& o           = mempool_outpoint_map.at(m);
-        const gs::pk_script pk_script = o.pk_script;
+        const gs::output& o = mempool_outpoint_map.at(m);
 
-        if (! mempool_pk_script_to_output.count(pk_script)) {
+        if (! mempool_pk_script_to_output.count(o.pk_script)) {
             continue;
         }
-        absl::flat_hash_set<gs::output*> & addr_map = mempool_pk_script_to_output.at(pk_script);
+        absl::flat_hash_set<gs::output*> & addr_map = mempool_pk_script_to_output.at(o.pk_script);
         if (addr_map.erase(&o)) {
             // std::cout << height << "\tremoved: " << m.txid.decompress(true) << ":" << m.vout << "\n";
         }
         if (addr_map.empty()) {
-            mempool_pk_script_to_output.erase(pk_script);
+            mempool_pk_script_to_output.erase(o.pk_script);
         }
     }
 }
