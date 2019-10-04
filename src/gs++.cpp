@@ -21,31 +21,19 @@
 #include <gs++/bhash.hpp>
 #include "graphsearch.grpc.pb.h"
 
-#define ENABLE_SLP
-#define ENABLE_UTXO
 
-
-#ifdef ENABLE_SLP
 #include <gs++/mdatabase.hpp>
 #include <gs++/txgraph.hpp>
-#endif
-#ifdef ENABLE_UTXO
 #include <gs++/rpc.hpp>
 #include <gs++/utxodb.hpp>
-#endif
 
 std::unique_ptr<grpc::Server> gserver;
 std::atomic<int>  current_block_height    = { -1 };
 std::atomic<bool> continue_watching_mongo = { true };
 bool exit_early = false;
 
-#ifdef ENABLE_SLP
 gs::txgraph g;
-#endif
-
-#ifdef ENABLE_UTXO
 gs::utxodb utxodb;
-#endif
 
 
 std::filesystem::path get_tokendir(const gs::tokenid tokenid)
@@ -73,7 +61,6 @@ void signal_handler(int signal)
 class GraphSearchServiceImpl final
  : public graphsearch::GraphSearchService::Service
 {
-#ifdef ENABLE_SLP
     grpc::Status GraphSearch (
         grpc::ServerContext* context,
         const graphsearch::GraphSearchRequest* request,
@@ -123,9 +110,7 @@ class GraphSearchServiceImpl final
             return { grpc::StatusCode::INVALID_ARGUMENT, "txid did not match regex" };
         }
     }
-#endif
 
-#ifdef ENABLE_UTXO
     grpc::Status UtxoSearchByOutpoints (
         grpc::ServerContext* context,
         const graphsearch::UtxoSearchByOutpointsRequest* request,
@@ -204,7 +189,6 @@ class GraphSearchServiceImpl final
         spdlog::info("utxo-pk_script: {} {} ({} ms)", pk_script_b64, outputs.size(), diff_ms);
         return { grpc::Status::OK };
     }
-#endif
 };
 
 int main(int argc, char * argv[])
@@ -312,8 +296,15 @@ int main(int argc, char * argv[])
 
     spdlog::info("hello");
 
+    if (disable_slpsync)          std::cout << "disable_slpsync\n";
+    if (disable_utxo_chkpnt_load) std::cout << "disable_utxo_chkpnt_load\n";
+    if (disable_utxo_chkpnt_save) std::cout << "disable_utxo_chkpnt_save\n";
+    if (disable_utxosync)         std::cout << "disable_utxosync\n";
+    if (disable_zmq)              std::cout << "disable_zmq\n";
+    if (disable_mongowatch)       std::cout << "disable_mongowatch\n";
+    if (disable_grpc)             std::cout << "disable_grpc\n";
 
-#ifdef ENABLE_SLP
+
     gs::mdatabase mdb(mongo_db_name);
 
 
@@ -377,9 +368,7 @@ int main(int argc, char * argv[])
             continue_watching_mongo
         );
     });
-#endif
 
-#ifdef ENABLE_UTXO
     // setup utxodb stuff
     gs::rpc rpc(rpc_host, rpc_port, rpc_user, rpc_pass);
 
@@ -394,7 +383,7 @@ int main(int argc, char * argv[])
     if (! disable_utxosync) {
         const std::uint32_t best_block_height = rpc.get_best_block_height();
         std::cout << "best block height: " << best_block_height << "\n";
-        for (std::uint32_t h=582680; h<best_block_height; ++h) {
+        for (std::uint32_t h=utxo_chkpnt_block_height; h<best_block_height; ++h) {
             std::cout << "block: " << h << "\n";
             const std::vector<std::uint8_t> block_data = rpc.get_raw_block(h);
             utxodb.process_block(block_data, true);
@@ -443,7 +432,6 @@ int main(int argc, char * argv[])
             }
         }
     });
-#endif
 
     if (! disable_grpc) {
         const std::string server_address(grpc_host+":"+grpc_port);
@@ -460,9 +448,7 @@ int main(int argc, char * argv[])
         }
     }
 
-#ifdef ENABLE_SLP
     mongo_status_update_thread.join();
-#endif
 
     spdlog::info("goodbye");
 

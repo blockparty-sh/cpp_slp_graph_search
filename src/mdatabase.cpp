@@ -101,19 +101,19 @@ void mdatabase::watch_for_status_update(
         // if state is not running we may be syncing so we should wait
         if (running && block_height > 0 && current_block_height < block_height) {
             for (int h=current_block_height+1; h<=block_height; ++h) {
-                spdlog::info("block: {}", h);
+                spdlog::info("mongo block: {}", h);
                 bool load_block_success = false;
                 const absl::flat_hash_map<gs::tokenid, std::vector<gs_tx>> block_data = load_block(h, load_block_success);
                 if (! load_block_success) {
                     spdlog::warn("block load failed");
                     break;
                 } else {
-                    spdlog::info("block: {} successfully loaded", h);
+                    spdlog::info("mongo block: {} successfully loaded", h);
                 }
                 int tid = 1;
 
                 for (auto it : block_data) {
-                    spdlog::info("block: {} token: {}\t{}\t({}/{})",
+                    spdlog::info("mongo block: {} token: {}\t{}\t({}/{})",
                         h, it.first.decompress(),
                         g.insert_token_data(it.first, it.second),
                         tid, block_data.size()
@@ -274,7 +274,7 @@ absl::flat_hash_map<gs::tokenid, std::vector<gs_tx>> mdatabase::load_block(
 
         if (graph_sarr.empty()) {
             success = false;
-            spdlog::warn("load_block: associated tx not found in graphs {}", txid_str);
+            spdlog::warn("mongo load_block: associated tx not found in graphs {}", txid_str);
             break;
         }
         for (bsoncxx::array::element graph_s_el : graph_sarr) {

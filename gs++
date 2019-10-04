@@ -5,6 +5,9 @@ if [ ! -f "./build/gs++" ]; then
     exit 1
 fi
 
+VALGRIND=true
+GDB=false
+
 cfg=(
     --host "0.0.0.0"
     --port "50051"
@@ -16,13 +19,22 @@ cfg=(
     --disable_slpsync
 #    --disable_utxo_chkpnt_load
     --disable_utxo_chkpnt_save
-#    --disable_utxosync
-#    --disable_zmq
-#    --disable_mongowatch
+    --disable_utxosync
+    --disable_zmq
+    --disable_mongowatch
 #    --disable_grpc
     --utxo_chkpnt_file         "./utxo-checkpoints/QmXkBQJrMKkCKNbwv4m5xtnqwU9Sq7kucPigvZW8mWxcrv"
-    --utxo_chkpnt_block_height "582680"
+#    --utxo_chkpnt_block_height "582680"
+    --utxo_chkpnt_block_height "603030"
     --utxo_chkpnt_block_hash   "0000000000000000000000000000000000000000000000000000000000000000"
 )
 
-./build/gs++ "${cfg[@]}"
+if [ $VALGRIND = true ];
+then
+    valgrind ./build/gs++ "${cfg[@]}"
+elif [ $GDB = true ];
+then
+    gdb ./build/gs++ "${cfg[@]}"
+else
+    ./build/gs++ "${cfg[@]}"
+fi
