@@ -355,19 +355,6 @@ int main(int argc, char * argv[])
         }
     }
 
-
-    std::thread mongo_status_update_thread([&] {
-        if (disable_mongowatch) {
-            return;
-        }
-
-        mdb.watch_for_status_update(
-            g,
-            current_block_height,
-            continue_watching_mongo
-        );
-    });
-
     // setup utxodb stuff
     gs::rpc rpc(rpc_host, rpc_port, rpc_user, rpc_pass);
 
@@ -380,17 +367,38 @@ int main(int argc, char * argv[])
     }
 
     if (! disable_utxosync) {
-        const std::uint32_t best_block_height = rpc.get_best_block_height();
-        std::cout << "best block height: " << best_block_height << "\n";
-        for (std::uint32_t h=utxo_chkpnt_block_height; h<best_block_height; ++h) {
-            const std::vector<std::uint8_t> block_data = rpc.get_raw_block(h);
-            utxodb.process_block(block_data, true);
+        const std::pair<bool, std::uint32_t> best_block_height = rpc.get_best_block_height();
+        if (! best_block_height.first) {
+            std::cerr << "could not connect to rpc\n";
+            return EXIT_FAILURE;
+        }
+
+        std::cout << "best block height: " << best_block_height.second << "\n";
+        for (std::uint32_t h=utxo_chkpnt_block_height; h<best_block_height.second; ++h) {
+            const std::pair<bool, std::vector<std::uint8_t>> block_data = rpc.get_raw_block(h);
+            if (! block_data.first) {
+                std::cerr << "could not connect to rpc\n";
+                return EXIT_FAILURE;
+            }
+            utxodb.process_block(block_data.second, true);
         }
     }
 
     if (! disable_utxo_chkpnt_save) {
         utxodb.save_bchd_checkpoint("../utxo-checkpoints/test");
     }
+
+    std::thread mongo_status_update_thread([&] {
+        if (disable_mongowatch) {
+            return;
+        }
+
+        mdb.watch_for_status_update(
+            g,
+            current_block_height,
+            continue_watching_mongo
+        );
+    });
 
     std::thread zmq_listener([&] {
         if (disable_zmq) {

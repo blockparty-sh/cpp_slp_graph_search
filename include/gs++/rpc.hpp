@@ -46,12 +46,16 @@ struct rpc
         );
     }
 
-    std::vector<std::uint8_t> get_raw_block(
+    std::pair<bool, std::vector<std::uint8_t>> get_raw_block(
         const std::size_t height
     ) {
         std::string block_hash;
         {
             std::shared_ptr<httplib::Response> res = query("getblockhash", nlohmann::json::array({ height }));
+            if (! res) {
+                return { false, {} };
+            }
+
             if (res->status == 200) {
                 auto jbody = nlohmann::json::parse(res->body);
                 // std::cout << jbody << std::endl;
@@ -69,6 +73,10 @@ struct rpc
         std::string block_data_str;
         {
             std::shared_ptr<httplib::Response> res = query("getblock", nlohmann::json::array({ block_hash, 0 }));
+            if (! res) {
+                return { false, {} };
+            }
+
             if (res->status == 200) {
                 auto jbody = nlohmann::json::parse(res->body);
 
@@ -96,28 +104,31 @@ struct rpc
                           +  (p2 >= '0' && p2 <= '9' ? p2 - '0' : p2 - 'a' + 10);
         }
 
-        return block_data;
+        return { true, block_data };
     }
 
-    std::uint32_t get_best_block_height()
+    std::pair<bool, std::uint32_t> get_best_block_height()
     {
         std::shared_ptr<httplib::Response> res = query("getblockchaininfo", {});
 
+        if (! res) {
+            return { false, {} };
+        }
+
         if (res->status == 200) {
             auto jbody = nlohmann::json::parse(res->body);
-            // std::cout << jbody << std::endl;
 
             if (jbody.size() > 0) {
                 if (! jbody[0]["error"].is_null()) {
                     std::cerr << jbody[0]["error"] << "\n";
                 }
 
-                std::cout << jbody << std::endl;
-                return jbody[0]["result"]["blocks"].get<std::uint32_t>();
+                // std::cout << jbody << std::endl;
+                return { true, jbody[0]["result"]["blocks"].get<std::uint32_t>() };
             }
         }
 
-        return 0;
+        return { false, 0 };
     }
 };
 
