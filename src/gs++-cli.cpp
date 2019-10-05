@@ -85,11 +85,10 @@ public:
                 pk_script_b64.resize(pk_script_b64_len);
 
                 std::cout
-                    << "prev_tx_id:   " << prev_tx_id.decompress(true) << "\n"
-                    << "prev_out_idx: " << prev_out_idx                << "\n"
-                    << "height:       " << height                      << "\n"
-                    << "value:        " << value                       << "\n"
-                    << "pk_script:    " << pk_script_b64               << "\n\n";
+                    << prev_tx_id.decompress(true) << ":" << prev_out_idx << "\n"
+                    << "\theight:       " << height                       << "\n"
+                    << "\tvalue:        " << value                        << "\n"
+                    << "\tpk_script:    " << pk_script_b64                << "\n";
             }
 
             return true;
@@ -131,11 +130,9 @@ public:
                 pk_script_b64.resize(pk_script_b64_len);
 
                 std::cout
-                    << "prev_tx_id:   " << prev_tx_id.decompress(true) << "\n"
-                    << "prev_out_idx: " << prev_out_idx                << "\n"
-                    << "height:       " << height                      << "\n"
-                    << "value:        " << value                       << "\n"
-                    << "pk_script:    " << pk_script_b64               << "\n\n";
+                    << prev_tx_id.decompress(true) << ":" << prev_out_idx << "\n"
+                    << "\theight:       " << height                       << "\n"
+                    << "\tvalue:        " << value                        << "\n";
             }
 
             return true;

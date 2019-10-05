@@ -38,7 +38,7 @@ utxodb::utxodb()
 bool utxodb::load_from_bchd_checkpoint (
     const std::string & path,
     const std::uint32_t block_height,
-    const std::string block_hash
+    const std::string & block_hash
 ) {
     std::lock_guard lock(lookup_mtx);
 
@@ -227,7 +227,6 @@ void utxodb::process_block(
 
         for (auto & m : tx.inputs) {
             blk_inputs.emplace_back(m);
-            ++total_removed;
         }
 
         for (auto & m : tx.outputs) {
@@ -267,11 +266,7 @@ void utxodb::process_block(
     }
 
     for (auto & m : blk_inputs) {
-        bool found = false;
-
         if (outpoint_map.count(m) > 0) {
-            found = true;
-
             const gs::output& o = outpoint_map.at(m);
 
             if (pk_script_to_output.count(o.pk_script) > 0) {
@@ -291,12 +286,12 @@ void utxodb::process_block(
                 this_block_removed.push_back(o);
             }
 
-            outpoint_map.erase(m);
+            if (outpoint_map.erase(m)) {
+                ++total_removed;
+            }
         }
 
         if (mempool_outpoint_map.count(m) > 0) {
-            found = true;
-
             const gs::output& o = mempool_outpoint_map.at(m);
 
             if (mempool_pk_script_to_output.count(o.pk_script) > 0) {
@@ -314,11 +309,10 @@ void utxodb::process_block(
                 this_block_removed.push_back(o);
             }
 
-            mempool_outpoint_map.erase(m);
+            if (mempool_outpoint_map.erase(m)) {
+                ++total_removed;
+            }
         }
-
-
-        assert(found);
     }
 
     if (save_rollback) {
@@ -429,9 +423,9 @@ void utxodb::rollback()
         absl::flat_hash_set<gs::output*> & addr_map = pk_script_to_output.at(pk_script);
         if (addr_map.erase(&o)) {
             // std::cout << "\tremoved: " << m.txid.decompress(true) << ":" << m.vout << "\n";
-        }
-        if (addr_map.empty()) {
-            pk_script_to_output.erase(pk_script);
+            if (addr_map.empty()) {
+                pk_script_to_output.erase(pk_script);
+            }
         }
     }
 }
