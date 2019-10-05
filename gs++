@@ -14,13 +14,14 @@ cfg=(
     --db "slpdb_test2"
     --rpc_host "0.0.0.0"
     --rpc_port "8332"
+#    --rpc_port "8336"
     --rpc_user "user"
     --rpc_pass "password919191828282777wq"
     --disable_slpsync
 #    --disable_utxo_chkpnt_load
-#    --disable_utxo_chkpnt_save
-#    --disable_utxosync
-#    --disable_zmq
+    --disable_utxo_chkpnt_save
+    --disable_utxosync
+    --disable_zmq
     --disable_mongowatch
 #    --disable_grpc
     --utxo_chkpnt_file         "./utxo-checkpoints/QmXkBQJrMKkCKNbwv4m5xtnqwU9Sq7kucPigvZW8mWxcrv"

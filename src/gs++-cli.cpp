@@ -9,7 +9,7 @@
 #include <grpc++/grpc++.h>
 #include <libbase64.h>
 #include <gs++/bhash.hpp>
-#include <gs++/pk_script.hpp>
+#include <gs++/scriptpubkey.hpp>
 #include <gs++/util.hpp>
 #include "graphsearch.grpc.pb.h"
 
@@ -69,26 +69,26 @@ public:
                 const std::uint32_t prev_out_idx   = n.prev_out_idx();
                 const std::uint32_t height         = n.height();
                 const std::uint64_t value          = n.value();
-                const std::string   pk_script_str  = n.pk_script();
+                const std::string   scriptpubkey_str  = n.scriptpubkey();
 
                 gs::txid prev_tx_id(prev_tx_id_str);
 
-                std::string pk_script_b64(pk_script_str.size()*1.5, '\0');
-                std::size_t pk_script_b64_len = 0;
+                std::string scriptpubkey_b64(scriptpubkey_str.size()*1.5, '\0');
+                std::size_t scriptpubkey_b64_len = 0;
                 base64_encode(
-                    pk_script_str.data(),
-                    pk_script_str.size(),
-                    const_cast<char*>(pk_script_b64.data()),
-                    &pk_script_b64_len,
+                    scriptpubkey_str.data(),
+                    scriptpubkey_str.size(),
+                    const_cast<char*>(scriptpubkey_b64.data()),
+                    &scriptpubkey_b64_len,
                     0
                 );
-                pk_script_b64.resize(pk_script_b64_len);
+                scriptpubkey_b64.resize(scriptpubkey_b64_len);
 
                 std::cout
                     << prev_tx_id.decompress(true) << ":" << prev_out_idx << "\n"
                     << "\theight:       " << height                       << "\n"
                     << "\tvalue:        " << value                        << "\n"
-                    << "\tpk_script:    " << pk_script_b64                << "\n";
+                    << "\tscriptpubkey:    " << scriptpubkey_b64                << "\n";
             }
 
             return true;
@@ -98,15 +98,15 @@ public:
         }
     }
 
-    bool UtxoSearchByScriptSig(const gs::pk_script pk_script)
+    bool UtxoSearchByScriptPubKey(const gs::scriptpubkey scriptpubkey)
     {
-        graphsearch::UtxoSearchByScriptSigRequest request;
-        request.set_pk_script(std::string(pk_script.v.begin(), pk_script.v.end()));
+        graphsearch::UtxoSearchByScriptPubKeyRequest request;
+        request.set_scriptpubkey(std::string(scriptpubkey.v.begin(), scriptpubkey.v.end()));
 
         graphsearch::UtxoSearchReply reply;
 
         grpc::ClientContext context;
-        grpc::Status status = stub_->UtxoSearchByScriptSig(&context, request, &reply);
+        grpc::Status status = stub_->UtxoSearchByScriptPubKey(&context, request, &reply);
 
         if (status.ok()) {
             for (auto n : reply.outputs()) {
@@ -114,20 +114,20 @@ public:
                 const std::uint32_t prev_out_idx   = n.prev_out_idx();
                 const std::uint32_t height         = n.height();
                 const std::uint64_t value          = n.value();
-                const std::string   pk_script_str  = n.pk_script();
+                const std::string   scriptpubkey_str  = n.scriptpubkey();
 
                 gs::txid prev_tx_id(prev_tx_id_str);
 
-                std::string pk_script_b64(pk_script_str.size()*1.5, '\0');
-                std::size_t pk_script_b64_len = 0;
+                std::string scriptpubkey_b64(scriptpubkey_str.size()*1.5, '\0');
+                std::size_t scriptpubkey_b64_len = 0;
                 base64_encode(
-                    pk_script_str.data(),
-                    pk_script_str.size(),
-                    const_cast<char*>(pk_script_b64.data()),
-                    &pk_script_b64_len,
+                    scriptpubkey_str.data(),
+                    scriptpubkey_str.size(),
+                    const_cast<char*>(scriptpubkey_b64.data()),
+                    &scriptpubkey_b64_len,
                     0
                 );
-                pk_script_b64.resize(pk_script_b64_len);
+                scriptpubkey_b64.resize(scriptpubkey_b64_len);
 
                 std::cout
                     << prev_tx_id.decompress(true) << ":" << prev_out_idx << "\n"
@@ -153,7 +153,7 @@ int main(int argc, char* argv[])
     std::string query_type = "graphsearch";
 
     const std::string usage_str = "usage: gs++-cli [--version] [--help] [--host host_address] [--port port]\n"
-                                  "[--graphsearch TXID] [--utxo TXID:VOUT] [--utxo_pk_script PK]\n";
+                                  "[--graphsearch TXID] [--utxo TXID:VOUT] [--utxo_scriptpubkey PK]\n";
 
     while (true) {
         static struct option long_options[] = {
@@ -164,7 +164,7 @@ int main(int argc, char* argv[])
 
             { "graphsearch",  no_argument,   nullptr, 1000 },
             { "utxo",         no_argument,   nullptr, 1001 },
-            { "utxo_pk_script", no_argument,   nullptr, 1002 },
+            { "utxo_scriptpubkey", no_argument,   nullptr, 1002 },
         };
 
         int option_index = 0;
@@ -194,7 +194,7 @@ int main(int argc, char* argv[])
 
             case 1000: query_type = "graphsearch";  break;
             case 1001: query_type = "utxo";         break;
-            case 1002: query_type = "utxo_pk_script"; break;
+            case 1002: query_type = "utxo_scriptpubkey"; break;
 
             case '?':
                 return EXIT_FAILURE;
@@ -250,21 +250,21 @@ int main(int argc, char* argv[])
         }
 
         graphsearch.UtxoSearchByOutpoints(outpoints);
-    } else if (query_type == "utxo_pk_script") {
-        const std::string pk_script_b64 = argv[optind];
+    } else if (query_type == "utxo_scriptpubkey") {
+        const std::string scriptpubkey_b64 = argv[optind];
 
-        std::size_t pk_script_len = 0;
-        std::string decoded(pk_script_b64.size(), '\0');
+        std::size_t scriptpubkey_len = 0;
+        std::string decoded(scriptpubkey_b64.size(), '\0');
         base64_decode(
-            pk_script_b64.data(),
-            pk_script_b64.size(),
+            scriptpubkey_b64.data(),
+            scriptpubkey_b64.size(),
             reinterpret_cast<char*>(decoded.data()),
-            &pk_script_len,
+            &scriptpubkey_len,
             0
         );
-        decoded.resize(pk_script_len);
+        decoded.resize(scriptpubkey_len);
 
-        graphsearch.UtxoSearchByScriptSig(gs::pk_script(decoded));
+        graphsearch.UtxoSearchByScriptPubKey(gs::scriptpubkey(decoded));
     }
 
     return EXIT_SUCCESS;

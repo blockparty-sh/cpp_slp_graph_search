@@ -131,7 +131,7 @@ class GraphSearchServiceImpl final
             el->set_prev_out_idx(o.prev_out_idx);
             el->set_height(o.height);
             el->set_value(o.value);
-            el->set_pk_script(o.pk_script.data(), o.pk_script.size());
+            el->set_scriptpubkey(o.scriptpubkey.data(), o.scriptpubkey.size());
         }
 
         const auto end = std::chrono::steady_clock::now();
@@ -142,15 +142,15 @@ class GraphSearchServiceImpl final
         return { grpc::Status::OK };
     }
 
-    grpc::Status UtxoSearchByScriptSig (
+    grpc::Status UtxoSearchByScriptPubKey (
         grpc::ServerContext* context,
-        const graphsearch::UtxoSearchByScriptSigRequest* request,
+        const graphsearch::UtxoSearchByScriptPubKeyRequest* request,
         graphsearch::UtxoSearchReply* reply
     ) override {
         const auto start = std::chrono::steady_clock::now();
 
-        const gs::pk_script pk_script = gs::pk_script(request->pk_script());
-        const std::vector<gs::output> outputs = utxodb.get_outputs_by_pubkey(pk_script);
+        const gs::scriptpubkey scriptpubkey = gs::scriptpubkey(request->scriptpubkey());
+        const std::vector<gs::output> outputs = utxodb.get_outputs_by_pubkey(scriptpubkey);
 
         for (auto o : outputs) {
             graphsearch::Output* el = reply->add_outputs();
@@ -158,25 +158,25 @@ class GraphSearchServiceImpl final
             el->set_prev_out_idx(o.prev_out_idx);
             el->set_height(o.height);
             el->set_value(o.value);
-            el->set_pk_script(o.pk_script.data(), o.pk_script.size());
+            el->set_scriptpubkey(o.scriptpubkey.data(), o.scriptpubkey.size());
         }
 
         const auto end = std::chrono::steady_clock::now();
         const auto diff = end - start;
         const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
 
-        std::string pk_script_b64(pk_script.v.size()*1.5, '\0');
-        std::size_t pk_script_b64_len = 0;
+        std::string scriptpubkey_b64(scriptpubkey.v.size()*1.5, '\0');
+        std::size_t scriptpubkey_b64_len = 0;
         base64_encode(
-            reinterpret_cast<const char*>(pk_script.v.data()),
-            pk_script.v.size(),
-            pk_script_b64.data(),
-            &pk_script_b64_len,
+            reinterpret_cast<const char*>(scriptpubkey.v.data()),
+            scriptpubkey.v.size(),
+            scriptpubkey_b64.data(),
+            &scriptpubkey_b64_len,
             0
         );
-        pk_script_b64.resize(pk_script_b64_len);
+        scriptpubkey_b64.resize(scriptpubkey_b64_len);
 
-        spdlog::info("utxo-pk_script: {} {} ({} ms)", pk_script_b64, outputs.size(), diff_ms);
+        spdlog::info("utxo-scriptpubkey: {} {} ({} ms)", scriptpubkey_b64, outputs.size(), diff_ms);
         return { grpc::Status::OK };
     }
 };

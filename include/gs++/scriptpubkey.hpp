@@ -1,5 +1,5 @@
-#ifndef GS_PK_SCRIPT_HPP
-#define GS_PK_SCRIPT_HPP
+#ifndef GS_SCRIPTPUBKEY_HPP
+#define GS_SCRIPTPUBKEY_HPP
 
 #include <vector>
 #include <cstdint>
@@ -7,24 +7,24 @@
 
 namespace gs {
 
-struct pk_script
+struct scriptpubkey
 {
     std::vector<std::uint8_t> v;
     using value_type = decltype(v)::value_type;
 
-    pk_script()
+    scriptpubkey()
     {}
 
-    pk_script(const std::string v_)
+    scriptpubkey(const std::string v_)
 	: v(v_.begin(), v_.end())
     {}
 
-    pk_script(const std::size_t size)
+    scriptpubkey(const std::size_t size)
     {
         v.reserve(size);
     }
 
-    constexpr auto size() -> decltype(v.size()) const
+    auto size() -> decltype(v.size()) const
     { return v.size(); }
 
     auto data() -> decltype(v.data())
@@ -36,14 +36,14 @@ struct pk_script
     auto end() -> decltype(v.end())
     { return v.end(); }
 
-    bool operator==(const pk_script& o) const
+    bool operator==(const scriptpubkey& o) const
     { return v == o.v; }
 
-    bool operator!=(const pk_script& o) const
+    bool operator!=(const scriptpubkey& o) const
     { return ! operator==(o); }
 
     template <typename H>
-    friend H AbslHashValue(H h, const pk_script& m)
+    friend H AbslHashValue(H h, const scriptpubkey& m)
     {
         return H::combine(std::move(h), m.v);
     }
@@ -55,7 +55,7 @@ struct pk_script
         if (v.size() > 5 
          && v[0] == 0x76 // OP_DUP
          && v[1] == 0xA9 // OP_HASH160
-         && v.size() == 3+v[2]+2 // pk_script[2] holds length of sig
+         && v.size() == 3+v[2]+2 // scriptpubkey[2] holds length of sig
         ) { 
             return std::string(v.begin()+3, v.end()-2);
         }   

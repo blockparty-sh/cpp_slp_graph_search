@@ -9,6 +9,7 @@
 #include <absl/container/flat_hash_set.h>
 #include <gs++/output.hpp>
 #include <gs++/rpc.hpp>
+#include <gs++/scriptpubkey.hpp>
 
 namespace gs {
 
@@ -21,12 +22,20 @@ struct utxodb
     std::uint32_t current_block_height;
     std::string   current_block_hash;
 
-    absl::node_hash_map<gs::outpoint, gs::output> outpoint_map;
-    absl::flat_hash_map<gs::pk_script, absl::flat_hash_set<gs::output*>> pk_script_to_output;
+    absl::node_hash_map<gs::outpoint, gs::output>
+    outpoint_map;
+    
+    absl::flat_hash_map<gs::scriptpubkey, absl::flat_hash_set<gs::output*>>
+    scriptpubkey_to_output;
 
-    absl::node_hash_map<gs::outpoint, gs::output> mempool_outpoint_map;
-    absl::flat_hash_map<gs::pk_script, absl::flat_hash_set<gs::output*>> mempool_pk_script_to_output;
-    absl::flat_hash_set<gs::outpoint> mempool_spent_confirmed_outpoints; // contains the outpoints that have been spent
+    absl::node_hash_map<gs::outpoint, gs::output>
+    mempool_outpoint_map;
+
+    absl::flat_hash_map<gs::scriptpubkey, absl::flat_hash_set<gs::output*>>
+    mempool_scriptpubkey_to_output;
+
+    absl::flat_hash_set<gs::outpoint>
+    mempool_spent_confirmed_outpoints; // contains the outpoints that have been spent
 
     std::deque<std::vector<gs::output>>   last_block_removed;
     std::deque<std::vector<gs::outpoint>> last_block_added;
@@ -59,13 +68,19 @@ struct utxodb
     );
 
     std::vector<gs::output> get_outputs_by_pubkey(
-        const gs::pk_script pk_script
+        const gs::scriptpubkey scriptpubkey
     );
 
     template <typename H>
     friend H AbslHashValue(H h, const utxodb& m)
     {
-        return H::combine(std::move(h), m.outpoint_map, m.pk_script_to_output, m.last_block_removed, m.last_block_added);
+        return H::combine(
+            std::move(h),
+            m.outpoint_map,
+            m.scriptpubkey_to_output,
+            m.last_block_removed,
+            m.last_block_added
+        );
     }
 
 };

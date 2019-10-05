@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <vector>
 #include <gs++/bhash.hpp>
-#include <gs++/pk_script.hpp>
+#include <gs++/scriptpubkey.hpp>
 #include <absl/hash/hash.h>
 
 
@@ -12,11 +12,11 @@ namespace gs {
 
 struct output
 {
-	gs::txid      prev_tx_id;
-	std::uint32_t prev_out_idx;
-	std::uint32_t height;
-	std::uint64_t value;
-    gs::pk_script pk_script;
+	gs::txid         prev_tx_id;
+	std::uint32_t    prev_out_idx;
+	std::uint32_t    height;
+	std::uint64_t    value;
+    gs::scriptpubkey scriptpubkey;
 
 	output(){}
 
@@ -25,18 +25,18 @@ struct output
 		const std::uint32_t prev_out_idx,
 		const std::uint32_t height,
 		const std::uint64_t value,
-		const gs::pk_script pk_script
+		const gs::scriptpubkey scriptpubkey
 	)
 	: prev_tx_id(prev_tx_id)
 	, prev_out_idx(prev_out_idx)
 	, height(height)
 	, value(value)
-	, pk_script(pk_script)
+	, scriptpubkey(scriptpubkey)
 	{}
 
     bool is_op_return() const
     {
-        return pk_script.v[0] == 0x6a;
+        return scriptpubkey.v[0] == 0x6a;
     }
 };
 

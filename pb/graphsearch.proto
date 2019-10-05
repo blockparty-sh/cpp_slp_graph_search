@@ -10,7 +10,7 @@ package graphsearch;
 service GraphSearchService {
   rpc GraphSearch (GraphSearchRequest) returns (GraphSearchReply) {}
   rpc UtxoSearchByOutpoints (UtxoSearchByOutpointsRequest) returns (UtxoSearchReply) {}
-  rpc UtxoSearchByScriptSig (UtxoSearchByScriptSigRequest) returns (UtxoSearchReply) {}
+  rpc UtxoSearchByScriptPubKey (UtxoSearchByScriptPubKeyRequest) returns (UtxoSearchReply) {}
 }
 
 message GraphSearchRequest {
@@ -31,15 +31,15 @@ message Output {
     uint32 prev_out_idx = 2;
     uint32 height       = 3;
     uint64 value        = 4;
-    bytes  pk_script    = 5;
+    bytes  scriptpubkey = 5;
 }
 
 message UtxoSearchByOutpointsRequest {
     repeated Outpoint outpoints = 1;
 }
 
-message UtxoSearchByScriptSigRequest {
-    bytes pk_script = 1;
+message UtxoSearchByScriptPubKeyRequest {
+    bytes scriptpubkey = 1;
 }
 
 message UtxoSearchReply {

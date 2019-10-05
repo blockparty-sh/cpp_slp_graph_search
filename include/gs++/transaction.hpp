@@ -56,11 +56,11 @@ struct transaction
             const std::uint64_t value      { gs::util::extract_u64(it) };
             const std::uint64_t script_len { gs::util::extract_var_int(it) };
 
-            gs::pk_script pk_script(script_len);
-            std::copy(it, it+script_len, std::back_inserter(pk_script.v));
+            gs::scriptpubkey scriptpubkey(script_len);
+            std::copy(it, it+script_len, std::back_inserter(scriptpubkey.v));
             it+=script_len;
 
-            this->outputs.push_back(gs::output({}, out_i, height, value, pk_script));
+            this->outputs.push_back(gs::output({}, out_i, height, value, scriptpubkey));
         }
 
         this->lock_time = gs::util::extract_u32(it);
