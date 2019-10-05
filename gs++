@@ -8,6 +8,20 @@ fi
 VALGRIND=false
 GDB=false
 
+if [ $# -eq 1 ];
+then
+
+    if [ $1 = "valgrind" ];
+    then
+        VALGRIND=true
+    elif [ $1 = "gdb" ];
+    then
+        GDB=true
+    fi
+fi
+
+
+
 cfg=(
     --host "0.0.0.0"
     --port "50051"
@@ -35,7 +49,7 @@ then
     valgrind ./build/gs++ "${cfg[@]}"
 elif [ $GDB = true ];
 then
-    gdb ./build/gs++ "${cfg[@]}"
+    gdb --args ./build/gs++ "${cfg[@]}"
 else
     ./build/gs++ "${cfg[@]}"
 fi
