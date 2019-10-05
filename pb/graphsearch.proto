@@ -11,6 +11,7 @@ service GraphSearchService {
   rpc GraphSearch (GraphSearchRequest) returns (GraphSearchReply) {}
   rpc UtxoSearchByOutpoints (UtxoSearchByOutpointsRequest) returns (UtxoSearchReply) {}
   rpc UtxoSearchByScriptPubKey (UtxoSearchByScriptPubKeyRequest) returns (UtxoSearchReply) {}
+  rpc BalanceByScriptPubKey (BalanceByScriptPubKeyRequest) returns (BalanceByScriptPubKeyReply) {}
 }
 
 message GraphSearchRequest {
@@ -40,8 +41,17 @@ message UtxoSearchByOutpointsRequest {
 
 message UtxoSearchByScriptPubKeyRequest {
     bytes scriptpubkey = 1;
+    uint32 limit = 2;
+}
+
+message BalanceByScriptPubKeyRequest {
+    bytes scriptpubkey = 1;
 }
 
 message UtxoSearchReply {
     repeated Output outputs = 1;
+}
+
+message BalanceByScriptPubKeyReply {
+    uint64 balance = 1;
 }

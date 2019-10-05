@@ -9,6 +9,7 @@ const app = express()
 const cors = require("cors")
 
 const bitcore = require('bitcore-lib-cash');
+const cashaddrjs = require('cashaddrjs');
 
 const client = new graphsearch_service.GraphSearchServiceClient(
   process.env.graphsearch_grpc_server_bind,
@@ -20,7 +21,7 @@ const client = new graphsearch_service.GraphSearchServiceClient(
 
 app.use(cors())
 app.enable("trust proxy")
-app.get(/^\/graphsearch\/(.+)/, function(req, res) {
+app.get(/^\/slp\/graphsearch\/(.+)/, function(req, res) {
   const txid = req.params[0]
 
   const request = new graphsearch.GraphSearchRequest();
@@ -47,14 +48,26 @@ app.get(/^\/graphsearch\/(.+)/, function(req, res) {
   });
 });
 
-app.get(/^\/utxo\/(.+)\/(.+)/, function(req, res) {
-  const txid = bytesToHex(hexToBytes(req.params[0]).reverse());
-  const vout = req.params[1];
+app.get(/^\/utxo\/(.+)/, function(req, res) {
+  const outpoints = req.params[0].split(',');
 
   const request = new graphsearch.UtxoSearchByOutpointsRequest();
-  let outpoint = request.addOutpoints();
-  outpoint.setTxid(txid);
-  outpoint.setVout(vout);
+  for (const o of outpoints) {
+      const segments = o.split(':');
+
+      if (segments.length !== 2 || isNaN(segments[1])) {
+        res.end(JSON.stringify({
+          success: false,
+          error:   "bad format"
+        }));
+        return;
+      }
+
+      const outpoint = request.addOutpoints();
+      outpoint.setTxid(bytesToHex(hexToBytes(segments[0]).reverse()));
+      outpoint.setVout(segments[1]);
+  }
+
   
   client.utxoSearchByOutpoints(request, function(err, response) {
     res.setHeader('Content-Type', 'application/json');
@@ -68,7 +81,7 @@ app.get(/^\/utxo\/(.+)\/(.+)/, function(req, res) {
     }
 
     const outputslist = response.getOutputsList();
-    console.log(txid, vout, outputslist.length);
+    console.log('utxo', req.params[0], outputslist.length);
 
     res.end(JSON.stringify({
       success: true,
@@ -85,7 +98,9 @@ app.get(/^\/utxo\/(.+)\/(.+)/, function(req, res) {
           ret['address'] = bitcore.Address.fromScript(
             bitcore.Script(Buffer.from(ret['pkScript'], 'base64'))
           ).toString();
-        } catch (e) {}
+        } catch (e) {
+          ret['address'] = null;
+        }
 
         return ret;
       }),
@@ -93,11 +108,12 @@ app.get(/^\/utxo\/(.+)\/(.+)/, function(req, res) {
   });
 });
 
-app.get(/^\/utxo_scriptpubkey\/(.+)/, function(req, res) {
-  const scriptpubkey = req.params[0];
+app.get(/^\/address\/utxos\/(.+)/, function(req, res) {
+  const scriptpubkey = addressToScriptpubkey(req.params[0]);
 
   const request = new graphsearch.UtxoSearchByScriptPubKeyRequest();
   request.setScriptpubkey(scriptpubkey);
+  request.setLimit(10000);
   
   client.utxoSearchByScriptPubKey(request, function(err, response) {
     res.setHeader('Content-Type', 'application/json');
@@ -125,24 +141,66 @@ app.get(/^\/utxo_scriptpubkey\/(.+)/, function(req, res) {
   });
 });
 
+app.get(/^\/address\/balance\/(.+)/, function(req, res) {
+  const scriptpubkey = addressToScriptpubkey(req.params[0]);
+
+  const request = new graphsearch.BalanceByScriptPubKeyRequest();
+  request.setScriptpubkey(scriptpubkey);
+  
+  client.balanceByScriptPubKey(request, function(err, response) {
+    res.setHeader('Content-Type', 'application/json');
+    if (err) {
+      console.log(err);
+      res.end(JSON.stringify({
+        success: false,
+        error:   err
+      }));
+      return;
+    }
+
+    const balance = response.getBalance();
+    console.log(scriptpubkey, balance);
+
+    res.end(JSON.stringify({
+      success: true,
+      data: balance,
+    }));
+  });
+});
+
 app.listen(process.env.graphsearch_http_port, () => {
   console.log(`graphsearch rest server started on port ${process.env.graphsearch_http_port}`);
 });
 
-// Convert a hex string to a byte array
-function hexToBytes(hex) {
-    for (var bytes = [], c = 0; c < hex.length; c += 2)
+const hexToBytes = (hex) => {
+  let bytes = [];
+
+  for (let c=0; c < hex.length; c += 2) {
     bytes.push(parseInt(hex.substr(c, 2), 16));
-    return bytes;
-}
+  }
 
-// Convert a byte array to a hex string
-function bytesToHex(bytes) {
-    for (var hex = [], i = 0; i < bytes.length; i++) {
-        var current = bytes[i] < 0 ? bytes[i] + 256 : bytes[i];
-        hex.push((current >>> 4).toString(16));
-        hex.push((current & 0xF).toString(16));
-    }
-    return hex.join("");
-}
+  return bytes;
+};
 
+const bytesToHex = (bytes) => {
+  let hex = [];
+
+  for (let i=0; i < bytes.length; i++) {
+    const current = bytes[i] < 0 ? bytes[i] + 256 : bytes[i];
+    hex.push((current >>> 4).toString(16));
+    hex.push((current & 0xF).toString(16));
+  }
+
+  return hex.join("");
+};
+
+const addressToScriptpubkey = (address) => {
+  const x = cashaddrjs.decode(address);
+  return Buffer.from(
+      (x.type === 'P2PKH')
+    ? [0x76, 0xA9, x.hash.length].concat(...x.hash, [0x88, 0xAC])
+    : (x.type === 'P2PK')
+    ? [0xAC, x.hash.length].concat(...x.hash, [0x87])
+    : [0xA9, x.hash.length].concat(...x.hash, [0x87]) // assume p2sh
+  ).toString('base64');
+};

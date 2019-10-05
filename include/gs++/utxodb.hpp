@@ -67,7 +67,12 @@ struct utxodb
         const std::vector<gs::outpoint> outpoints
     );
 
-    std::vector<gs::output> get_outputs_by_pubkey(
+    std::vector<gs::output> get_outputs_by_scriptpubkey(
+        const gs::scriptpubkey scriptpubkey,
+        const std::uint32_t limit
+    );
+
+    std::uint64_t get_balance_by_scriptpubkey(
         const gs::scriptpubkey scriptpubkey
     );
 

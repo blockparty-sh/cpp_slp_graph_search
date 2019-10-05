@@ -142,6 +142,26 @@ public:
         }
     }
 
+    bool BalanceByScriptPubKey(const gs::scriptpubkey scriptpubkey)
+    {
+        graphsearch::BalanceByScriptPubKeyRequest request;
+        request.set_scriptpubkey(std::string(scriptpubkey.v.begin(), scriptpubkey.v.end()));
+
+        graphsearch::BalanceByScriptPubKeyReply reply;
+
+        grpc::ClientContext context;
+        grpc::Status status = stub_->BalanceByScriptPubKey(&context, request, &reply);
+
+        if (status.ok()) {
+            const std::uint64_t balance = reply.balance();
+            std::cout << balance << "\n";
+            return true;
+        } else {
+            std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+            return false;
+        }
+    }
+
 private:
     std::unique_ptr<graphsearch::GraphSearchService::Stub> stub_;
 };
@@ -153,7 +173,8 @@ int main(int argc, char* argv[])
     std::string query_type = "graphsearch";
 
     const std::string usage_str = "usage: gs++-cli [--version] [--help] [--host host_address] [--port port]\n"
-                                  "[--graphsearch TXID] [--utxo TXID:VOUT] [--utxo_scriptpubkey PK]\n";
+                                  "[--graphsearch TXID] [--utxo TXID:VOUT] [--utxo_scriptpubkey PK]\n"
+                                  "[--balance_scriptpubkey PK]\n";
 
     while (true) {
         static struct option long_options[] = {
@@ -162,9 +183,10 @@ int main(int argc, char* argv[])
             { "host",    required_argument, nullptr, 'b' },
             { "port",    required_argument, nullptr, 'p' },
 
-            { "graphsearch",  no_argument,   nullptr, 1000 },
-            { "utxo",         no_argument,   nullptr, 1001 },
-            { "utxo_scriptpubkey", no_argument,   nullptr, 1002 },
+            { "graphsearch",          no_argument, nullptr, 1000 },
+            { "utxo",                 no_argument, nullptr, 1001 },
+            { "utxo_scriptpubkey",    no_argument, nullptr, 1002 },
+            { "balance_scriptpubkey", no_argument, nullptr, 1003 },
         };
 
         int option_index = 0;
@@ -192,9 +214,10 @@ int main(int argc, char* argv[])
             case 'b': ss >> grpc_host; break;
             case 'p': ss >> grpc_port; break;
 
-            case 1000: query_type = "graphsearch";  break;
-            case 1001: query_type = "utxo";         break;
-            case 1002: query_type = "utxo_scriptpubkey"; break;
+            case 1000: query_type = "graphsearch";          break;
+            case 1001: query_type = "utxo";                 break;
+            case 1002: query_type = "utxo_scriptpubkey";    break;
+            case 1003: query_type = "balance_scriptpubkey"; break;
 
             case '?':
                 return EXIT_FAILURE;
@@ -265,6 +288,21 @@ int main(int argc, char* argv[])
         decoded.resize(scriptpubkey_len);
 
         graphsearch.UtxoSearchByScriptPubKey(gs::scriptpubkey(decoded));
+    } else if (query_type == "balance_scriptpubkey") {
+        const std::string scriptpubkey_b64 = argv[optind];
+
+        std::size_t scriptpubkey_len = 0;
+        std::string decoded(scriptpubkey_b64.size(), '\0');
+        base64_decode(
+            scriptpubkey_b64.data(),
+            scriptpubkey_b64.size(),
+            reinterpret_cast<char*>(decoded.data()),
+            &scriptpubkey_len,
+            0
+        );
+        decoded.resize(scriptpubkey_len);
+
+        graphsearch.BalanceByScriptPubKey(gs::scriptpubkey(decoded));
     }
 
     return EXIT_SUCCESS;

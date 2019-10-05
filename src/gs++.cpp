@@ -15,7 +15,6 @@
 #include <grpc++/grpc++.h>
 #include <spdlog/spdlog.h>
 #include <zmq.hpp>
-#include <libbase64.h>
 
 #include <gs++/gs++.hpp>
 #include <gs++/bhash.hpp>
@@ -150,7 +149,8 @@ class GraphSearchServiceImpl final
         const auto start = std::chrono::steady_clock::now();
 
         const gs::scriptpubkey scriptpubkey = gs::scriptpubkey(request->scriptpubkey());
-        const std::vector<gs::output> outputs = utxodb.get_outputs_by_pubkey(scriptpubkey);
+        const std::uint32_t limit = request->limit();
+        const std::vector<gs::output> outputs = utxodb.get_outputs_by_scriptpubkey(scriptpubkey, limit);
 
         for (auto o : outputs) {
             graphsearch::Output* el = reply->add_outputs();
@@ -165,18 +165,27 @@ class GraphSearchServiceImpl final
         const auto diff = end - start;
         const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
 
-        std::string scriptpubkey_b64(scriptpubkey.v.size()*1.5, '\0');
-        std::size_t scriptpubkey_b64_len = 0;
-        base64_encode(
-            reinterpret_cast<const char*>(scriptpubkey.v.data()),
-            scriptpubkey.v.size(),
-            scriptpubkey_b64.data(),
-            &scriptpubkey_b64_len,
-            0
-        );
-        scriptpubkey_b64.resize(scriptpubkey_b64_len);
+        spdlog::info("utxo-scriptpubkey: {} {} ({} ms)", scriptpubkey.to_base64(), outputs.size(), diff_ms);
+        return { grpc::Status::OK };
+    }
+    
+    grpc::Status BalanceByScriptPubKey (
+        grpc::ServerContext* context,
+        const graphsearch::BalanceByScriptPubKeyRequest* request,
+        graphsearch::BalanceByScriptPubKeyReply* reply
+    ) override {
+        const auto start = std::chrono::steady_clock::now();
 
-        spdlog::info("utxo-scriptpubkey: {} {} ({} ms)", scriptpubkey_b64, outputs.size(), diff_ms);
+        const gs::scriptpubkey scriptpubkey = gs::scriptpubkey(request->scriptpubkey());
+        const std::uint64_t balance = utxodb.get_balance_by_scriptpubkey(scriptpubkey);
+
+        reply->set_balance(balance);
+
+        const auto end = std::chrono::steady_clock::now();
+        const auto diff = end - start;
+        const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
+
+        spdlog::info("balance-scriptpubkey: {} {} ({} ms)", scriptpubkey.to_base64(), balance, diff_ms);
         return { grpc::Status::OK };
     }
 };

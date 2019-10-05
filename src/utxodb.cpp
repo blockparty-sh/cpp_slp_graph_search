@@ -456,8 +456,9 @@ std::vector<gs::output> utxodb::get_outputs_by_outpoints(
     return ret;
 }
 
-std::vector<gs::output> utxodb::get_outputs_by_pubkey(
-    const gs::scriptpubkey scriptpubkey
+std::vector<gs::output> utxodb::get_outputs_by_scriptpubkey(
+    const gs::scriptpubkey scriptpubkey,
+    const std::uint32_t limit
 ) {
     std::shared_lock lock(lookup_mtx);
 
@@ -469,6 +470,40 @@ std::vector<gs::output> utxodb::get_outputs_by_pubkey(
         for (const gs::output* u : pk_utxos) {
             if (mempool_spent_confirmed_outpoints.count(gs::outpoint(u->prev_tx_id, u->prev_out_idx)) == 0) {
                 ret.push_back(*u);
+                if (ret.size() == limit) {
+                    break;
+                }
+            }
+        }
+    }
+
+    if (ret.size() < limit && mempool_scriptpubkey_to_output.count(scriptpubkey) > 0) {
+        const absl::flat_hash_set<gs::output*>& pk_utxos = mempool_scriptpubkey_to_output.at(scriptpubkey);
+
+        for (const gs::output* u : pk_utxos) {
+            ret.push_back(*u);
+            if (ret.size() == limit) {
+                break;
+            }
+        }
+    }
+
+    return ret;
+}
+
+std::uint64_t utxodb::get_balance_by_scriptpubkey(
+    const gs::scriptpubkey scriptpubkey
+) {
+    std::shared_lock lock(lookup_mtx);
+
+    std::uint64_t ret = 0;
+
+    if (scriptpubkey_to_output.count(scriptpubkey) > 0) {
+        const absl::flat_hash_set<gs::output*>& pk_utxos = scriptpubkey_to_output.at(scriptpubkey);
+
+        for (const gs::output* u : pk_utxos) {
+            if (mempool_spent_confirmed_outpoints.count(gs::outpoint(u->prev_tx_id, u->prev_out_idx)) == 0) {
+                ret += u->value;
             }
         }
     }
@@ -477,7 +512,7 @@ std::vector<gs::output> utxodb::get_outputs_by_pubkey(
         const absl::flat_hash_set<gs::output*>& pk_utxos = mempool_scriptpubkey_to_output.at(scriptpubkey);
 
         for (const gs::output* u : pk_utxos) {
-            ret.push_back(*u);
+            ret += u->value;
         }
     }
 
