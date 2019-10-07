@@ -1,6 +1,6 @@
 #define CATCH_CONFIG_MAIN
 
-#define ENABLE_SLP_PARSE_ERROR_PRINTING
+// #define ENABLE_SLP_PARSE_ERROR_PRINTING
 
 #include <string>
 #include <fstream>
@@ -55,7 +55,6 @@ TEST_CASE( "slp_decoding_tx_tests", "[single-file]" ) {
 	auto test_data = nlohmann::json::parse(test_data_str);
 
     for (auto m : test_data) {
-        //std::cout << m["msg"] << "\n";
         SECTION(m["msg"]) {
             const std::string script_str = m["script"].get<std::string>();
             const std::string test_tx_type = m["type"].get<std::string>();
@@ -82,13 +81,33 @@ TEST_CASE( "slp_decoding_tx_tests", "[single-file]" ) {
                     REQUIRE( slp.mint_baton_vout == m["data"]["mint_baton_vout"].get<std::uint32_t>() );
                 }
 
-                REQUIRE( slp.initial_qty     == m["data"]["initial_qty"].get<std::uint64_t>() );
+                REQUIRE( slp.qty == m["data"]["initial_qty"].get<std::uint64_t>() );
             }
             else if (test_tx_type == "MINT") {
                 REQUIRE( tx.type == gs::slp_transaction_type::mint );
+
+                const auto slp = std::get<gs::slp_transaction_mint>(tx.slp_tx);
+                REQUIRE( slp.tokenid        == m["data"]["tokenid"].get<std::string>() );
+                REQUIRE( slp.has_mint_baton == m["data"]["has_mint_baton"].get<bool>() );
+
+                if (m["data"]["has_mint_baton"].get<bool>()) {
+                    REQUIRE( slp.mint_baton_vout == m["data"]["mint_baton_vout"].get<std::uint32_t>() );
+                }
+
+                REQUIRE( slp.qty == m["data"]["additional_qty"].get<std::uint64_t>() );
             }
             else if (test_tx_type == "SEND") {
                 REQUIRE( tx.type == gs::slp_transaction_type::send );
+
+                const auto slp = std::get<gs::slp_transaction_send>(tx.slp_tx);
+                REQUIRE( slp.tokenid == m["data"]["tokenid"].get<std::string>() );
+
+                std::vector<std::uint64_t> amounts;
+                for (auto amount_json : m["data"]["amounts"]) {
+                    amounts.push_back(amount_json.get<std::uint64_t>());
+                }
+
+                REQUIRE( slp.amounts == amounts );
             }
         }
     }

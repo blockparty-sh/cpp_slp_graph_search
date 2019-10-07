@@ -24,7 +24,7 @@ struct slp_transaction_genesis
     std::uint32_t decimals;
     bool          has_mint_baton;
     std::uint32_t mint_baton_vout;
-    std::uint64_t initial_qty;
+    std::uint64_t qty;
 
     slp_transaction_genesis(
         const std::string   ticker,
@@ -34,7 +34,7 @@ struct slp_transaction_genesis
         const std::uint32_t decimals,
         const bool          has_mint_baton,
         const std::uint32_t mint_baton_vout,
-        const std::uint64_t initial_qty
+        const std::uint64_t qty
     )
     : ticker(ticker)
     , name(name)
@@ -43,26 +43,26 @@ struct slp_transaction_genesis
     , decimals(decimals)
     , has_mint_baton(has_mint_baton)
     , mint_baton_vout(mint_baton_vout)
-    , initial_qty(initial_qty)
+    , qty(qty)
     {}
 };
 
 struct slp_transaction_mint
 {
     gs::tokenid   tokenid;
-    bool          has_baton;
+    bool          has_mint_baton;
     std::uint32_t mint_baton_vout;
     std::uint64_t qty;
 
 
     slp_transaction_mint(
         const gs::tokenid   tokenid,
-        const bool          has_baton,
+        const bool          has_mint_baton,
         const std::uint32_t mint_baton_vout,
         const std::uint64_t qty
     )
     : tokenid(tokenid)
-    , has_baton(has_baton)
+    , has_mint_baton(has_mint_baton)
     , mint_baton_vout(mint_baton_vout)
     , qty(qty)
     {}
@@ -235,7 +235,7 @@ struct slp_transaction
             chunks.emplace_back(data.second);
 
             const std::string decompressed = gs::util::decompress_hex(data.second);
-            std::cout << "chunk: (" << decompressed.size() << ") " << decompressed << std::endl;
+            // std::cout << "chunk: (" << decompressed.size() << ") " << decompressed << std::endl;
         }
 
         PARSE_CHECK(chunks.empty(), "chunks empty");
@@ -324,7 +324,7 @@ struct slp_transaction
                 CHECK_NEXT();
             }
 
-            std::uint64_t initial_qty = 0;
+            std::uint64_t qty = 0;
             {
                 std::string initial_qty_str = *cit;
                 std::reverse(initial_qty_str.begin(), initial_qty_str.end());
@@ -333,7 +333,7 @@ struct slp_transaction
                     string_to_number(initial_qty_str)
                 };
                 PARSE_CHECK(! initial_qty_check.first, "initial_qty parse failed");
-                initial_qty = initial_qty_check.second;
+                qty = initial_qty_check.second;
             }
 
             this->type = slp_transaction_type::genesis;
@@ -345,7 +345,7 @@ struct slp_transaction
                 decimals,
                 has_mint_baton,
                 mint_baton_vout,
-                initial_qty
+                qty
             );
         } else if(*cit == "MINT") {
             PARSE_CHECK(chunks.size() != 6, "wrong number of chunks");
@@ -359,12 +359,12 @@ struct slp_transaction
                 CHECK_NEXT();
             }
 
-            bool has_baton = false;
+            bool has_mint_baton = false;
             std::uint32_t mint_baton_vout = 0;
             {
                 const std::string mint_baton_vout_str = *cit;
                 if (mint_baton_vout_str != "") {
-                    has_baton = true;
+                    has_mint_baton = true;
                     const std::pair<bool, std::uint64_t> mint_baton_vout_check {
                         string_to_number(mint_baton_vout_str)
                     };
@@ -393,7 +393,7 @@ struct slp_transaction
             this->type = slp_transaction_type::mint;
             this->slp_tx = slp_transaction_mint(
                 tokenid,
-                has_baton,
+                has_mint_baton,
                 mint_baton_vout,
                 additional_qty
             );

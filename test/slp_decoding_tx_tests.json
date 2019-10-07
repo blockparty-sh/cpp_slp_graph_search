@@ -14,5 +14,28 @@
    "mint_baton_vout": null,
    "initial_qty": 100000000000000000
   }
+ },
+ {
+  "msg": "SAI Mint",
+  "script": "6a04534c50000101044d494e54207853218e23fdabb103b4bccbe6e987da8974c7bc775b7e7e64722292ac53627f01020800001840d32e4b00",
+  "type": "MINT",
+  "data": {
+   "tokenid": "7853218e23fdabb103b4bccbe6e987da8974c7bc775b7e7e64722292ac53627f",
+   "has_mint_baton": true,
+   "mint_baton_vout": 2,
+   "additional_qty": 26666700000000
+  }
+ },
+ {
+  "msg": "DROP Send",
+  "script": "6a04534c500001010453454e44200f3f223902c44dc2bee6d3f77d565904d8501affba5ee0c56f7b32e8080ce14b08000000e8d4a5100008000002ba7def3000",
+  "type": "SEND",
+  "data": {
+   "tokenid": "0f3f223902c44dc2bee6d3f77d565904d8501affba5ee0c56f7b32e8080ce14b",
+   "amounts": [
+    1000000000000,
+    3000000000000
+   ]
+  }
  }
 ]
