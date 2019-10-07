@@ -20,7 +20,8 @@ struct bhash
     : v({ 0 })
     {}
 
-    bhash(const std::string & v_)
+    template <typename Container>
+    bhash(const Container& v_)
     {
         assert(v.size() == Size || v.size() == Size*2);
 

@@ -87,7 +87,12 @@ TEST_CASE( "slp_decoding_tx_tests", "[single-file]" ) {
                 REQUIRE( tx.type == gs::slp_transaction_type::mint );
 
                 const auto slp = std::get<gs::slp_transaction_mint>(tx.slp_tx);
-                REQUIRE( slp.tokenid        == m["data"]["tokenid"].get<std::string>() );
+
+                std::vector<std::uint8_t> tokenid_bytes = gs::util::compress_hex(m["data"]["tokenid"].get<std::string>());
+                std::reverse(tokenid_bytes.begin(), tokenid_bytes.end());
+                gs::tokenid  tokenid(tokenid_bytes);
+
+                REQUIRE( slp.tokenid        == tokenid );
                 REQUIRE( slp.has_mint_baton == m["data"]["has_mint_baton"].get<bool>() );
 
                 if (m["data"]["has_mint_baton"].get<bool>()) {
@@ -100,7 +105,12 @@ TEST_CASE( "slp_decoding_tx_tests", "[single-file]" ) {
                 REQUIRE( tx.type == gs::slp_transaction_type::send );
 
                 const auto slp = std::get<gs::slp_transaction_send>(tx.slp_tx);
-                REQUIRE( slp.tokenid == m["data"]["tokenid"].get<std::string>() );
+
+                std::vector<std::uint8_t> tokenid_bytes = gs::util::compress_hex(m["data"]["tokenid"].get<std::string>());
+                std::reverse(tokenid_bytes.begin(), tokenid_bytes.end());
+                gs::tokenid  tokenid(tokenid_bytes);
+
+                REQUIRE( slp.tokenid == tokenid );
 
                 std::vector<std::uint64_t> amounts;
                 for (auto amount_json : m["data"]["amounts"]) {

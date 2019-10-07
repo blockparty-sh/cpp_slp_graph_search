@@ -234,7 +234,8 @@ struct slp_transaction
 
             chunks.emplace_back(data.second);
 
-            const std::string decompressed = gs::util::decompress_hex(data.second);
+            // for debugging
+            // const std::string decompressed = gs::util::decompress_hex(data.second);
             // std::cout << "chunk: (" << decompressed.size() << ") " << decompressed << std::endl;
         }
 
@@ -353,7 +354,8 @@ struct slp_transaction
 
             gs::tokenid tokenid;
             {
-                const std::string tokenid_str = *cit;
+                std::string tokenid_str = *cit;
+                std::reverse(tokenid_str.begin(), tokenid_str.end());
                 PARSE_CHECK(! check_valid_token_id(tokenid_str), "tokenid invalid size");
                 tokenid = gs::tokenid(tokenid_str);
                 CHECK_NEXT();
@@ -402,7 +404,8 @@ struct slp_transaction
 
             gs::tokenid tokenid;
             {
-                const std::string tokenid_str = *cit;
+                std::string tokenid_str = *cit;
+                std::reverse(tokenid_str.begin(), tokenid_str.end());
                 PARSE_CHECK(! check_valid_token_id(tokenid_str), "tokenid invalid size");
                 tokenid = gs::tokenid(tokenid_str);
                 CHECK_NEXT();
