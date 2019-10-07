@@ -145,7 +145,7 @@ struct slp_transaction
         PARSE_CHECK(scriptpubkey.v.empty(), "scriptpubkey cannot be empty");
 
         auto it = scriptpubkey.v.begin();
-        PARSE_CHECK(scriptpubkey.v[0] == 0x6a, "scriptpubkey not op_return");
+        PARSE_CHECK(scriptpubkey.v[0] != 0x6a, "scriptpubkey not op_return");
         ++it;
 
         // success, value
