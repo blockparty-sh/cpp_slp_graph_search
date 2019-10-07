@@ -156,7 +156,7 @@ struct slp_transaction
 
         // success, value
         auto extract_pushdata = [&it, &scriptpubkey]()
-        -> std::pair<bool, std::uint64_t>
+        -> std::pair<bool, std::uint32_t>
         {
             const std::uint8_t cnt = gs::util::extract_u8(it);
 
@@ -224,7 +224,7 @@ struct slp_transaction
 
         std::vector<std::string> chunks;
         while (true) {
-            const std::pair<bool, std::uint64_t> len = extract_pushdata();
+            const std::pair<bool, std::uint32_t> len = extract_pushdata();
             if (! len.first) {
                 break;
             }
@@ -249,14 +249,14 @@ struct slp_transaction
         })
 
 
-        // lokad id
         {
+            const std::string lokad_id_str = *cit;
+
             using namespace std::string_literals;
-            PARSE_CHECK(*cit != "SLP\0"s, "SLP not in first chunk");
+            PARSE_CHECK(lokad_id_str != "SLP\0"s, "SLP not in first chunk");
             CHECK_NEXT();
         }
 
-        // token type
         std::uint64_t token_type = 0;
         {
             std::string token_type_str = *cit;
@@ -273,8 +273,8 @@ struct slp_transaction
             CHECK_NEXT();
         }
 
-        // action type
-        if (*cit == "GENESIS") {
+        const std::string action_type_str = *cit;
+        if (action_type_str == "GENESIS") {
             PARSE_CHECK(chunks.size() != 10, "wrong number of chunks");
             CHECK_NEXT();
 
@@ -348,7 +348,7 @@ struct slp_transaction
                 mint_baton_vout,
                 qty
             );
-        } else if(*cit == "MINT") {
+        } else if(action_type_str == "MINT") {
             PARSE_CHECK(chunks.size() != 6, "wrong number of chunks");
             CHECK_NEXT();
 
@@ -399,7 +399,8 @@ struct slp_transaction
                 mint_baton_vout,
                 additional_qty
             );
-        } else if(*cit == "SEND") {
+        } else if(action_type_str == "SEND") {
+            PARSE_CHECK(chunks.size() < 4, "wrong number of chunks");
             CHECK_NEXT();
 
             gs::tokenid tokenid;
