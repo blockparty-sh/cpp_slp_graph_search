@@ -16,6 +16,10 @@ struct scriptpubkey
     scriptpubkey()
     {}
 
+    scriptpubkey(const std::vector<std::uint8_t> v_)
+	: v(v_.begin(), v_.end())
+    {}
+
     scriptpubkey(const std::string v_)
 	: v(v_.begin(), v_.end())
     {}

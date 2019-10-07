@@ -312,37 +312,24 @@ target_compile_options(gs++-cli PRIVATE -Wall -pedantic)
 
 
 
-#add_executable(internals_test
-#    ${CMAKE_CURRENT_SOURCE_DIR}/test/internals_test.cpp
-#    ${PROTO_SRCS}
-#    ${GRPC_SRCS}
-#)
-#target_include_directories(internals_test PUBLIC
-#    ${CATCH_INCLUDE_DIR}
-#    ${CMAKE_CURRENT_SOURCE_DIR}/include
-#)
-#target_link_libraries(internals_test
-#    Catch2::Catch2
-#    absl::flat_hash_map
-#    absl::node_hash_map
-#    gRPC::grpc++_reflection
-#    protobuf::libprotobuf
-#    base64
-#)
-
-#add_executable(utxodb
-#    ${CMAKE_CURRENT_SOURCE_DIR}/src/utxodb.cpp
-#)
-#target_include_directories(utxodb PUBLIC
-#    ${CMAKE_CURRENT_SOURCE_DIR}/include
-#    ${CMAKE_CURRENT_BINARY_DIR}/mio/include
-#    ${CMAKE_CURRENT_BINARY_DIR}/cpp-httplib/include
-#)
-#target_link_libraries(utxodb
-#    absl::flat_hash_map
-#    absl::node_hash_map
-#    mio
-#    httplib
-#    cppzmq
-#    ${CMAKE_THREAD_LIBS_INIT}
-#)
+add_executable(internals_test
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/internals_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/utxodb.cpp
+    ${PROTO_SRCS}
+    ${PROTO_SRCS}
+    ${GRPC_SRCS}
+)
+target_include_directories(internals_test PUBLIC
+    ${CATCH_INCLUDE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(internals_test
+    Catch2::Catch2
+    absl::flat_hash_map
+    absl::node_hash_map
+    gRPC::grpc++_reflection
+    protobuf::libprotobuf
+    base64
+    mio
+    spdlog
+)

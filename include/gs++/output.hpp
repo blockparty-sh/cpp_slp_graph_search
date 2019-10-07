@@ -3,9 +3,10 @@
 
 #include <cstdint>
 #include <vector>
+#include <absl/hash/hash.h>
 #include <gs++/bhash.hpp>
 #include <gs++/scriptpubkey.hpp>
-#include <absl/hash/hash.h>
+#include <gs++/slp_transaction.hpp>
 
 
 namespace gs {
@@ -37,6 +38,11 @@ struct output
     bool is_op_return() const
     {
         return scriptpubkey.v[0] == 0x6a;
+    }
+
+    bool is_valid_slp() const
+    {
+        return gs::slp_transaction(scriptpubkey).type != gs::slp_transaction_type::invalid;
     }
 };
 

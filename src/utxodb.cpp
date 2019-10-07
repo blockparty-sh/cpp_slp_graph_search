@@ -230,10 +230,6 @@ void utxodb::process_block(
         }
 
         for (auto & m : tx.outputs) {
-            if (m.is_op_return()) {
-                continue;
-            }
-
             blk_outputs.emplace_back(m);
         }
     }
@@ -243,6 +239,13 @@ void utxodb::process_block(
     std::vector<gs::output>   this_block_removed;
 
     for (auto & m : blk_outputs) {
+        if (m.is_op_return()) {
+            if (m.is_valid_slp()) {
+            }
+
+            continue;
+        }
+
         const gs::outpoint outpoint(m.prev_tx_id, m.prev_out_idx);
         gs::output* const oid = &(*outpoint_map.insert({ outpoint, m }).first).second;
         ++total_added;
@@ -344,6 +347,9 @@ void utxodb::process_mempool_tx(const std::vector<std::uint8_t>& msg_data)
     for (auto & m : tx.outputs) {
         // std::cout << "\toutput txid: " << m.prev_tx_id.decompress(true) << "\t" << m.prev_out_idx << std::endl; 
         if (m.is_op_return()) {
+            if (m.is_valid_slp()) {
+                std::cout << "SLP" << std::endl;
+            }
             continue;
         }
 

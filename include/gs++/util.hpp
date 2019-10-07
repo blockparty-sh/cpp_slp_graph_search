@@ -105,6 +105,28 @@ std::string decompress_hex(const Container& v)
     return ret;
 }
 
+
+template <typename Container>
+std::vector<std::uint8_t> compress_hex(const Container& v_)
+{
+    std::vector<std::uint8_t> ret(v_.size() / 2);
+
+    for (unsigned i=0; i<ret.size(); ++i) {
+        const char p1 = v_[(i<<1)+0];
+        const char p2 = v_[(i<<1)+1];
+
+        std::cout << p1 << p2;
+        // std::cout << '0' << '0';
+        assert((p1 >= '0' && p1 <= '9') || (p1 >= 'a' && p1 <= 'f'));
+        assert((p2 >= '0' && p2 <= '9') || (p2 >= 'a' && p2 <= 'f'));
+
+        ret[i] = ((p1 >= '0' && p1 <= '9' ? p1 - '0' : p1 - 'a' + 10) << 4)
+               +  (p2 >= '0' && p2 <= '9' ? p2 - '0' : p2 - 'a' + 10);
+    }
+
+    return ret;
+}
+
 }
 
 }

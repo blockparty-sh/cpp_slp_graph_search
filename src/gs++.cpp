@@ -29,7 +29,7 @@
 std::unique_ptr<grpc::Server> gserver;
 std::atomic<int>  current_block_height    = { -1 };
 std::atomic<bool> continue_watching_mongo = { true };
-bool exit_early = false;
+std::atomic<bool> exit_early = false;
 
 gs::txgraph g;
 gs::utxodb utxodb;
