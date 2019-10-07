@@ -26,9 +26,12 @@ struct mdatabase
     mongocxx::pool pool{mongocxx::uri{}};
     const std::string db_name;
 
-    mdatabase(const std::string db_name)
+    mdatabase(
+        const std::string& db_name,
+        const std::string& uri
+    )
     : inst{}
-    , pool{mongocxx::uri{}}
+    , pool{uri.empty() ? mongocxx::uri{} : mongocxx::uri{uri}}
     , db_name(db_name)
     {}
 

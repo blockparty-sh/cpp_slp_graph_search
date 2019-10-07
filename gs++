@@ -25,7 +25,8 @@ fi
 cfg=(
     --host "0.0.0.0"
     --port "50051"
-    --db "slpdb_test2"
+    --mongo_db "slpdb_test2"
+#    --mongo_uri ""
     --rpc_host "0.0.0.0"
     --rpc_port "8332"
 #    --rpc_port "8336"

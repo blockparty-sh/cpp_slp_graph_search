@@ -198,6 +198,7 @@ int main(int argc, char * argv[])
     std::string grpc_host = "0.0.0.0";
     std::string grpc_port = "50051";
     std::string mongo_db_name = "slpdb";
+    std::string mongo_uri     = "";
 
     std::string   rpc_host = "0.0.0.0";
     std::uint16_t rpc_port = 8332;
@@ -218,15 +219,16 @@ int main(int argc, char * argv[])
 
     while (true) {
         static struct option long_options[] = {
-            { "help",     no_argument,       nullptr, 'h' },
-            { "version",  no_argument,       nullptr, 'v' },
-            { "db",       required_argument, nullptr, 90 },
-            { "host",     required_argument, nullptr, 100 },
-            { "port",     required_argument, nullptr, 101 },
-            { "rpc_host", required_argument, nullptr, 1000 },
-            { "rpc_port", required_argument, nullptr, 1001 },
-            { "rpc_user", required_argument, nullptr, 1002 },
-            { "rpc_pass", required_argument, nullptr, 1003 },
+            { "help",      no_argument,       nullptr, 'h' },
+            { "version",   no_argument,       nullptr, 'v' },
+            { "mongo_db",  required_argument, nullptr, 90 },
+            { "mongo_uri", required_argument, nullptr, 91 },
+            { "host",      required_argument, nullptr, 100 },
+            { "port",      required_argument, nullptr, 101 },
+            { "rpc_host",  required_argument, nullptr, 1000 },
+            { "rpc_port",  required_argument, nullptr, 1001 },
+            { "rpc_user",  required_argument, nullptr, 1002 },
+            { "rpc_pass",  required_argument, nullptr, 1003 },
             { "disable_slpsync",             no_argument, nullptr, 2000 },
             { "disable_utxo_chkpnt_load",    no_argument, nullptr, 2001 },
             { "disable_utxo_chkpnt_save",    no_argument, nullptr, 2002 },
@@ -265,6 +267,7 @@ int main(int argc, char * argv[])
                 return EXIT_SUCCESS;
 
             case 90: ss >> mongo_db_name; break;
+            case 91: ss >> mongo_uri; break;
 
             case 100: ss >> grpc_host; break;
             case 101: ss >> grpc_port; break;
@@ -292,7 +295,6 @@ int main(int argc, char * argv[])
                 return EXIT_FAILURE;
         }
     }
-    std::cout << "utxo_chkpnt_block_height: " << utxo_chkpnt_block_height << std::endl;
 
     spdlog::info("hello");
 
@@ -305,7 +307,7 @@ int main(int argc, char * argv[])
     if (disable_grpc)             std::cout << "disable_grpc\n";
 
 
-    gs::mdatabase mdb(mongo_db_name);
+    gs::mdatabase mdb(mongo_db_name, mongo_uri);
 
 
     if (! disable_slpsync) {
