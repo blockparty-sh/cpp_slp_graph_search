@@ -150,11 +150,6 @@ struct slp_transaction
         })
 #endif
 
-        #define CHECK_NEXT() ({\
-            ++cit;\
-            PARSE_CHECK(cit == chunks.end(), "parsing ended early");\
-        })
-
         PARSE_CHECK(scriptpubkey.v.empty(), "scriptpubkey cannot be empty");
 
         auto it = scriptpubkey.v.begin() + 1;
@@ -166,7 +161,7 @@ struct slp_transaction
             const std::uint8_t cnt = gs::util::extract_u8(it);
 
             if (cnt < 0x4C) {
-                if (it+cnt >= scriptpubkey.v.end()) {
+                if (it+cnt > scriptpubkey.v.end()) {
                     return { false, 0 };
                 }
 
@@ -202,7 +197,7 @@ struct slp_transaction
         auto extract_string = [&it, &scriptpubkey](const std::size_t len)
         -> std::pair<bool, std::string>
         {
-            if (it+len >= scriptpubkey.v.end()) {
+            if (it+len > scriptpubkey.v.end()) {
                 return { false, "" };
             }
 
@@ -238,11 +233,20 @@ struct slp_transaction
             PARSE_CHECK(! data.first, "pushdata data extraction failed");
 
             chunks.emplace_back(data.second);
+
+            const std::string decompressed = gs::util::decompress_hex(data.second);
+            std::cout << "chunk: (" << decompressed.size() << ") " << decompressed << std::endl;
         }
 
         PARSE_CHECK(chunks.empty(), "chunks empty");
 
         auto cit = chunks.begin();
+
+        #define CHECK_NEXT() ({\
+            ++cit;\
+            PARSE_CHECK(cit == chunks.end(), "parsing ended early");\
+        })
+
 
         // lokad id
         {
@@ -254,10 +258,15 @@ struct slp_transaction
         // token type
         std::uint64_t token_type = 0;
         {
-            const std::pair<bool, std::uint64_t> token_type_check = string_to_number(*cit);
+            std::string token_type_str = *cit;
+            std::reverse(token_type_str.begin(), token_type_str.end());
+            PARSE_CHECK(token_type_str.size() != 1 && token_type_str.size() != 2,
+                "token_type string length must be 1 or 2");
+
+            const std::pair<bool, std::uint64_t> token_type_check = string_to_number(token_type_str);
             PARSE_CHECK(! token_type_check.first, "token_type extraction failed");
 
-            std::uint64_t token_type = token_type_check.second;
+            token_type = token_type_check.second;
             PARSE_CHECK(token_type != 1, "token_type not equal to 1");
 
             CHECK_NEXT();
@@ -265,6 +274,7 @@ struct slp_transaction
 
         // action type
         if (*cit == "GENESIS") {
+            PARSE_CHECK(chunks.size() != 10, "wrong number of chunks");
             CHECK_NEXT();
 
             const std::string ticker = *cit;
@@ -285,6 +295,8 @@ struct slp_transaction
             std::uint64_t decimals = 0;
             {
                 const std::string decimals_str = *cit;
+                PARSE_CHECK(decimals_str.size() != 1, "decimals string length must be 1");
+
                 const std::pair<bool, std::uint64_t> decimals_check {
                     string_to_number(decimals_str)
                 };
@@ -299,6 +311,7 @@ struct slp_transaction
             std::uint32_t mint_baton_vout = 0;
             {
                 const std::string mint_baton_vout_str = *cit;
+                PARSE_CHECK(mint_baton_vout_str.size() >= 2, "mint_baton_vout string length must be 0 or 1");
                 if (mint_baton_vout_str != "") {
                     const std::pair<bool, std::uint64_t> mint_baton_vout_check {
                         string_to_number(mint_baton_vout_str)
@@ -307,30 +320,21 @@ struct slp_transaction
 
                     mint_baton_vout = mint_baton_vout_check.second;
                     PARSE_CHECK(mint_baton_vout < 2, "mint_baton_vout must be at least 2");
-                    PARSE_CHECK(mint_baton_vout > 0xFF, "mint_baton_vout must be below 0xFF");
                 }
                 CHECK_NEXT();
             }
 
             std::uint64_t initial_qty = 0;
             {
-                const std::string initial_qty_str = *cit;
+                std::string initial_qty_str = *cit;
+                std::reverse(initial_qty_str.begin(), initial_qty_str.end());
+
                 const std::pair<bool, std::uint64_t> initial_qty_check {
                     string_to_number(initial_qty_str)
                 };
                 PARSE_CHECK(! initial_qty_check.first, "initial_qty parse failed");
+                initial_qty = initial_qty_check.second;
             }
-
-            /*
-            std::cout
-                << "######\tticker: "   << token_ticker << "\n"
-                << "######\tname: "     << token_name << "\n"
-                << "######\turi: "      << token_document_uri << "\n"
-                << "######\tchecksum: " << token_document_hash << "\n"
-                << "######\tdecimals: " << decimals.second << "\n"
-                << "######\tbatonvout: " << mint_baton_vout_str << "\n"
-                << "######\tquantity: " << initial_token_mint_quantity.second << "\n";
-                */
 
             this->type = slp_transaction_type::genesis;
             this->slp_tx = slp_transaction_genesis(
@@ -344,6 +348,7 @@ struct slp_transaction
                 initial_qty
             );
         } else if(*cit == "MINT") {
+            PARSE_CHECK(chunks.size() != 6, "wrong number of chunks");
             CHECK_NEXT();
 
             gs::tokenid tokenid;
@@ -374,20 +379,16 @@ struct slp_transaction
 
             std::uint64_t additional_qty = 0;
             {
-                const std::string additional_qty_str = *cit;
+                std::string additional_qty_str = *cit;
+                std::reverse(additional_qty_str.begin(), additional_qty_str.end());
+
                 const std::pair<bool, std::uint64_t> additional_qty_check {
                     string_to_number(additional_qty_str)
                 };
                 PARSE_CHECK(! additional_qty_check.first, "additional_token_quantity parse failed");
 
                 additional_qty = additional_qty_check.second;
-                CHECK_NEXT();
             }
-
-            std::cout
-                << "######\ttokenid: "   << tokenid.decompress(true) << "\n"
-                << "######\tbatonvout: " << mint_baton_vout << "\n"
-                << "######\tqty: "       << additional_qty<< "\n";
 
             this->type = slp_transaction_type::mint;
             this->slp_tx = slp_transaction_mint(
@@ -410,14 +411,18 @@ struct slp_transaction
             std::vector<std::uint64_t> token_amounts;
             token_amounts.reserve(chunks.end() - cit);
             while (cit != chunks.end()) {
-                PARSE_CHECK((*cit).size() != 8, "send size not 8 bytes");
-                const std::pair<bool, std::uint64_t> value_check = string_to_number(*cit); 
+                std::string amount_str = *cit;
+                std::reverse(amount_str.begin(), amount_str.end());
+                PARSE_CHECK(amount_str.size() != 8, "amount string size not 8 bytes");
+
+                const std::pair<bool, std::uint64_t> value_check = string_to_number(amount_str);
                 PARSE_CHECK(! value_check.first, "extraction of amount failed");
                 token_amounts.push_back(value_check.second);
                 ++cit;
             }
 
             PARSE_CHECK(token_amounts.size() == 0, "token_amounts size is 0");
+            PARSE_CHECK(token_amounts.size() > 19, "token_amounts size is greater than 19");
 
             this->type = slp_transaction_type::send;
             this->slp_tx = slp_transaction_send(

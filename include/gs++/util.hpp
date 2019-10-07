@@ -115,8 +115,6 @@ std::vector<std::uint8_t> compress_hex(const Container& v_)
         const char p1 = v_[(i<<1)+0];
         const char p2 = v_[(i<<1)+1];
 
-        std::cout << p1 << p2;
-        // std::cout << '0' << '0';
         assert((p1 >= '0' && p1 <= '9') || (p1 >= 'a' && p1 <= 'f'));
         assert((p2 >= '0' && p2 <= '9') || (p2 >= 'a' && p2 <= 'f'));
 

@@ -1,0 +1,18 @@
+[
+ {
+  "msg": "SPICE Genesis",
+  "script": "6a04534c500001010747454e45534953055350494345055370696365127370696365736c7040676d61696c2e636f6d4c0001084c0008016345785d8a0000",
+  "type": "GENESIS",
+  "data": {
+   "ticker": "SPICE",
+   "name": "Spice",
+   "document_uri": "spiceslp@gmail.com",
+   "document_hash": "",
+   "decimals": 8,
+   "script_type": 1,
+   "has_mint_baton": false,
+   "mint_baton_vout": null,
+   "initial_qty": 100000000000000000
+  }
+ }
+]
