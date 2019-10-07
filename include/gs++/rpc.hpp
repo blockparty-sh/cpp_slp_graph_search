@@ -7,6 +7,7 @@
 #include <cassert>
 #include <httplib/httplib.h>
 #include <nlohmann/json.hpp>
+#include <gs++/util.hpp>
 
 namespace gs {
 
@@ -56,18 +57,23 @@ struct rpc
                 return { false, {} };
             }
 
-            if (res->status == 200) {
-                auto jbody = nlohmann::json::parse(res->body);
-                // std::cout << jbody << std::endl;
-
-                if (jbody.size() > 0) {
-                    if (! jbody[0]["error"].is_null()) {
-                        std::cerr << jbody[0]["error"] << "\n";
-                    }
-
-                    block_hash = jbody[0]["result"].get<std::string>();
-                }
+            if (res->status != 200) {
+                return { false, {} };
             }
+
+            auto jbody = nlohmann::json::parse(res->body);
+            // std::cout << jbody << std::endl;
+
+            if (jbody.size() == 0) {
+                return { false, {} };
+            }
+
+            if (! jbody[0]["error"].is_null()) {
+                std::cerr << jbody[0]["error"] << "\n";
+                return { false, {} };
+            }
+
+            block_hash = jbody[0]["result"].get<std::string>();
         }
 
         std::string block_data_str;
@@ -77,34 +83,25 @@ struct rpc
                 return { false, {} };
             }
 
-            if (res->status == 200) {
-                auto jbody = nlohmann::json::parse(res->body);
-
-                if (jbody.size() > 0) {
-                    if (! jbody[0]["error"].is_null()) {
-                        std::cerr << jbody[0]["error"] << "\n";
-                    }
-
-                    block_data_str = jbody[0]["result"].get<std::string>();
-                }
+            if (res->status != 200) {
+                return { false, {} };
             }
+
+            auto jbody = nlohmann::json::parse(res->body);
+            // std::cout << jbody << std::endl;
+
+            if (jbody.size() == 0) {
+                return { false, {} };
+            }
+            if (! jbody[0]["error"].is_null()) {
+                std::cerr << jbody[0]["error"] << "\n";
+                return { false, {} };
+            }
+
+            block_data_str = jbody[0]["result"].get<std::string>();
         }
 
-
-        std::vector<std::uint8_t> block_data;
-        block_data.reserve(block_data_str.size() / 2);
-        for (unsigned i=0; i<block_data_str.size() / 2; ++i) {
-            const std::uint8_t p1 = block_data_str[(i<<1)+0];
-            const std::uint8_t p2 = block_data_str[(i<<1)+1];
-
-            assert((p1 >= '0' && p1 <= '9') || (p1 >= 'a' && p1 <= 'f'));
-            assert((p2 >= '0' && p2 <= '9') || (p2 >= 'a' && p2 <= 'f'));
-
-            block_data[i] = ((p1 >= '0' && p1 <= '9' ? p1 - '0' : p1 - 'a' + 10) << 4)
-                          +  (p2 >= '0' && p2 <= '9' ? p2 - '0' : p2 - 'a' + 10);
-        }
-
-        return { true, block_data };
+        return { true, gs::util::compress_hex(block_data_str) };
     }
 
     std::pair<bool, std::uint32_t> get_best_block_height()
@@ -115,20 +112,22 @@ struct rpc
             return { false, {} };
         }
 
-        if (res->status == 200) {
-            auto jbody = nlohmann::json::parse(res->body);
-
-            if (jbody.size() > 0) {
-                if (! jbody[0]["error"].is_null()) {
-                    std::cerr << jbody[0]["error"] << "\n";
-                }
-
-                // std::cout << jbody << std::endl;
-                return { true, jbody[0]["result"]["blocks"].get<std::uint32_t>() };
-            }
+        if (res->status != 200) {
+            return { false, {} };
         }
 
-        return { false, 0 };
+        auto jbody = nlohmann::json::parse(res->body);
+
+        if (jbody.size() == 0) {
+            return { false, {} };
+        }
+        if (! jbody[0]["error"].is_null()) {
+            std::cerr << jbody[0]["error"] << "\n";
+            return { false, {} };
+        }
+
+        // std::cout << jbody << std::endl;
+        return { true, jbody[0]["result"]["blocks"].get<std::uint32_t>() };
     }
 };
 

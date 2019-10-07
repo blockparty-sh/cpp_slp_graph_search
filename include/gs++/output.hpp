@@ -39,11 +39,6 @@ struct output
     {
         return scriptpubkey.v[0] == 0x6a;
     }
-
-    bool is_valid_slp() const
-    {
-        return gs::slp_transaction(scriptpubkey).type != gs::slp_transaction_type::invalid;
-    }
 };
 
 struct outpoint

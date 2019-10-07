@@ -292,6 +292,7 @@ int main(int argc, char * argv[])
                 return EXIT_FAILURE;
         }
     }
+    std::cout << "utxo_chkpnt_block_height: " << utxo_chkpnt_block_height << std::endl;
 
     spdlog::info("hello");
 
@@ -374,12 +375,13 @@ int main(int argc, char * argv[])
         }
 
         std::cout << "best block height: " << best_block_height.second << "\n";
-        for (std::uint32_t h=utxo_chkpnt_block_height; h<best_block_height.second; ++h) {
+        for (std::uint32_t h=utxo_chkpnt_block_height; h<=best_block_height.second; ++h) {
             const std::pair<bool, std::vector<std::uint8_t>> block_data = rpc.get_raw_block(h);
             if (! block_data.first) {
                 std::cerr << "could not connect to rpc\n";
                 return EXIT_FAILURE;
             }
+            spdlog::info("processing block {}", h);
             utxodb.process_block(block_data.second, true);
         }
     }

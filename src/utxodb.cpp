@@ -240,9 +240,6 @@ void utxodb::process_block(
 
     for (auto & m : blk_outputs) {
         if (m.is_op_return()) {
-            if (m.is_valid_slp()) {
-            }
-
             continue;
         }
 
@@ -330,7 +327,7 @@ void utxodb::process_block(
         }
     }
 
-    spdlog::info("processed block {} +{} -{}", current_block_height, total_added, total_removed);
+    spdlog::info("processed block +{} -{}", total_added, total_removed);
 }
 
 void utxodb::process_mempool_tx(const std::vector<std::uint8_t>& msg_data)
@@ -347,9 +344,6 @@ void utxodb::process_mempool_tx(const std::vector<std::uint8_t>& msg_data)
     for (auto & m : tx.outputs) {
         // std::cout << "\toutput txid: " << m.prev_tx_id.decompress(true) << "\t" << m.prev_out_idx << std::endl; 
         if (m.is_op_return()) {
-            if (m.is_valid_slp()) {
-                std::cout << "SLP" << std::endl;
-            }
             continue;
         }
 

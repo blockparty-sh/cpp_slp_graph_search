@@ -8,6 +8,7 @@
 #include <gs++/bhash.hpp>
 #include <gs++/util.hpp>
 #include <gs++/output.hpp>
+#include <gs++/slp_transaction.hpp>
 
 #include <3rdparty/picosha2.h>
 
@@ -20,10 +21,12 @@ struct transaction
     std::uint32_t lock_time;
     std::vector<gs::outpoint> inputs;
     std::vector<gs::output>   outputs;
+    gs::slp_transaction slp;
 
 
     template <typename Iterator>
     transaction(Iterator&& it, const std::uint32_t height)
+    : slp{}
     {
         const auto begin_it = it;
 
@@ -78,11 +81,40 @@ struct transaction
         for (auto & m : this->outputs) {
             m.prev_tx_id = this->txid;
         }
+
+        if (this->outputs.size() > 0) {
+            if (this->outputs[0].is_op_return()) {
+                this->slp = gs::slp_transaction(this->outputs[0].scriptpubkey);
+                /*
+                if (this->slp.type == gs::slp_transaction_type::genesis) {
+                    spdlog::warn("SLP GENESIS {}", this->txid.decompress(true));
+                }
+                else if (this->slp.type == gs::slp_transaction_type::mint) {
+                    spdlog::warn("SLP MINT {}", this->txid.decompress(true));
+                }
+                else if (this->slp.type == gs::slp_transaction_type::send) {
+                    spdlog::warn("SLP SEND {}", this->txid.decompress(true));
+                }
+                */
+            }
+        }
     }
 
     template <typename Iterator>
     transaction(Iterator&& it)
-    : transaction(it, 0) {}
+    : transaction(it, 0)
+    {}
+
+
+    template <typename Iterator>
+    transaction(const Iterator&& it, const std::uint32_t height)
+    : transaction(it, height)
+    {}
+
+    template <typename Iterator>
+    transaction(const Iterator&& it)
+    : transaction(it, 0)
+    {}
 };
 
 }

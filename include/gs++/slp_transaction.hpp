@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <vector>
 #include <iostream>
-#include <absl/types/variant.h>
 #include <gs++/bhash.hpp>
 #include <gs++/util.hpp>
 #include <gs++/scriptpubkey.hpp>
@@ -27,10 +26,10 @@ struct slp_transaction_genesis
     std::uint64_t qty;
 
     slp_transaction_genesis(
-        const std::string   ticker,
-        const std::string   name,
-        const std::string   document_uri,
-        const std::string   document_hash,
+        const std::string&  ticker,
+        const std::string&  name,
+        const std::string&  document_uri,
+        const std::string&  document_hash,
         const std::uint32_t decimals,
         const bool          has_mint_baton,
         const std::uint32_t mint_baton_vout,
@@ -56,7 +55,7 @@ struct slp_transaction_mint
 
 
     slp_transaction_mint(
-        const gs::tokenid   tokenid,
+        const gs::tokenid&  tokenid,
         const bool          has_mint_baton,
         const std::uint32_t mint_baton_vout,
         const std::uint64_t qty
@@ -74,8 +73,8 @@ struct slp_transaction_send
     std::vector<std::uint64_t> amounts;
 
     slp_transaction_send(
-        const gs::tokenid                tokenid,
-        const std::vector<std::uint64_t> amounts
+        const gs::tokenid&                tokenid,
+        const std::vector<std::uint64_t>& amounts
     )
     : tokenid(tokenid)
     , amounts(amounts)
@@ -91,68 +90,63 @@ enum class slp_transaction_type {
 
 struct slp_transaction
 {
-    absl::variant<
+    slp_transaction_type type;
+    std::variant<
         slp_transaction_invalid,
         slp_transaction_genesis,
         slp_transaction_mint,
         slp_transaction_send
     > slp_tx;
-    slp_transaction_type type;
 
     slp_transaction()
     : type(slp_transaction_type::invalid)
     , slp_tx(slp_transaction_invalid{})
     {}
 
-    slp_transaction(const slp_transaction& o)
-    : type(slp_transaction_type::invalid)
-    , slp_tx(slp_transaction_invalid{})
-    {}
-
-    slp_transaction(const slp_transaction_genesis slp_tx)
+    slp_transaction(const slp_transaction_genesis& slp_tx)
     : type(slp_transaction_type::genesis)
     , slp_tx(slp_tx)
     {}
 
-    slp_transaction(const slp_transaction_mint slp_tx)
+    slp_transaction(const slp_transaction_mint& slp_tx)
     : type(slp_transaction_type::mint)
     , slp_tx(slp_tx)
     {}
 
-    slp_transaction(const slp_transaction_send slp_tx)
+    slp_transaction(const slp_transaction_send& slp_tx)
     : type(slp_transaction_type::send)
     , slp_tx(slp_tx)
     {}
 
 
-    slp_transaction(
-        const gs::scriptpubkey & scriptpubkey
-    )
+    slp_transaction(const gs::scriptpubkey& scriptpubkey)
     : type(slp_transaction_type::invalid)
     , slp_tx(slp_transaction_invalid{})
     {
 #ifdef ENABLE_SLP_PARSE_ERROR_PRINTING
-        #define PARSE_CHECK(cond, msg) ({\
+        #define PARSE_CHECK(cond, msg) {\
             if (cond) { \
                 this->type = slp_transaction_type::invalid;\
                 this->slp_tx = slp_transaction_invalid{};\
                 std::cerr << msg << "\tline: " << __LINE__ << "\n";\
                 return;\
             }\
-        })
+        }
 #else
-        #define PARSE_CHECK(cond, msg) ({\
+        #define PARSE_CHECK(cond, msg) {\
             if (cond) { \
                 this->type = slp_transaction_type::invalid;\
                 this->slp_tx = slp_transaction_invalid{};\
                 return;\
             }\
-        })
+        }
 #endif
 
         PARSE_CHECK(scriptpubkey.v.empty(), "scriptpubkey cannot be empty");
 
-        auto it = scriptpubkey.v.begin() + 1;
+        auto it = scriptpubkey.v.begin();
+        PARSE_CHECK(scriptpubkey.v[0] == 0x6a, "scriptpubkey not op_return");
+        ++it;
 
         // success, value
         auto extract_pushdata = [&it, &scriptpubkey]()
@@ -223,16 +217,18 @@ struct slp_transaction
         };
 
         std::vector<std::string> chunks;
-        while (true) {
-            const std::pair<bool, std::uint32_t> len = extract_pushdata();
-            if (! len.first) {
-                break;
-            }
-
-            const std::pair<bool, std::string> data = extract_string(len.second);
+        for (auto len_check = extract_pushdata(); len_check.first; len_check = extract_pushdata()) {
+            const std::pair<bool, std::string> data = extract_string(len_check.second);
             PARSE_CHECK(! data.first, "pushdata data extraction failed");
 
             chunks.emplace_back(data.second);
+
+            // quick exit optimization
+            if (chunks.size() == 1) {
+                const std::string lokad_id_str = chunks[0];
+                using namespace std::string_literals;
+                PARSE_CHECK(lokad_id_str != "SLP\0"s, "SLP not in first chunk");
+            }
 
             // for debugging
             // const std::string decompressed = gs::util::decompress_hex(data.second);
@@ -241,20 +237,11 @@ struct slp_transaction
 
         PARSE_CHECK(chunks.empty(), "chunks empty");
 
-        auto cit = chunks.begin();
+        auto cit = chunks.begin() + 1; // the 1 is for quick exit done above
 
-        #define CHECK_NEXT() ({\
+        #define CHECK_NEXT() {\
             ++cit;\
             PARSE_CHECK(cit == chunks.end(), "parsing ended early");\
-        })
-
-
-        {
-            const std::string lokad_id_str = *cit;
-
-            using namespace std::string_literals;
-            PARSE_CHECK(lokad_id_str != "SLP\0"s, "SLP not in first chunk");
-            CHECK_NEXT();
         }
 
         std::uint64_t token_type = 0;
@@ -436,6 +423,9 @@ struct slp_transaction
         } else {
             PARSE_CHECK(true, "unknown action type");
         }
+
+        #undef PARSE_CHECK
+        #undef CHECK_NEXT
     }
 };
 
