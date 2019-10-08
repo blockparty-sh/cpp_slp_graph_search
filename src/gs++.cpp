@@ -24,7 +24,7 @@
 #include <gs++/mdatabase.hpp>
 #include <gs++/txgraph.hpp>
 #include <gs++/rpc.hpp>
-#include <gs++/utxodb.hpp>
+#include <gs++/bch.hpp>
 
 std::unique_ptr<grpc::Server> gserver;
 std::atomic<int>  current_block_height    = { -1 };
@@ -32,7 +32,7 @@ std::atomic<bool> continue_watching_mongo = { true };
 std::atomic<bool> exit_early = false;
 
 gs::txgraph g;
-gs::utxodb utxodb;
+gs::bch bch;
 
 
 std::filesystem::path get_tokendir(const gs::tokenid tokenid)
@@ -122,7 +122,7 @@ class GraphSearchServiceImpl final
             outpoints.push_back(gs::outpoint(o.txid(), o.vout()));
         }
 
-        const std::vector<gs::output> outputs = utxodb.get_outputs_by_outpoints(outpoints);
+        const std::vector<gs::output> outputs = bch.utxodb.get_outputs_by_outpoints(outpoints);
 
         for (auto o : outputs) {
             graphsearch::Output* el = reply->add_outputs();
@@ -150,7 +150,7 @@ class GraphSearchServiceImpl final
 
         const gs::scriptpubkey scriptpubkey = gs::scriptpubkey(request->scriptpubkey());
         const std::uint32_t limit = request->limit();
-        const std::vector<gs::output> outputs = utxodb.get_outputs_by_scriptpubkey(scriptpubkey, limit);
+        const std::vector<gs::output> outputs = bch.utxodb.get_outputs_by_scriptpubkey(scriptpubkey, limit);
 
         for (auto o : outputs) {
             graphsearch::Output* el = reply->add_outputs();
@@ -177,7 +177,7 @@ class GraphSearchServiceImpl final
         const auto start = std::chrono::steady_clock::now();
 
         const gs::scriptpubkey scriptpubkey = gs::scriptpubkey(request->scriptpubkey());
-        const std::uint64_t balance = utxodb.get_balance_by_scriptpubkey(scriptpubkey);
+        const std::uint64_t balance = bch.utxodb.get_balance_by_scriptpubkey(scriptpubkey);
 
         reply->set_balance(balance);
 
@@ -362,7 +362,7 @@ int main(int argc, char * argv[])
     gs::rpc rpc(rpc_host, rpc_port, rpc_user, rpc_pass);
 
     if (! disable_utxo_chkpnt_load) {
-        utxodb.load_from_bchd_checkpoint(
+        bch.utxodb.load_from_bchd_checkpoint(
             utxo_chkpnt_file,
             utxo_chkpnt_block_height,
             utxo_chkpnt_block_hash
@@ -384,12 +384,12 @@ int main(int argc, char * argv[])
                 return EXIT_FAILURE;
             }
             spdlog::info("processing block {}", h);
-            utxodb.process_block(block_data.second, true);
+            bch.process_block(block_data.second, true);
         }
     }
 
     if (! disable_utxo_chkpnt_save) {
-        utxodb.save_bchd_checkpoint("../utxo-checkpoints/test");
+        bch.utxodb.save_bchd_checkpoint("../utxo-checkpoints/test");
     }
 
     std::thread mongo_status_update_thread([&] {
@@ -434,10 +434,10 @@ int main(int argc, char * argv[])
                 );
 
                 if (env_str == "rawtx") {
-                    utxodb.process_mempool_tx(msg_data);
+                    bch.process_mempool_tx(msg_data);
                 }
                 if (env_str == "rawblock") {
-                    utxodb.process_block(msg_data, true);
+                    bch.process_block(msg_data, true);
                 }
             }
         }

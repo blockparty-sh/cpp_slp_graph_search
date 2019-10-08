@@ -52,15 +52,6 @@ struct utxodb
         const std::string & path
     );
 
-    void process_block(
-        const std::vector<std::uint8_t>& block_data,
-        const bool save_rollback
-    );
-
-    void process_mempool_tx(
-        const std::vector<std::uint8_t>& msg_data
-    );
-
     void rollback();
 
     std::vector<gs::output> get_outputs_by_outpoints(

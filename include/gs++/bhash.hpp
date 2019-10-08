@@ -44,13 +44,13 @@ struct bhash
     constexpr auto size() -> decltype(v.size()) const
     { return v.size(); }
 
-    auto data()  -> decltype(v.data())
+    auto data() -> decltype(v.data()) const
     { return v.data(); }
 
-    auto begin() -> decltype(v.begin())
+    auto begin() -> decltype(v.begin()) const
     { return v.begin(); }
 
-    auto end()   -> decltype(v.end())
+    auto end() -> decltype(v.end()) const
     { return v.end(); }
 
     bool operator==(const bhash<Tag, Size> &o) const

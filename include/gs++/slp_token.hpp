@@ -8,6 +8,8 @@
 #include <absl/container/node_hash_map.h>
 
 #include <gs++/bhash.hpp>
+#include <gs++/output.hpp>
+#include <gs++/transaction.hpp>
 #include <gs++/slp_transaction.hpp>
 
 
@@ -23,11 +25,17 @@ struct slp_token
 
 
     slp_token(const gs::transaction& tx)
-    : tokenid(tx.txid)
+    : tokenid(gs::tokenid(tx.txid.v))
     , transactions({{ tx.txid, tx }})
     , genesis(transactions.at(tx.txid))
     {
         assert(tx.type == gs::slp_transaction_type::genesis);
+    }
+
+
+    void add_transaction(const gs::transaction& tx)
+    {
+        transactions.insert({ tx.txid, tx });
     }
 };
 

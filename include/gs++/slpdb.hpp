@@ -1,6 +1,7 @@
 #ifndef GS_SLPDB_HPP
 #define GS_SLPDB_HPP
 
+#include <variant>
 #include <absl/container/flat_hash_map.h>
 
 #include <gs++/bhash.hpp>
@@ -27,7 +28,26 @@ struct slpdb
         }
 
         if (tx.slp.type == gs::slp_transaction_type::genesis) {
-            tokens.set({ tx.tokenid, gs::slp_token(tx) });
+            gs::slp_token* const oid = &(*tokens.insert({ gs::tokenid(tx.txid.v), gs::slp_token(tx) }).first).second;
+            oid->add_transaction(tx);
+        }
+        else if (tx.slp.type == gs::slp_transaction_type::mint) {
+            const auto slp = std::get<gs::slp_transaction_mint>(tx.slp.slp_tx);
+            auto token_search = tokens.find(slp.tokenid);
+            if (token_search == tokens.end()) {
+                return;
+            }
+
+            token_search->second.add_transaction(tx);
+        }
+        else if (tx.slp.type == gs::slp_transaction_type::send) {
+            const auto slp = std::get<gs::slp_transaction_send>(tx.slp.slp_tx);
+            auto token_search = tokens.find(slp.tokenid);
+            if (token_search == tokens.end()) {
+                return;
+            }
+
+            token_search->second.add_transaction(tx);
         }
     }
 };
