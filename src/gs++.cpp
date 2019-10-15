@@ -372,16 +372,19 @@ int main(int argc, char * argv[])
     if (! disable_utxosync) {
         const std::pair<bool, std::uint32_t> best_block_height = rpc.get_best_block_height();
         if (! best_block_height.first) {
-            std::cerr << "could not connect to rpc\n";
+            spdlog::error("could not connect to rpc");
             return EXIT_FAILURE;
         }
 
-        std::cout << "best block height: " << best_block_height.second << "\n";
+        spdlog::info("best block height: {}", best_block_height.second);
         for (std::uint32_t h=utxo_chkpnt_block_height; h<=best_block_height.second; ++h) {
             const std::pair<bool, std::vector<std::uint8_t>> block_data = rpc.get_raw_block(h);
             if (! block_data.first) {
-                std::cerr << "could not connect to rpc\n";
-                return EXIT_FAILURE;
+                spdlog::warn("rpc request failed, trying again...");
+                const std::chrono::milliseconds await_time { 1000 };
+                std::this_thread::sleep_for(await_time);
+                --h;
+                continue;
             }
             spdlog::info("processing block {}", h);
             bch.process_block(block_data.second, true);
