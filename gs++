@@ -40,7 +40,9 @@ cfg=(
     --disable_mongowatch
     --disable_grpc
     --utxo_chkpnt_file         "./utxo-checkpoints/QmXkBQJrMKkCKNbwv4m5xtnqwU9Sq7kucPigvZW8mWxcrv"
-    --utxo_chkpnt_block_height "582680"
+    --utxo_chkpnt_block_height  "543375"
+#    --utxo_chkpnt_block_height "582680"
+#    --utxo_chkpnt_block_height "583927"
 #    --utxo_chkpnt_block_height "603030"
     --utxo_chkpnt_block_hash   "0000000000000000000000000000000000000000000000000000000000000000"
 )

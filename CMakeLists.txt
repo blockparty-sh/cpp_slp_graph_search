@@ -293,7 +293,7 @@ target_include_directories(gs++ PUBLIC
 target_compile_definitions(gs++ PUBLIC
     ${LIBMONGOCXX_DEFINITIONS}
 )
-target_compile_options(gs++ PRIVATE -Wall -pedantic)
+target_compile_options(gs++ PRIVATE -Wall)
 
 
 add_executable(gs++-cli
@@ -309,13 +309,14 @@ target_link_libraries(gs++-cli
     absl::node_hash_map
     base64
 )
-target_compile_options(gs++-cli PRIVATE -Wall -pedantic)
+target_compile_options(gs++-cli PRIVATE -Wall)
 
 
 
 add_executable(internals_test
     ${CMAKE_CURRENT_SOURCE_DIR}/test/internals_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/utxodb.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/bch.cpp
     ${PROTO_SRCS}
     ${PROTO_SRCS}
     ${GRPC_SRCS}

@@ -5,6 +5,7 @@
 #include <string>
 #include <memory>
 #include <cassert>
+#include <iostream>
 #include <httplib/httplib.h>
 #include <nlohmann/json.hpp>
 #include <gs++/util.hpp>

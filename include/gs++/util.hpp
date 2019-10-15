@@ -3,6 +3,10 @@
 
 #include <cstdint>
 #include <algorithm>
+#include <vector>
+#include <cassert>
+#include <array>
+#include <string>
 
 namespace gs {
 

@@ -23,6 +23,7 @@ struct transaction
     std::vector<gs::output>   outputs;
     gs::slp_transaction slp;
 
+    transaction() = default;
 
     template <typename Iterator>
     transaction(Iterator&& it, const std::uint32_t height)
@@ -85,35 +86,13 @@ struct transaction
         if (this->outputs.size() > 0) {
             if (this->outputs[0].is_op_return()) {
                 this->slp = gs::slp_transaction(this->outputs[0].scriptpubkey);
-                /*
-                if (this->slp.type == gs::slp_transaction_type::genesis) {
-                    spdlog::warn("SLP GENESIS {}", this->txid.decompress(true));
-                }
-                else if (this->slp.type == gs::slp_transaction_type::mint) {
-                    spdlog::warn("SLP MINT {}", this->txid.decompress(true));
-                }
-                else if (this->slp.type == gs::slp_transaction_type::send) {
-                    spdlog::warn("SLP SEND {}", this->txid.decompress(true));
-                }
-                */
             }
         }
     }
 
     template <typename Iterator>
-    transaction(Iterator&& it)
-    : transaction(it, 0)
-    {}
-
-
-    template <typename Iterator>
     transaction(const Iterator&& it, const std::uint32_t height)
     : transaction(it, height)
-    {}
-
-    template <typename Iterator>
-    transaction(const Iterator&& it)
-    : transaction(it, 0)
     {}
 };
 

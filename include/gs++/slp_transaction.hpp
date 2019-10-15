@@ -8,8 +8,23 @@
 #include <gs++/bhash.hpp>
 #include <gs++/util.hpp>
 #include <gs++/scriptpubkey.hpp>
+#include <gs++/output.hpp>
 
 namespace gs {
+
+struct slp_output
+{
+    gs::outpoint  outpoint;
+    std::uint64_t amount;
+
+    slp_output(
+        const gs::outpoint& outpoint,
+        const std::uint64_t amount
+    )
+    : outpoint(outpoint)
+    , amount(amount)
+    {}
+};
 
 struct slp_transaction_invalid
 {};
@@ -56,7 +71,7 @@ struct slp_transaction_mint
 
     slp_transaction_mint(
         const gs::tokenid&  tokenid,
-        const bool          has_mint_baton,
+        const bool          has_mint_baton, // maybe this could be function that checks if mint_baton_vout > 0
         const std::uint32_t mint_baton_vout,
         const std::uint64_t qty
     )
@@ -146,12 +161,17 @@ struct slp_transaction
 
         auto it = scriptpubkey.v.begin();
         PARSE_CHECK(scriptpubkey.v[0] != 0x6a, "scriptpubkey not op_return");
+        PARSE_CHECK(scriptpubkey.v.size() < 10, "scriptpubkey too small"); // TODO what is correct minimum size?
         ++it;
 
         // success, value
         auto extract_pushdata = [&it, &scriptpubkey]()
         -> std::pair<bool, std::uint32_t>
         {
+			if (it == scriptpubkey.v.end()) {
+				return { false, 0 };
+			}
+
             const std::uint8_t cnt = gs::util::extract_u8(it);
 
             if (cnt < 0x4C) {
@@ -237,12 +257,13 @@ struct slp_transaction
 
         PARSE_CHECK(chunks.empty(), "chunks empty");
 
-        auto cit = chunks.begin() + 1; // the 1 is for quick exit done above
-
         #define CHECK_NEXT() {\
             ++cit;\
             PARSE_CHECK(cit == chunks.end(), "parsing ended early");\
         }
+
+        auto cit = chunks.begin();
+        CHECK_NEXT(); // for quick exit check done above
 
         std::uint64_t token_type = 0;
         {
@@ -301,6 +322,7 @@ struct slp_transaction
                 const std::string mint_baton_vout_str = *cit;
                 PARSE_CHECK(mint_baton_vout_str.size() >= 2, "mint_baton_vout string length must be 0 or 1");
                 if (mint_baton_vout_str != "") {
+                    has_mint_baton = true;
                     const std::pair<bool, std::uint64_t> mint_baton_vout_check {
                         string_to_number(mint_baton_vout_str)
                     };

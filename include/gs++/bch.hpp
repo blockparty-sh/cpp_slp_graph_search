@@ -19,6 +19,8 @@ struct bch
     bch()
     {}
 
+    std::vector<gs::transaction> topological_sort(const std::vector<gs::transaction>& tx_list);
+
     void process_block(
         const std::vector<std::uint8_t>& block_data,
         const bool save_rollback

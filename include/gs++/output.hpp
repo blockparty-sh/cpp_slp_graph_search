@@ -6,14 +6,13 @@
 #include <absl/hash/hash.h>
 #include <gs++/bhash.hpp>
 #include <gs++/scriptpubkey.hpp>
-#include <gs++/slp_transaction.hpp>
 
 
 namespace gs {
 
 struct output
 {
-	gs::txid         prev_tx_id;
+	gs::txid         prev_tx_id; // TODO we should use outpoint here
 	std::uint32_t    prev_out_idx;
 	std::uint32_t    height;
 	std::uint64_t    value;

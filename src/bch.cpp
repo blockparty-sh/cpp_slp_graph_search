@@ -2,14 +2,66 @@
 #include <cstdint>
 #include <algorithm>
 #include <shared_mutex>
+#include <stack>
+#include <functional>
 
 #include <spdlog/spdlog.h>
+#include <absl/container/flat_hash_map.h>
+#include <absl/container/flat_hash_set.h>
 #include <gs++/bch.hpp>
 #include <gs++/transaction.hpp>
 #include <gs++/slp_transaction.hpp>
 
 namespace gs {
 
+void topological_sort_internal(
+	const gs::transaction& tx,
+    const absl::flat_hash_map<gs::txid, gs::transaction> & transactions,
+    std::vector<gs::txid> & stack,
+    absl::flat_hash_set<gs::txid> & visited
+) {
+    visited.insert(tx.txid);
+
+    for (const gs::outpoint & outpoint : tx.inputs) {
+        if (visited.count(outpoint.txid)      == 0
+        &&  transactions.count(outpoint.txid) == 1
+        ) {
+            topological_sort_internal(
+				transactions.at(outpoint.txid),
+                transactions,
+                stack,
+                visited
+			);
+        }
+    }
+    stack.push_back(tx.txid);
+}
+
+std::vector<gs::transaction> bch::topological_sort(
+    const std::vector<gs::transaction>& tx_list
+) {
+    absl::flat_hash_map<gs::txid, gs::transaction> transactions;
+    for (auto & tx : tx_list) {
+        transactions.insert({ tx.txid, tx });
+    }
+
+    std::vector<gs::txid> stack;
+    absl::flat_hash_set<gs::txid> visited;
+
+    for (auto & tx : tx_list) {
+        if (visited.count(tx.txid) == 0) {
+            topological_sort_internal(tx, transactions, stack, visited);
+        }
+    }
+
+    std::vector<gs::transaction> ret;
+    ret.reserve(stack.size());
+    for (auto & txid : stack) {
+        ret.emplace_back(transactions[txid]);
+    }
+
+    return ret;
+}
 
 // TODO we need to check for memory leaks/bugs
 // they most likely would exist in this function 
@@ -50,8 +102,9 @@ void bch::process_block(
         << txn_count << "\n";
     */
 
-    std::vector<gs::outpoint> blk_inputs;
-    std::vector<gs::output>   blk_outputs;
+    std::vector<gs::outpoint>    blk_inputs;
+    std::vector<gs::output>      blk_outputs;
+    std::vector<gs::transaction> slp_txs;
 
     std::size_t total_added = 0;
     std::size_t total_removed = 0;
@@ -65,6 +118,10 @@ void bch::process_block(
 
         for (auto & m : tx.outputs) {
             blk_outputs.emplace_back(m);
+        }
+
+        if (tx.slp.type != gs::slp_transaction_type::invalid) {
+            slp_txs.emplace_back(tx);
         }
     }
 
@@ -97,6 +154,11 @@ void bch::process_block(
             this_block_added.push_back(outpoint);
         }
         // std::cout << height << "\tadded: " << m.prev_tx_id.decompress(true) << ":" << m.prev_out_idx << "\n";
+    }
+
+    slp_txs = topological_sort(slp_txs);
+    for (auto & m : slp_txs) {
+        slpdb.add_transaction(m);
     }
 
     for (auto & m : blk_inputs) {
@@ -161,7 +223,7 @@ void bch::process_block(
         }
     }
 
-    spdlog::info("processed block +{} -{}", total_added, total_removed);
+    // spdlog::info("processed block +{} -{}", total_added, total_removed);
 }
 
 void bch::process_mempool_tx(const std::vector<std::uint8_t>& msg_data)
@@ -211,6 +273,10 @@ void bch::process_mempool_tx(const std::vector<std::uint8_t>& msg_data)
         if (addr_map.empty()) {
             utxodb.mempool_scriptpubkey_to_output.erase(o.scriptpubkey);
         }
+    }
+
+    if (tx.slp.type != gs::slp_transaction_type::invalid) {
+        slpdb.add_transaction(tx);
     }
 }
 
