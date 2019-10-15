@@ -267,6 +267,7 @@ add_executable(gs++
     ${CMAKE_CURRENT_SOURCE_DIR}/src/txgraph.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/bch.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/utxodb.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/rpc.cpp
     ${PROTO_SRCS}
     ${GRPC_SRCS}
 )
