@@ -16,6 +16,7 @@ struct slp_output
 {
     gs::outpoint  outpoint;
     std::uint64_t amount;
+    bool is_mint_baton;
 
     slp_output(
         const gs::outpoint& outpoint,
@@ -23,6 +24,16 @@ struct slp_output
     )
     : outpoint(outpoint)
     , amount(amount)
+    , is_mint_baton(false)
+    {}
+
+    slp_output(
+        const gs::outpoint& outpoint,
+        const gs::outpoint& mint_baton_utxo
+    )
+    : outpoint(outpoint)
+    , amount(0)
+    , is_mint_baton(true)
     {}
 };
 

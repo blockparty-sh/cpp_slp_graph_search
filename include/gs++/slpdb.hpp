@@ -18,7 +18,7 @@ struct slpdb
     std::shared_mutex lookup_mtx; // IMPORTANT: lookups/inserts must be guarded with the lookup_mtx
 
     absl::flat_hash_map<gs::tokenid, gs::slp_token> tokens;
-    // absl::flat_hash_map<gs::outpoint, gs::slp_output> utxos;
+    absl::flat_hash_map<gs::outpoint, gs::tokenid> utxo_to_tokenid;
 
     void add_transaction(const gs::transaction& tx)
     {
@@ -48,10 +48,13 @@ struct slpdb
 
             const gs::outpoint outpoint(tx.txid, 1);
             token.utxos.insert({ outpoint, gs::slp_output(outpoint, slp.qty) });
+            utxo_to_tokenid.insert({ outpoint, tokenid });
 
             if (slp.has_mint_baton) {
                 if (slp.mint_baton_vout < tx.outputs.size()) {
-                    token.mint_baton_outpoint = gs::outpoint(tx.txid, slp.mint_baton_vout);
+                    const gs::outpoint mint_baton_outpoint(tx.txid, slp.mint_baton_vout);
+                    token.mint_baton_outpoint = mint_baton_outpoint;
+                    utxo_to_tokenid.insert({ mint_baton_outpoint, tokenid });
                 }
             }
 
@@ -88,13 +91,13 @@ struct slpdb
 
             const gs::outpoint outpoint(tx.txid, 1);
             token.utxos.insert({ outpoint, gs::slp_output(outpoint, slp.qty) });
+            utxo_to_tokenid.insert({ outpoint, slp.tokenid });
 
             if (slp.has_mint_baton && slp.mint_baton_vout < tx.outputs.size()) {
-                const gs::outpoint baton_outpoint(tx.txid, slp.mint_baton_vout);
-                token.mint_baton_outpoint.value() = baton_outpoint;
-            }
-            else {
-                token.mint_baton_outpoint.reset();
+                const gs::outpoint mint_baton_outpoint(tx.txid, slp.mint_baton_vout);
+                token.mint_baton_outpoint = mint_baton_outpoint;
+                token.utxos.insert({ mint_baton_outpoint, gs::slp_output(outpoint, mint_baton_outpoint) });
+                utxo_to_tokenid.insert({ mint_baton_outpoint, slp.tokenid });
             }
 
             spdlog::info("mint end");
@@ -132,6 +135,7 @@ struct slpdb
             for (std::size_t i=0; i<slp.amounts.size() && i<1+tx.outputs.size(); ++i) {
                 const gs::outpoint outpoint(tx.txid, i+1);
                 token.utxos.insert({ outpoint, gs::slp_output(outpoint, slp.amounts[i]) });
+                utxo_to_tokenid.insert({ outpoint, slp.tokenid });
             }
 
             token.transactions.insert({ tx.txid, tx });

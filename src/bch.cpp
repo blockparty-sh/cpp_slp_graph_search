@@ -209,6 +209,22 @@ void bch::process_block(
                 ++total_removed;
             }
         }
+
+
+        // remove slp utxos
+        auto slp_utxo_to_tokenid_search = slpdb.utxo_to_tokenid.find(m);
+        if (slp_utxo_to_tokenid_search == slpdb.utxo_to_tokenid.end()) {
+            continue;
+        }
+
+        gs::slp_token & slp_token = slpdb.tokens[slp_utxo_to_tokenid_search->second];
+        if (! slp_token.utxos.erase(m)) {
+            spdlog::error("deleted slp utxo not found");
+        } else if (slp_token.mint_baton_outpoint.has_value()
+               &&  slp_token.mint_baton_outpoint == m
+        ) {
+            slp_token.mint_baton_outpoint.reset();
+        }
     }
 
     if (save_rollback) {
