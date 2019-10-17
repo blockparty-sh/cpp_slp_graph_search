@@ -22,7 +22,7 @@ std::shared_ptr<httplib::Response> rpc::query(
     }};
 
     return cli.Post("/", {
-            httplib::make_basic_authentication_header(rpc_user, "password919191828282777wq")
+            httplib::make_basic_authentication_header(rpc_user, rpc_pass)
         },
         robj.dump(),
         "text/plain"

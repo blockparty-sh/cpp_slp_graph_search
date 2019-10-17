@@ -210,7 +210,7 @@ void utxodb::rollback()
             continue;
         }
 
-        const gs::output& o           = outpoint_map.at(m);
+        const gs::output& o                 = outpoint_map.at(m);
         const gs::scriptpubkey scriptpubkey = o.scriptpubkey;
 
         if (! scriptpubkey_to_output.count(scriptpubkey)) {

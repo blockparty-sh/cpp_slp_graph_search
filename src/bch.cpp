@@ -4,6 +4,7 @@
 #include <shared_mutex>
 #include <stack>
 #include <functional>
+#include <cassert>
 
 #include <spdlog/spdlog.h>
 #include <absl/container/flat_hash_map.h>
@@ -217,6 +218,7 @@ void bch::process_block(
             continue;
         }
 
+        assert(slpdb.tokens.count(slp_utxo_to_tokenid_search->second) == 1);
         gs::slp_token & slp_token = slpdb.tokens[slp_utxo_to_tokenid_search->second];
         if (! slp_token.utxos.erase(m)) {
             spdlog::error("deleted slp utxo not found");
