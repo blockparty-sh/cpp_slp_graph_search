@@ -268,6 +268,8 @@ add_executable(gs++
     ${CMAKE_CURRENT_SOURCE_DIR}/src/bch.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/utxodb.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rpc.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/util.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/slp_transaction.cpp
     ${PROTO_SRCS}
     ${GRPC_SRCS}
 )
@@ -299,6 +301,8 @@ target_compile_options(gs++ PRIVATE -Wall)
 
 add_executable(gs++-cli
     ${CMAKE_CURRENT_SOURCE_DIR}/src/gs++-cli.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/util.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/slp_transaction.cpp
     ${PROTO_SRCS}
     ${GRPC_SRCS}
 )
@@ -318,6 +322,8 @@ add_executable(internals_test
     ${CMAKE_CURRENT_SOURCE_DIR}/test/internals_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/utxodb.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/bch.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/util.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/slp_transaction.cpp
     ${PROTO_SRCS}
     ${PROTO_SRCS}
     ${GRPC_SRCS}

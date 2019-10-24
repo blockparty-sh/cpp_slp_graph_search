@@ -8,7 +8,11 @@
 #include <array>
 #include <string>
 
+// You must include gs++/transaction.hpp before including this file
+
 namespace gs {
+
+struct transaction;
 
 namespace util {
 
@@ -128,6 +132,10 @@ std::vector<std::uint8_t> compress_hex(const Container& v_)
 
     return ret;
 }
+
+std::vector<gs::transaction> topological_sort(
+    const std::vector<gs::transaction>& tx_list
+);
 
 }
 

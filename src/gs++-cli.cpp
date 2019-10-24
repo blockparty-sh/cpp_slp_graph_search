@@ -8,10 +8,11 @@
 
 #include <grpc++/grpc++.h>
 #include <libbase64.h>
+#include "graphsearch.grpc.pb.h"
+
+#include <gs++/transaction.hpp>
 #include <gs++/bhash.hpp>
 #include <gs++/scriptpubkey.hpp>
-#include <gs++/util.hpp>
-#include "graphsearch.grpc.pb.h"
 
 class GraphSearchServiceClient
 {
@@ -39,6 +40,33 @@ public:
                 b64.resize(b64_len);
                 std::cout << b64 << "\n";
             }
+
+            return true;
+        } else {
+            std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+            return false;
+        }
+    }
+
+    bool GraphSearchValidate(const std::string& txid)
+    {
+        graphsearch::GraphSearchRequest request;
+        request.set_txid(txid);
+
+        graphsearch::GraphSearchReply reply;
+
+        grpc::ClientContext context;
+        grpc::Status status = stub_->GraphSearch(&context, request, &reply);
+
+        std::vector<gs::transaction> transactions;
+
+        if (status.ok()) {
+            for (auto n : reply.txdata()) {
+                const gs::transaction tx(n.begin(), 0);
+                transactions.push_back(tx);
+            }
+
+            // gs::bch::topological_sort
 
             return true;
         } else {
