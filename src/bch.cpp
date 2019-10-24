@@ -42,14 +42,18 @@ std::vector<gs::transaction> bch::topological_sort(
     const std::vector<gs::transaction>& tx_list
 ) {
     absl::flat_hash_map<gs::txid, gs::transaction> transactions;
-    for (auto & tx : tx_list) {
+    transactions.reserve(tx_list.size());
+    for (const gs::transaction & tx : tx_list) {
         transactions.insert({ tx.txid, tx });
     }
 
     std::vector<gs::txid> stack;
-    absl::flat_hash_set<gs::txid> visited;
+    stack.reserve(tx_list.size());
 
-    for (auto & tx : tx_list) {
+    absl::flat_hash_set<gs::txid> visited;
+    visited.reserve(tx_list.size());
+
+    for (const gs::transaction & tx : tx_list) {
         if (visited.count(tx.txid) == 0) {
             topological_sort_internal(tx, transactions, stack, visited);
         }
@@ -57,7 +61,7 @@ std::vector<gs::transaction> bch::topological_sort(
 
     std::vector<gs::transaction> ret;
     ret.reserve(stack.size());
-    for (auto & txid : stack) {
+    for (const gs::txid & txid : stack) {
         ret.emplace_back(transactions[txid]);
     }
 
