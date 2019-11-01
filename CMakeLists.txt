@@ -305,7 +305,6 @@ add_executable(gs++-cli
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/slp_transaction.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/sha2.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/slp_validator.cpp
     ${PROTO_SRCS}
     ${GRPC_SRCS}
 )
@@ -316,8 +315,26 @@ target_link_libraries(gs++-cli
     absl::flat_hash_map
     absl::node_hash_map
     base64
+    cslp
 )
 target_compile_options(gs++-cli PRIVATE -Wall)
+
+
+
+add_library(cslp STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/cslp.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/util.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/slp_transaction.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sha2.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/slp_validator.cpp
+)
+target_include_directories(cslp PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(cslp
+    absl::flat_hash_map
+    absl::node_hash_map
+)
 
 
 

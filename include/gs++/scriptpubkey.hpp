@@ -4,7 +4,6 @@
 #include <vector>
 #include <cstdint>
 #include <absl/hash/internal/hash.h>
-#include <libbase64.h>
 
 namespace gs {
 
@@ -75,21 +74,6 @@ struct scriptpubkey
         }   
      
         return "";
-    }
-
-    std::string to_base64() const
-    {
-        std::string b64(v.size()*1.5, '\0');
-        std::size_t b64_len = 0;
-        base64_encode(
-            reinterpret_cast<const char*>(v.data()),
-            v.size(),
-            b64.data(),
-            &b64_len,
-            0
-        );
-        b64.resize(b64_len);
-        return b64;
     }
 };
 

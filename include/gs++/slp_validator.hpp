@@ -20,6 +20,7 @@ struct slp_validator
     slp_validator() = default;
 
     void add_tx(const gs::transaction& tx);
+    void remove_tx(const gs::txid& txid);
 
     bool walk_mints_home (
         absl::flat_hash_set<gs::txid> & seen,

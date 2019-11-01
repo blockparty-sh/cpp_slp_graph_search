@@ -15,6 +15,7 @@
 #include <grpc++/grpc++.h>
 #include <spdlog/spdlog.h>
 #include <zmq.hpp>
+#include <libbase64.h>
 
 #include <gs++/gs++.hpp>
 #include <gs++/bhash.hpp>
@@ -41,6 +42,21 @@ std::filesystem::path get_tokendir(const gs::tokenid tokenid)
     const std::string p1 = tokenid_str.substr(0, 1);
     const std::string p2 = tokenid_str.substr(1, 1);
     return std::filesystem::path("cache") / p1 / p2;
+}
+
+std::string scriptpubkey_to_base64(const gs::scriptpubkey& pubkey)
+{
+    std::string b64(pubkey.v.size()*1.5, '\0');
+    std::size_t b64_len = 0;
+    base64_encode(
+        reinterpret_cast<const char*>(pubkey.v.data()),
+        pubkey.v.size(),
+        b64.data(),
+        &b64_len,
+        0
+    );
+    b64.resize(b64_len);
+    return b64;
 }
 
 void signal_handler(int signal)
@@ -165,7 +181,7 @@ class GraphSearchServiceImpl final
         const auto diff = end - start;
         const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
 
-        spdlog::info("utxo-scriptpubkey: {} {} ({} ms)", scriptpubkey.to_base64(), outputs.size(), diff_ms);
+        spdlog::info("utxo-scriptpubkey: {} {} ({} ms)", scriptpubkey_to_base64(scriptpubkey), outputs.size(), diff_ms);
         return { grpc::Status::OK };
     }
     
@@ -185,10 +201,12 @@ class GraphSearchServiceImpl final
         const auto diff = end - start;
         const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
 
-        spdlog::info("balance-scriptpubkey: {} {} ({} ms)", scriptpubkey.to_base64(), balance, diff_ms);
+        spdlog::info("balance-scriptpubkey: {} {} ({} ms)", scriptpubkey_to_base64(scriptpubkey), balance, diff_ms);
         return { grpc::Status::OK };
     }
 };
+
+
 
 int main(int argc, char * argv[])
 {

@@ -19,6 +19,11 @@ void slp_validator::add_tx(const gs::transaction& tx)
     transaction_map.insert({ tx.txid, tx });
 }
 
+void slp_validator::remove_tx(const gs::txid& txid)
+{
+    transaction_map.erase(txid);
+}
+
 bool slp_validator::walk_mints_home (
     absl::flat_hash_set<gs::txid> & seen,
     std::vector<gs::transaction>& mints

@@ -17,7 +17,8 @@
 #include <gs++/transaction.hpp>
 #include <gs++/bhash.hpp>
 #include <gs++/scriptpubkey.hpp>
-#include <gs++/slp_validator.hpp>
+
+#include <gs++/cslp.h>
 
 
 class GraphSearchServiceClient
@@ -66,12 +67,11 @@ public:
 
 
         if (status.ok()) {
-            gs::slp_validator validator;
+            cslp_validator validator = cslp_validator_init();
             {
                 auto start = std::chrono::high_resolution_clock::now();
                 for (auto & n : reply.txdata()) {
-                    const gs::transaction tx(n.begin(), 0);
-                    validator.add_tx(tx);
+                    cslp_validator_add_tx(validator, n.data());
                 }
                 auto end = std::chrono::high_resolution_clock::now();
                 std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
@@ -82,12 +82,13 @@ public:
 
             {
                 auto start = std::chrono::high_resolution_clock::now();
-                const bool valid = validator.validate(txid);
+                const bool valid = cslp_validator_validate(validator, reinterpret_cast<const char*>(txid.v.data()));
                 std::cout << txid.decompress(true) << ": " << ((valid) ? "valid" : "invalid") << "\n";
                 auto end = std::chrono::high_resolution_clock::now();
                 std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
             }
 
+            cslp_validator_destroy(validator);
             return true;
         } else {
             std::cout << status.error_code() << ": " << status.error_message() << std::endl;

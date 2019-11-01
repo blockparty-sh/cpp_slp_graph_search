@@ -240,7 +240,7 @@ TEST_CASE( "topological_sorting", "[single-file]" ) {
                         transactions.push_back(gs::transaction(txhex.begin(), 0));
                     }
 
-                    std::vector<gs::transaction> sorted_txs = bch.topological_sort(transactions);
+                    std::vector<gs::transaction> sorted_txs = gs::util::topological_sort(transactions);
                     for (std::size_t i=0; i<sorted_txs.size(); ++i) {
                         REQUIRE( sorted_txs[i].txid.decompress(true) == ordered[i].decompress(true) );
                     }
