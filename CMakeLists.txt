@@ -270,6 +270,7 @@ add_executable(gs++
     ${CMAKE_CURRENT_SOURCE_DIR}/src/rpc.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/slp_transaction.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sha2.cpp
     ${PROTO_SRCS}
     ${GRPC_SRCS}
 )
@@ -303,6 +304,8 @@ add_executable(gs++-cli
     ${CMAKE_CURRENT_SOURCE_DIR}/src/gs++-cli.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/slp_transaction.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sha2.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/slp_validator.cpp
     ${PROTO_SRCS}
     ${GRPC_SRCS}
 )
@@ -324,6 +327,7 @@ add_executable(internals_test
     ${CMAKE_CURRENT_SOURCE_DIR}/src/bch.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/slp_transaction.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sha2.cpp
     ${PROTO_SRCS}
     ${PROTO_SRCS}
     ${GRPC_SRCS}

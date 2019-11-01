@@ -21,10 +21,10 @@ struct output
 	output(){}
 
 	output (
-		const gs::txid      prev_tx_id,
-		const std::uint32_t prev_out_idx,
-		const std::uint32_t height,
-		const std::uint64_t value,
+		const gs::txid         prev_tx_id,
+		const std::uint32_t    prev_out_idx,
+		const std::uint32_t    height,
+		const std::uint64_t    value,
 		const gs::scriptpubkey scriptpubkey
 	)
 	: prev_tx_id(prev_tx_id)

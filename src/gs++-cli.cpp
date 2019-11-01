@@ -1,5 +1,6 @@
 #include <iostream>
 #include <memory>
+#include <chrono>
 #include <string>
 #include <sstream>
 #include <cstdlib>
@@ -9,10 +10,15 @@
 #include <grpc++/grpc++.h>
 #include <libbase64.h>
 #include "graphsearch.grpc.pb.h"
+#include <absl/container/flat_hash_map.h>
+#include <absl/container/flat_hash_set.h>
+#include <absl/numeric/int128.h>
 
 #include <gs++/transaction.hpp>
 #include <gs++/bhash.hpp>
 #include <gs++/scriptpubkey.hpp>
+#include <gs++/slp_validator.hpp>
+
 
 class GraphSearchServiceClient
 {
@@ -48,25 +54,39 @@ public:
         }
     }
 
-    bool GraphSearchValidate(const std::string& txid)
+    bool GraphSearchValidate(const std::string& txid_str)
     {
         graphsearch::GraphSearchRequest request;
-        request.set_txid(txid);
+        request.set_txid(txid_str);
 
         graphsearch::GraphSearchReply reply;
 
         grpc::ClientContext context;
         grpc::Status status = stub_->GraphSearch(&context, request, &reply);
 
-        std::vector<gs::transaction> transactions;
 
         if (status.ok()) {
-            for (auto n : reply.txdata()) {
-                const gs::transaction tx(n.begin(), 0);
-                transactions.push_back(tx);
+            gs::slp_validator validator;
+            {
+                auto start = std::chrono::high_resolution_clock::now();
+                for (auto & n : reply.txdata()) {
+                    const gs::transaction tx(n.begin(), 0);
+                    validator.add_tx(tx);
+                }
+                auto end = std::chrono::high_resolution_clock::now();
+                std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
             }
 
-            // gs::bch::topological_sort
+            gs::txid txid(txid_str);
+            std::reverse(txid.v.begin(), txid.v.end());
+
+            {
+                auto start = std::chrono::high_resolution_clock::now();
+                const bool valid = validator.validate(txid);
+                std::cout << txid.decompress(true) << ": " << ((valid) ? "valid" : "invalid") << "\n";
+                auto end = std::chrono::high_resolution_clock::now();
+                std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
+            }
 
             return true;
         } else {
@@ -202,7 +222,7 @@ int main(int argc, char* argv[])
 
     const std::string usage_str = "usage: gs++-cli [--version] [--help] [--host host_address] [--port port]\n"
                                   "[--graphsearch TXID] [--utxo TXID:VOUT] [--utxo_scriptpubkey PK]\n"
-                                  "[--balance_scriptpubkey PK]\n";
+                                  "[--balance_scriptpubkey PK] [--validate TXID]\n";
 
     while (true) {
         static struct option long_options[] = {
@@ -215,6 +235,7 @@ int main(int argc, char* argv[])
             { "utxo",                 no_argument, nullptr, 1001 },
             { "utxo_scriptpubkey",    no_argument, nullptr, 1002 },
             { "balance_scriptpubkey", no_argument, nullptr, 1003 },
+            { "validate",             no_argument, nullptr, 1004 },
         };
 
         int option_index = 0;
@@ -246,6 +267,7 @@ int main(int argc, char* argv[])
             case 1001: query_type = "utxo";                 break;
             case 1002: query_type = "utxo_scriptpubkey";    break;
             case 1003: query_type = "balance_scriptpubkey"; break;
+            case 1004: query_type = "validate";             break;
 
             case '?':
                 return EXIT_FAILURE;
@@ -271,6 +293,13 @@ int main(int argc, char* argv[])
 
     if (query_type == "graphsearch") {
         graphsearch.GraphSearch(argv[argc-1]);
+    } else if (query_type == "validate") {
+        /*
+        if (optind >= argc) {
+            std::cerr << "validate requires TXID argument\n";
+            return EXIT_FAILURE;
+        }*/
+        graphsearch.GraphSearchValidate(argv[argc-1]);
     } else if (query_type == "utxo") {
         std::vector<std::pair<std::string, std::uint32_t>> outpoints;
         for (int optidx=optind; optidx < argc; ++optidx) {

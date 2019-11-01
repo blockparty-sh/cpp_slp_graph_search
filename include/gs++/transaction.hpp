@@ -10,7 +10,7 @@
 #include <gs++/output.hpp>
 #include <gs++/slp_transaction.hpp>
 
-#include <3rdparty/picosha2.h>
+#include <3rdparty/sha2.h>
 
 namespace gs {
 
@@ -75,8 +75,8 @@ struct transaction
         serialized_tx.reserve(end_it - begin_it);
         std::copy(begin_it, end_it, std::back_inserter(serialized_tx));
 
-        picosha2::hash256(serialized_tx, this->txid.v);
-        picosha2::hash256(this->txid.v, this->txid.v);
+        sha256(serialized_tx.data(), serialized_tx.size(), this->txid.v.data());
+        sha256(this->txid.v.data(), this->txid.v.size(), this->txid.v.data());
         // std::reverse(this->txid.begin(), this->txid.end());
 
         for (auto & m : this->outputs) {
@@ -94,6 +94,34 @@ struct transaction
     transaction(const Iterator&& it, const std::uint32_t height)
     : transaction(it, height)
     {}
+
+    std::uint64_t output_slp_amount(const std::uint64_t vout) const
+    {
+        if      (slp.type == slp_transaction_type::send) {
+            const auto & s = std::get<gs::slp_transaction_send>(slp.slp_tx);
+
+            if (vout > 0 && vout-1 < s.amounts.size()) {
+                return s.amounts[vout-1];
+            }
+        }
+        else if (slp.type == slp_transaction_type::mint) {
+            const auto & s = std::get<gs::slp_transaction_mint>(slp.slp_tx);
+            if (vout == 1) {
+                return s.qty;
+            }
+        }
+        else if (slp.type == slp_transaction_type::genesis) {
+            const auto & s = std::get<gs::slp_transaction_genesis>(slp.slp_tx);
+            if (vout == 1) {
+                return s.qty;
+            }
+        }
+        else if (slp.type == slp_transaction_type::invalid) {
+            return 0;
+        }
+
+        return 0;
+    }
 };
 
 }

@@ -17,7 +17,6 @@
 #include <mio/mmap.hpp>
 #include <zmq.hpp>
 #include <spdlog/spdlog.h>
-#include <3rdparty/picosha2.h>
 
 #include <gs++/bhash.hpp>
 #include <gs++/output.hpp>

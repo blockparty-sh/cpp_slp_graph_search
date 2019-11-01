@@ -417,31 +417,35 @@ int main(int argc, char * argv[])
         sock.setsockopt(ZMQ_SUBSCRIBE, "rawtx", strlen("rawtx"));
 
         while (true) {
-            zmq::message_t env;
-            sock.recv(&env);
-            std::string env_str = std::string(static_cast<char*>(env.data()), env.size());
+            try {
+                zmq::message_t env;
+                sock.recv(&env);
+                std::string env_str = std::string(static_cast<char*>(env.data()), env.size());
 
-            if (env_str == "rawtx" || env_str == "rawblock") {
-                // std::cout << "Received envelope '" << env_str << "'" << std::endl;
+                if (env_str == "rawtx" || env_str == "rawblock") {
+                    // std::cout << "Received envelope '" << env_str << "'" << std::endl;
 
-                zmq::message_t msg;
-                sock.recv(&msg);
+                    zmq::message_t msg;
+                    sock.recv(&msg);
 
-                std::vector<std::uint8_t> msg_data;
-                msg_data.reserve(msg.size());
+                    std::vector<std::uint8_t> msg_data;
+                    msg_data.reserve(msg.size());
 
-                std::copy(
-                    static_cast<std::uint8_t*>(msg.data()),
-                    static_cast<std::uint8_t*>(msg.data())+msg.size(),
-                    std::back_inserter(msg_data)
-                );
+                    std::copy(
+                        static_cast<std::uint8_t*>(msg.data()),
+                        static_cast<std::uint8_t*>(msg.data())+msg.size(),
+                        std::back_inserter(msg_data)
+                    );
 
-                if (env_str == "rawtx") {
-                    bch.process_mempool_tx(msg_data);
+                    if (env_str == "rawtx") {
+                        bch.process_mempool_tx(msg_data);
+                    }
+                    if (env_str == "rawblock") {
+                        bch.process_block(msg_data, true);
+                    }
                 }
-                if (env_str == "rawblock") {
-                    bch.process_block(msg_data, true);
-                }
+            } catch (const zmq::error_t& e) {
+                spdlog::error(e.what());
             }
         }
     });
