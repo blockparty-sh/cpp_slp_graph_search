@@ -19,9 +19,11 @@ else()
 endif(HAS_FS)
 
 
+# TODO should these be here
 set(JSON_BuildTests OFF CACHE INTERNAL "")
 set(BUILD_TESTING OFF)
 
+# TODO does this actually work
 include(CheckCXXCompilerFlag)
 CHECK_CXX_COMPILER_FLAG("-march=native" COMPILER_SUPPORTS_MARCH_NATIVE)
 if(COMPILER_SUPPORTS_MARCH_NATIVE)
@@ -29,14 +31,17 @@ if(COMPILER_SUPPORTS_MARCH_NATIVE)
 endif()
 
 
-
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 find_package(Protobuf REQUIRED)
 find_package(GRPC REQUIRED)
 find_package(Threads REQUIRED)
+find_package(SWIG REQUIRED)
+find_package(PythonLibs)
+include(${SWIG_USE_FILE})
 
 
+# TODO could this be done in a nicer way
 option(${PROJECT_NAME}_SUPERBUILD "Build ${PROJECT_NAME} and the projects it depends on." ON)
 
 if(${PROJECT_NAME}_SUPERBUILD)
@@ -233,6 +238,7 @@ endif()
 
 message(STATUS "Configuring inner-build")
 
+# TODO why can we find_package for libmongocxx but not other packages
 find_package(libmongocxx REQUIRED)
 add_subdirectory(${absl_DIR})
 add_subdirectory(${base64_DIR})
@@ -242,124 +248,37 @@ add_subdirectory(${mio_DIR})
 add_subdirectory(${cpp-httplib_DIR})
 add_subdirectory(${cppzmq_DIR})
 add_subdirectory(${nlohmann-json_DIR})
-include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CATCH_INCLUDE_DIR}
-    ${CMAKE_CURRENT_BINARY_DIR}/cpp-httplib/include
-    ${CMAKE_CURRENT_BINARY_DIR}/nlohmann-json/include
-)
 
+
+# TODO this code should be in pb directory probably
 set (PROTOS
     ${CMAKE_CURRENT_SOURCE_DIR}/pb/graphsearch.proto
 )
 
-set(PROTO_SRC_DIR ${CMAKE_CURRENT_BINARY_DIR}/proto-src)
+set(PROTO_SRC_DIR ${CMAKE_BINARY_DIR}/proto-src)
 file(MAKE_DIRECTORY ${PROTO_SRC_DIR})
 include_directories(${PROTO_SRC_DIR})
 
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_SRC_DIR} ${PROTOS})
 grpc_generate_cpp(GRPC_SRCS GRPC_HDRS ${PROTO_SRC_DIR} ${PROTOS})
 
+set_source_files_properties(
+        ${PROTO_SRCS}
+        ${PROTO_HDRS}
+        PROPERTIES GENERATED TRUE)
 
-add_executable(gs++
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/gs++.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/mdatabase.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/txgraph.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/bch.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/utxodb.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/rpc.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/util.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/slp_transaction.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/sha2.cpp
-    ${PROTO_SRCS}
-    ${GRPC_SRCS}
-)
+set_source_files_properties(
+        ${GRPC_SRCS}
+        ${GRPC_HDRS}
+        PROPERTIES GENERATED TRUE)
 
-target_link_libraries(gs++
-    absl::flat_hash_map
-    absl::node_hash_map
-    base64
-    gRPC::grpc++_reflection
-    protobuf::libprotobuf
-    ${LIBMONGOCXX_LIBRARIES}
-    ${CMAKE_THREAD_LIBS_INIT}
-    spdlog
-    mio
-    httplib
-    cppzmq
-    stdc++fs
-)
-target_include_directories(gs++ PUBLIC
-    ${LIBMONGOCXX_INCLUDE_DIRS}
-    ${CMAKE_CURRENT_BINARY_DIR}/mio/include
-    ${CMAKE_CURRENT_BINARY_DIR}/cpp-httplib/include
-)
-target_compile_definitions(gs++ PUBLIC
-    ${LIBMONGOCXX_DEFINITIONS}
-)
-target_compile_options(gs++ PRIVATE -Wall)
+# TODO why do we need to run these manually
+# someting is wrong here, these should be automatic
+add_custom_target(protos DEPENDS ${PROTO_SRCS})
+add_custom_target(grpcs DEPENDS ${GRPC_SRCS})
 
 
-add_executable(gs++-cli
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/gs++-cli.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/util.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/slp_transaction.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/sha2.cpp
-    ${PROTO_SRCS}
-    ${GRPC_SRCS}
-)
-
-target_link_libraries(gs++-cli
-    gRPC::grpc++_reflection
-    protobuf::libprotobuf
-    absl::flat_hash_map
-    absl::node_hash_map
-    base64
-    cslp
-)
-target_compile_options(gs++-cli PRIVATE -Wall)
-
-
-
-add_library(cslp STATIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/cslp.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/util.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/slp_transaction.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/sha2.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/slp_validator.cpp
-)
-target_include_directories(cslp PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_link_libraries(cslp
-    absl::flat_hash_map
-    absl::node_hash_map
-)
-
-
-
-add_executable(internals_test
-    ${CMAKE_CURRENT_SOURCE_DIR}/test/internals_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/utxodb.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/bch.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/util.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/slp_transaction.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/sha2.cpp
-    ${PROTO_SRCS}
-    ${PROTO_SRCS}
-    ${GRPC_SRCS}
-)
-target_include_directories(internals_test PUBLIC
-    ${CATCH_INCLUDE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_link_libraries(internals_test
-    Catch2::Catch2
-    absl::flat_hash_map
-    absl::node_hash_map
-    gRPC::grpc++_reflection
-    protobuf::libprotobuf
-    base64
-    mio
-    spdlog
-)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/server)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/cli)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/cslp)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/test)

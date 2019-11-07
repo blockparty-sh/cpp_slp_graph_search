@@ -1,4 +1,4 @@
-#include <gs++/cslp.h>
+#include <cslp/cslp.h>
 #include <gs++/transaction.hpp>
 #include <gs++/slp_validator.hpp>
 #include <gs++/bhash.hpp>

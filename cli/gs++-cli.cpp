@@ -18,7 +18,7 @@
 #include <gs++/bhash.hpp>
 #include <gs++/scriptpubkey.hpp>
 
-#include <gs++/cslp.h>
+#include <cslp/cslp.h>
 
 
 class GraphSearchServiceClient
