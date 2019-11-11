@@ -1,0 +1,13 @@
+#
+# AFL dictionary for SLP transactions
+#
+
+op_return="\x6A"
+lokad_id="SLP\x00"
+token_type_1="\x01"
+token_type_nft1_group="\x81"
+token_type_nft1_child="\x41"
+transaction_type_genesis="GENESIS"
+transaction_type_mint="MINT"
+transaction_type_send="SEND"
+token_id="\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
