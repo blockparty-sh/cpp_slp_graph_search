@@ -36,7 +36,7 @@ struct output
 
     bool is_op_return() const
     {
-        return scriptpubkey.v[0] == 0x6a;
+        return scriptpubkey.v.size() > 0 && scriptpubkey.v[0] == 0x6a;
     }
 };
 

@@ -44,6 +44,27 @@ Then query it:
 
 `./gs++-cli 508e543ff30ffe670e30ebd281ab25ebe6767071e87decbb958230a7760936ae`
 
+# Fuzzing
+
+You will need to first install afl to run fuzzing over the `cslp` library.
+
+```
+mkdir build-afl
+cd build-afl
+cmake -DCMAKE_CXX_COMPILER=afl-clang-fast++ -DCMAKE_C_COMPILER=afl-clang-fast ..
+make -j
+make cslp_fuzzing
+cd ../cslp/fuzzing
+cd nodejs_validation
+npm install
+
+# this will check for crashes of cslp library
+./fuzz-instrumented.sh
+
+# this will compare outputs between our parser and slp-validate nodejs library
+./fuzz-differential.sh
+```
+
 
 ## REST
 
