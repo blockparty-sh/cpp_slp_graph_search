@@ -31,6 +31,11 @@ struct transaction
         EndIterator&& end_it,
         const std::uint32_t height
     ) {
+        constexpr std::uint64_t MAX_TX_SIZE = 1000000;
+        constexpr std::uint64_t MAX_INPUTS  = MAX_TX_SIZE / 64; // TODO set better max
+        constexpr std::uint64_t MAX_OUTPUTS = MAX_TX_SIZE; // TODO set better max
+        constexpr std::uint64_t MAX_SCRIPT_SIZE = 1000; // TODO set better max
+
         #define CHECK_END(n) {    \
             if (it+n >= end_it) { \
                 return false;     \
@@ -45,6 +50,9 @@ struct transaction
 
         CHECK_END(1+8); // TODO this should be length of var int
         const std::uint64_t in_count { gs::util::extract_var_int(it) };
+        if (in_count >= MAX_INPUTS) {
+            return false;
+        }
 
         this->inputs.reserve(in_count);
         for (std::uint32_t in_i=0; in_i<in_count; ++in_i) {
@@ -57,6 +65,9 @@ struct transaction
             const std::uint32_t prev_out_idx { gs::util::extract_u32(it) };
             CHECK_END(1+8); // TODO this should be length of var int
             const std::uint64_t script_len   { gs::util::extract_var_int(it) };
+            if (script_len >= MAX_SCRIPT_SIZE) {
+                return false;
+            }
             
             CHECK_END(script_len);
             std::vector<std::uint8_t> sigscript;
@@ -72,6 +83,9 @@ struct transaction
 
         CHECK_END(1+8); // TODO this should be length of var int
         const std::uint64_t out_count { gs::util::extract_var_int(it) };
+        if (out_count >= MAX_OUTPUTS) {
+            return false;
+        }
         
         this->outputs.reserve(out_count);
         for (std::uint32_t out_i=0; out_i<out_count; ++out_i) {
@@ -79,6 +93,9 @@ struct transaction
             const std::uint64_t value      { gs::util::extract_u64(it) };
             CHECK_END(1+8); // TODO this should be length of var int
             const std::uint64_t script_len { gs::util::extract_var_int(it) };
+            if (script_len >= MAX_SCRIPT_SIZE) {
+                return false;
+            }
 
             CHECK_END(script_len);
             gs::scriptpubkey scriptpubkey(script_len);
