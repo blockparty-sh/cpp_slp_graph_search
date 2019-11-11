@@ -72,15 +72,7 @@ int main(int argc, char * argv[])
     ABORT_CHECK (hydration_success && !!exit_code && "c++ parsed, nodejs did not");
     ABORT_CHECK (! hydration_success && !exit_code && "c++ did not parse, but nodejs did");
 
-    std::string joined = boost::algorithm::join(data, "\n");
-    nlohmann::json j;
-    
-    try {
-        j = nlohmann::json::parse(joined.begin(), joined.end());
-    } catch (nlohmann::json::parse_error e) {
-        ABORT_CHECK (tx.slp.type != gs::slp_transaction_type::invalid);
-        return 0;
-    }
+    // TODO we should check json output here and compare to the gs::transaction
 
     return 0;
 }
