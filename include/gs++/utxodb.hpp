@@ -3,6 +3,7 @@
 
 #include <string>
 #include <deque>
+#include <boost/thread.hpp>
 #include <absl/hash/internal/hash.h>
 #include <absl/container/flat_hash_map.h>
 #include <absl/container/node_hash_map.h>
@@ -17,7 +18,7 @@ struct utxodb
 {
     constexpr static std::uint32_t rollback_depth { 10 };
 
-    std::shared_mutex lookup_mtx; // IMPORTANT: lookups/inserts must be guarded with the lookup_mtx
+    boost::shared_mutex lookup_mtx; // IMPORTANT: lookups/inserts must be guarded with the lookup_mtx
 
     std::uint32_t current_block_height;
     std::string   current_block_hash;

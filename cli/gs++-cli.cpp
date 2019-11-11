@@ -71,7 +71,7 @@ public:
             {
                 auto start = std::chrono::high_resolution_clock::now();
                 for (auto & n : reply.txdata()) {
-                    cslp_validator_add_tx(validator, n.data());
+                    cslp_validator_add_tx(validator, n.data(), n.size());
                 }
                 auto end = std::chrono::high_resolution_clock::now();
                 std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
@@ -339,7 +339,7 @@ int main(int argc, char* argv[])
         base64_decode(
             scriptpubkey_b64.data(),
             scriptpubkey_b64.size(),
-            reinterpret_cast<char*>(decoded.data()),
+            const_cast<char*>(decoded.data()),
             &scriptpubkey_len,
             0
         );
@@ -354,7 +354,7 @@ int main(int argc, char* argv[])
         base64_decode(
             scriptpubkey_b64.data(),
             scriptpubkey_b64.size(),
-            reinterpret_cast<char*>(decoded.data()),
+            const_cast<char*>(decoded.data()),
             &scriptpubkey_len,
             0
         );

@@ -10,6 +10,7 @@
 #include <variant>
 #include <memory>
 
+#include <boost/thread.hpp>
 #include <absl/container/flat_hash_map.h>
 #include <absl/container/node_hash_map.h>
 #include <absl/container/flat_hash_set.h>
@@ -39,7 +40,7 @@ bool utxodb::load_from_bchd_checkpoint (
     const std::uint32_t block_height,
     const std::string & block_hash
 ) {
-    std::lock_guard lock(lookup_mtx);
+    boost::lock_guard<boost::shared_mutex> lock(lookup_mtx);
 
     const int fd = open(path.c_str(), O_RDONLY);
     if (fd == -1) {
@@ -125,7 +126,7 @@ bool utxodb::load_from_bchd_checkpoint (
 bool utxodb::save_bchd_checkpoint (
     const std::string & path
 ) {
-    std::lock_guard lock(lookup_mtx);
+    boost::lock_guard<boost::shared_mutex> lock(lookup_mtx);
 
     std::ofstream outf(path, std::ofstream::binary);
 
@@ -178,7 +179,7 @@ bool utxodb::save_bchd_checkpoint (
 
 void utxodb::rollback()
 {
-    std::lock_guard lock(lookup_mtx);
+    boost::lock_guard<boost::shared_mutex> lock(lookup_mtx);
 
     if (last_block_removed.empty() || last_block_added.empty()) {
         return;
@@ -229,7 +230,7 @@ void utxodb::rollback()
 std::vector<gs::output> utxodb::get_outputs_by_outpoints(
     const std::vector<gs::outpoint> outpoints
 ) {
-    std::shared_lock lock(lookup_mtx);
+    boost::shared_lock<boost::shared_mutex> lock(lookup_mtx);
 
     std::vector<output> ret;
     ret.reserve(outpoints.size()); // most of the time this will be same size
@@ -255,7 +256,7 @@ std::vector<gs::output> utxodb::get_outputs_by_scriptpubkey(
     const gs::scriptpubkey scriptpubkey,
     const std::uint32_t limit
 ) {
-    std::shared_lock lock(lookup_mtx);
+    boost::shared_lock<boost::shared_mutex> lock(lookup_mtx);
 
     std::vector<gs::output> ret;
 
@@ -289,7 +290,7 @@ std::vector<gs::output> utxodb::get_outputs_by_scriptpubkey(
 std::uint64_t utxodb::get_balance_by_scriptpubkey(
     const gs::scriptpubkey scriptpubkey
 ) {
-    std::shared_lock lock(lookup_mtx);
+    boost::shared_lock<boost::shared_mutex> lock(lookup_mtx);
 
     std::uint64_t ret = 0;
 

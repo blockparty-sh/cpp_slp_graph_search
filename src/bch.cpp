@@ -1,11 +1,11 @@
 #include <vector>
 #include <cstdint>
 #include <algorithm>
-#include <shared_mutex>
 #include <stack>
 #include <functional>
 #include <cassert>
 
+#include <boost/thread.hpp>
 #include <spdlog/spdlog.h>
 #include <absl/container/flat_hash_map.h>
 #include <absl/container/flat_hash_set.h>
@@ -22,7 +22,7 @@ void bch::process_block(
     const std::vector<std::uint8_t>& block_data,
     const bool save_rollback
 ) {
-    std::lock_guard lock(lookup_mtx);
+    boost::lock_guard<boost::shared_mutex> lock(lookup_mtx);
 
     ++utxodb.current_block_height;
 
@@ -202,7 +202,7 @@ void bch::process_block(
 
 void bch::process_mempool_tx(const std::vector<std::uint8_t>& msg_data)
 {
-    std::lock_guard lock(lookup_mtx);
+    boost::lock_guard<boost::shared_mutex> lock(lookup_mtx);
 
     gs::transaction tx;
     const bool hydration_success = tx.hydrate(msg_data.begin(), msg_data.end(), 0);

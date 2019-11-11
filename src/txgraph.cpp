@@ -1,6 +1,7 @@
 #include <string>
 #include <vector>
 #include <fstream>
+#include <boost/thread.hpp>
 #include <absl/container/flat_hash_set.h>
 #include <absl/container/flat_hash_map.h>
 #include <spdlog/spdlog.h>
@@ -27,7 +28,7 @@ void txgraph::recursive_walk__ptr (
 std::pair<graph_search_status, std::vector<std::string>>
 txgraph::graph_search__ptr(const gs::txid lookup_txid)
 {
-    std::shared_lock lock(lookup_mtx);
+    boost::shared_lock<boost::shared_mutex> lock(lookup_mtx);
 
     if (txid_to_token.count(lookup_txid) == 0) {
         // txid hasn't entered our system yet
@@ -66,7 +67,7 @@ unsigned txgraph::insert_token_data (
     const gs::tokenid & tokenid,
     const std::vector<gs::gs_tx> & txs
 ) {
-    std::lock_guard lock(lookup_mtx);
+    boost::lock_guard<boost::shared_mutex> lock(lookup_mtx);
 
     if (! tokens.count(tokenid)) {
         tokens.insert({ tokenid, token_details(tokenid) });

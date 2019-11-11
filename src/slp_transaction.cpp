@@ -194,8 +194,7 @@ slp_transaction::slp_transaction(const gs::scriptpubkey& scriptpubkey)
         // quick exit optimization
         if (chunks.size() == 1) {
             const std::string lokad_id_str = chunks[0];
-            using namespace std::string_literals;
-            PARSE_CHECK(lokad_id_str != "SLP\0"s, "SLP not in first chunk");
+            PARSE_CHECK(lokad_id_str != R"(SLP\0)", "SLP not in first chunk");
         }
 
         // for debugging

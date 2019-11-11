@@ -2,9 +2,8 @@
 #define GS_SLP_TOKEN_HPP
 
 #include <cassert>
-#include <variant>
-#include <optional>
 
+#include <boost/optional.hpp>
 #include <absl/container/flat_hash_map.h>
 #include <absl/container/node_hash_map.h>
 
@@ -22,7 +21,7 @@ struct slp_token
 
     absl::flat_hash_map<gs::txid, gs::transaction> transactions;
     absl::flat_hash_map<gs::outpoint, gs::slp_output> utxos;
-    std::optional<gs::outpoint> mint_baton_outpoint;
+    boost::optional<gs::outpoint> mint_baton_outpoint;
     
     slp_token()
     {}

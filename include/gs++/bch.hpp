@@ -3,7 +3,7 @@
 
 #include <vector>
 #include <cstdint>
-#include <shared_mutex>
+#include <boost/thread.hpp>
 #include <absl/container/flat_hash_map.h>
 #include <gs++/utxodb.hpp>
 #include <gs++/slpdb.hpp>
@@ -12,7 +12,7 @@ namespace gs {
 
 struct bch
 {
-    std::shared_mutex lookup_mtx; // IMPORTANT: lookups/inserts must be guarded with the lookup_mtx
+    boost::shared_mutex lookup_mtx; // IMPORTANT: lookups/inserts must be guarded with the lookup_mtx
     gs::utxodb utxodb;
     gs::slpdb slpdb;
 

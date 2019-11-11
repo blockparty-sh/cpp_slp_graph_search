@@ -52,3 +52,53 @@ There is also a simple JSON server in `./rest` which both shows how to use this 
 # Integration
 
 You can use any grpc client to connect to a running server. It is recommended you disable max message size. Use the definitions in the `./pb` directory.
+
+# TODO
+
+cslp\_fuzzer:
+    instrument with afl
+
+set up ubsan
+
+build with "-fsanitize=address" and/or "-fsanitize=undefined"
+
+port to use boost instead of c++17 for easier building
+
+
+gs++:
+    look into sending txs and early exit based on that
+
+add grpc queries for
+    look up slp utxos by scriptpubkey
+    look up slp utxos for a specific token by scriptpubkey
+    look up all utxos for a specific token by scriptpubkey
+    look up slp utxo
+    look up slp token (stats/details + minting baton)
+
+rollback using transactions instead of input/output
+    rollback slp as well
+
+track block headers so we know when to automatically rollback
+
+evict mempool items if new tx with same input used
+    this could be a chain of transactions so must recurse
+    this should also be done during new block processing
+
+query rpc for mempool items on startup to add
+
+rest:
+    add broadcast endpoint
+    add gettxproof endpoint
+
+    look up slp utxos by scriptpubkey
+    look up slp utxos for a specific token by scriptpubkey
+    look up all utxos for a specific token by scriptpubkey
+    look up slp utxo
+    look up slp token (stats/details + minting baton)
+
+
+test:
+    use slp-unit-test-data for json
+
+swig:
+    set up targets to build cslp wrappers for variety of languages

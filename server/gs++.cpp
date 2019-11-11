@@ -12,6 +12,7 @@
 #include <getopt.h>
 
 #include <boost/filesystem.hpp>
+#include <boost/thread.hpp>
 #include <grpc++/grpc++.h>
 #include <spdlog/spdlog.h>
 #include <zmq.hpp>
@@ -31,7 +32,7 @@
 std::unique_ptr<grpc::Server> gserver;
 std::atomic<int>  current_block_height    = { -1 };
 std::atomic<bool> continue_watching_mongo = { true };
-std::atomic<bool> exit_early = false;
+std::atomic<bool> exit_early = { false };
 
 gs::txgraph g;
 gs::bch bch;
@@ -47,7 +48,7 @@ boost::filesystem::path get_tokendir(const gs::tokenid tokenid)
 
 bool save_token_to_disk(gs::txgraph & g, const gs::tokenid tokenid)
 {
-    std::shared_lock lock(g.lookup_mtx);
+    boost::shared_lock<boost::shared_mutex> lock(g.lookup_mtx);
     std::string tokenid_str = tokenid.decompress();
     spdlog::info("saving token to disk {}", tokenid_str);
 
@@ -55,7 +56,7 @@ bool save_token_to_disk(gs::txgraph & g, const gs::tokenid tokenid)
     boost::filesystem::create_directories(tokendir);
 
     const boost::filesystem::path tokenpath(tokendir / tokenid_str);
-    std::ofstream outf(tokenpath, std::ofstream::binary);
+    boost::filesystem::ofstream outf(tokenpath, std::ofstream::binary);
 
     for (auto it : g.tokens[tokenid].graph) {
         auto node = it.second;
@@ -79,10 +80,10 @@ bool save_token_to_disk(gs::txgraph & g, const gs::tokenid tokenid)
 
 std::vector<gs::gs_tx> load_token_from_disk(gs::txgraph & g, const gs::tokenid tokenid)
 {
-    std::shared_lock lock(g.lookup_mtx);
+    boost::shared_lock<boost::shared_mutex> lock(g.lookup_mtx);
 
     boost::filesystem::path tokenpath = get_tokendir(tokenid) / tokenid.decompress();
-    std::ifstream file(tokenpath, std::ios::binary);
+    boost::filesystem::ifstream file(tokenpath, std::ios::binary);
     spdlog::info("loading token from disk {}", tokenpath.string());
     std::vector<std::uint8_t> fbuf(std::istreambuf_iterator<char>(file), {});
     std::vector<gs::gs_tx> ret;
@@ -130,7 +131,7 @@ std::string scriptpubkey_to_base64(const gs::scriptpubkey& pubkey)
     base64_encode(
         reinterpret_cast<const char*>(pubkey.v.data()),
         pubkey.v.size(),
-        b64.data(),
+        const_cast<char *>(b64.data()),
         &b64_len,
         0
     );

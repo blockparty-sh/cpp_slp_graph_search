@@ -25,6 +25,7 @@ target_include_directories(gs++ PUBLIC
 target_link_libraries(gs++
     absl::flat_hash_map
     absl::node_hash_map
+    absl::variant
     base64
     gRPC::grpc++_reflection
     protobuf::libprotobuf
@@ -36,6 +37,8 @@ target_link_libraries(gs++
     cppzmq
     ${Boost_FILESYSTEM_LIBRARY}
     ${Boost_SYSTEM_LIBRARY}
+    ${Boost_THREAD_LIBRARY}
+    ${Boost_OPTIONAL_LIBRARY}
 )
 
 

@@ -1,5 +1,6 @@
 #include <vector>
 
+#include <absl/types/variant.h>
 #include <absl/container/flat_hash_map.h>
 #include <absl/container/flat_hash_set.h>
 #include <absl/numeric/int128.h>
@@ -42,7 +43,7 @@ bool slp_validator::walk_mints_home (
             }
 
             if (txi.slp.type == gs::slp_transaction_type::mint) {
-                const auto & s = std::get<gs::slp_transaction_mint>(txi.slp.slp_tx);
+                const auto & s = absl::get<gs::slp_transaction_mint>(txi.slp.slp_tx);
 
                 if (s.has_mint_baton) {
                     mints.push_back(txi);
@@ -50,7 +51,7 @@ bool slp_validator::walk_mints_home (
                 }
             }
             else if (txi.slp.type == gs::slp_transaction_type::genesis) {
-                const auto & s = std::get<gs::slp_transaction_genesis>(txi.slp.slp_tx);
+                const auto & s = absl::get<gs::slp_transaction_genesis>(txi.slp.slp_tx);
 
                 if (s.has_mint_baton) {
                     mints.push_back(txi);
@@ -82,7 +83,7 @@ bool slp_validator::check_outputs_valid (
     auto & tx = transaction_map.at(txid);
 
     if (tx.slp.type == gs::slp_transaction_type::send) {
-        const auto & s = std::get<gs::slp_transaction_send>(tx.slp.slp_tx);
+        const auto & s = absl::get<gs::slp_transaction_send>(tx.slp.slp_tx);
 
         absl::uint128 output_amount = 0;
         for (const std::uint64_t n : s.amounts) {
@@ -118,7 +119,7 @@ bool slp_validator::check_outputs_valid (
     }
     /*
     else if (tx.slp.type == gs::slp_transaction_type::genesis) {
-        const auto & s = std::get<gs::slp_transaction_genesis>(tx.slp.slp_tx);
+        const auto & s = absl::get<gs::slp_transaction_genesis>(tx.slp.slp_tx);
         output_amount = s.qty;
         input_amount  = s.qty;
     }

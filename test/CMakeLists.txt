@@ -21,4 +21,5 @@ target_link_libraries(internals_test
     base64
     mio
     spdlog
+    ${Boost_THREAD_LIBRARY}
 )

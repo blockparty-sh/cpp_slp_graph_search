@@ -4,7 +4,7 @@ add_definitions(-DGS_VERSION=0.1)
 
 cmake_minimum_required(VERSION 3.9)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # test that filesystem header actually is there and works
@@ -33,7 +33,7 @@ endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
-find_package(Boost COMPONENTS system filesystem REQUIRED)
+find_package(Boost COMPONENTS system filesystem thread REQUIRED)
 find_package(Protobuf REQUIRED)
 find_package(GRPC REQUIRED)
 find_package(Threads REQUIRED)

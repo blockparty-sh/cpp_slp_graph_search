@@ -9,8 +9,10 @@
 #include <vector>
 #include <string>
 
+#include <absl/types/variant.h>
 #include <nlohmann/json.hpp>
 #include <catch2/catch.hpp>
+
 #include <gs++/txgraph.hpp>
 #include <gs++/scriptpubkey.hpp>
 #include <gs++/util.hpp>
@@ -74,7 +76,7 @@ TEST_CASE( "slp_decoding_tx_tests", "[single-file]" ) {
             else if (test_tx_type == "GENESIS") {
                 REQUIRE( tx.type == gs::slp_transaction_type::genesis );
 
-                const auto slp = std::get<gs::slp_transaction_genesis>(tx.slp_tx);
+                const auto slp = absl::get<gs::slp_transaction_genesis>(tx.slp_tx);
                 REQUIRE( slp.ticker          == m["data"]["ticker"].get<std::string>() );
                 REQUIRE( slp.name            == m["data"]["name"].get<std::string>() );
                 REQUIRE( slp.document_uri    == m["data"]["document_uri"].get<std::string>() );
@@ -91,7 +93,7 @@ TEST_CASE( "slp_decoding_tx_tests", "[single-file]" ) {
             else if (test_tx_type == "MINT") {
                 REQUIRE( tx.type == gs::slp_transaction_type::mint );
 
-                const auto slp = std::get<gs::slp_transaction_mint>(tx.slp_tx);
+                const auto slp = absl::get<gs::slp_transaction_mint>(tx.slp_tx);
 
                 std::vector<std::uint8_t> tokenid_bytes = gs::util::compress_hex(m["data"]["tokenid"].get<std::string>());
                 std::reverse(tokenid_bytes.begin(), tokenid_bytes.end());
@@ -109,7 +111,7 @@ TEST_CASE( "slp_decoding_tx_tests", "[single-file]" ) {
             else if (test_tx_type == "SEND") {
                 REQUIRE( tx.type == gs::slp_transaction_type::send );
 
-                const auto slp = std::get<gs::slp_transaction_send>(tx.slp_tx);
+                const auto slp = absl::get<gs::slp_transaction_send>(tx.slp_tx);
 
                 std::vector<std::uint8_t> tokenid_bytes = gs::util::compress_hex(m["data"]["tokenid"].get<std::string>());
                 std::reverse(tokenid_bytes.begin(), tokenid_bytes.end());
@@ -141,7 +143,9 @@ TEST_CASE( "bch_decoding_tx_to_slp_tests", "[single-file]" ) {
 
             for (auto& j_tx : m["transactions"]) {
                 const std::vector<std::uint8_t> txhex = gs::util::compress_hex(j_tx.get<std::string>());
-                slpdb.add_transaction(gs::transaction(txhex.begin(), 0));
+                gs::transaction tx;
+                REQUIRE( tx.hydrate(txhex.begin(), txhex.end(), 0) );
+                slpdb.add_transaction(tx);
             }
 
             for (auto rit : m["result"].items()) {
@@ -237,7 +241,9 @@ TEST_CASE( "topological_sorting", "[single-file]" ) {
                     std::vector<gs::transaction> transactions;
                     for (const std::string & tx_str : txdata_strs) {
                         const std::vector<std::uint8_t> txhex = gs::util::compress_hex(tx_str);
-                        transactions.push_back(gs::transaction(txhex.begin(), 0));
+                        gs::transaction tx;
+                        REQUIRE( tx.hydrate(txhex.begin(), txhex.end(), 0) );
+                        transactions.push_back(tx);
                     }
 
                     std::vector<gs::transaction> sorted_txs = gs::util::topological_sort(transactions);

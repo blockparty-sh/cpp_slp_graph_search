@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <vector>
 #include <iostream>
+#include <absl/types/variant.h>
 #include <gs++/bhash.hpp>
 #include <gs++/util.hpp>
 #include <gs++/scriptpubkey.hpp>
@@ -92,7 +93,7 @@ enum class slp_transaction_type {
 struct slp_transaction
 {
     slp_transaction_type type;
-    std::variant<
+    absl::variant<
         slp_transaction_invalid,
         slp_transaction_genesis,
         slp_transaction_mint,

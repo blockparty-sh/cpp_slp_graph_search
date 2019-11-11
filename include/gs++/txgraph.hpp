@@ -2,9 +2,8 @@
 #define GS_TXGRAPH_HPP
 
 #include <string>
-#include <mutex>
-#include <shared_mutex>
 #include <vector>
+#include <boost/thread.hpp>
 #include <absl/container/flat_hash_set.h>
 #include <absl/container/node_hash_map.h>
 #include "graph_node.hpp"
@@ -25,7 +24,7 @@ struct txgraph
 {
     absl::node_hash_map<gs::tokenid, token_details>  tokens;
     absl::node_hash_map<gs::txid,    token_details*> txid_to_token;
-    std::shared_mutex lookup_mtx; // IMPORTANT: tokens and txid_to_token must be guarded with the lookup_mtx
+    boost::shared_mutex lookup_mtx; // IMPORTANT: tokens and txid_to_token must be guarded with the lookup_mtx
 
     txgraph()
     {}
