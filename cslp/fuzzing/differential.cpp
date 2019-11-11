@@ -66,7 +66,8 @@ int main(int argc, char * argv[])
 }
 
     // hairy - we look to see if true != 0 and likewise false != 1..
-    ABORT_CHECK (! hydration_success != !!exit_code);
+    ABORT_CHECK (hydration_success && !!exit_code && "c++ parsed, nodejs did not");
+    ABORT_CHECK (! hydration_success && !exit_code && "c++ did not parse, but nodejs did");
 
     std::string joined = boost::algorithm::join(data, "\n");
     nlohmann::json j;
