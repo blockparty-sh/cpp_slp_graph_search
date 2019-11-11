@@ -6,6 +6,7 @@
 
 #include <nlohmann/json.hpp>
 #include <boost/process.hpp>
+#include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string/join.hpp>
 #include <absl/strings/numbers.h>
 #include <absl/numeric/int128.h>
@@ -36,14 +37,15 @@ int main(int argc, char * argv[])
 
     std::string txdata = readfile(argv[1]);
 
-
     gs::slp_validator slp_validator;
     gs::transaction tx;
     const bool hydration_success = tx.hydrate(txdata.begin(), txdata.end(), 0);
 
     boost::process::ipstream is;
-    boost::process::child c("node nodejs_validation/run_slp_validate.js "+std::string(argv[1]),
-        boost::process::std_out > is);
+    boost::process::child c(
+        "node nodejs_validation/run_slp_validate.js " + std::string(argv[1]),
+        boost::process::std_out > is
+    );
 
     std::vector<std::string> data;
 
@@ -53,12 +55,18 @@ int main(int argc, char * argv[])
     }
 
     c.wait();
-    int result = c.exit_code();
+    const int exit_code = c.exit_code();
+
+
+#define ABORT_CHECK(cond) {\
+    if ((cond)) { \
+        std::cerr << #cond << std::endl;\
+        abort();\
+    }\
+}
 
     // hairy - we look to see if true != 0 and likewise false != 1..
-    if (! hydration_success != !!result) {
-        abort();
-    }
+    ABORT_CHECK (! hydration_success != !!exit_code);
 
     std::string joined = boost::algorithm::join(data, "\n");
     nlohmann::json j;
@@ -66,94 +74,55 @@ int main(int argc, char * argv[])
     try {
         j = nlohmann::json::parse(joined.begin(), joined.end());
     } catch (nlohmann::json::parse_error e) {
-        if (tx.slp.type != gs::slp_transaction_type::invalid) {
-            abort();
-        }
-
+        ABORT_CHECK (tx.slp.type != gs::slp_transaction_type::invalid);
         return 0;
     }
 
-
-    if (j["transactionType"].is_null() && tx.slp.type != gs::slp_transaction_type::invalid) {
-        abort();
-    }
-
     if (j["transactionType"].is_null()) {
+        ABORT_CHECK (tx.slp.type != gs::slp_transaction_type::invalid);
         return 0;
     }
 
     const std::string transactionType = j["transactionType"].get<std::string>();
     if (transactionType == "GENESIS") {
-        if (tx.slp.type != gs::slp_transaction_type::genesis) {
-            abort();
-        }
+        ABORT_CHECK (tx.slp.type != gs::slp_transaction_type::genesis);
 
         auto slp = absl::get<gs::slp_transaction_genesis>(tx.slp.slp_tx);
 
-        const std::string symbol = j["symbol"].get<std::string>();
-        if (symbol != slp.ticker) {
-            abort();
-        }
-
-        const std::string name = j["name"].get<std::string>();
-        if (name != slp.name) {
-            abort();
-        }
-
-        const std::string document_uri = j["documentUri"].get<std::string>();
-        if (document_uri != slp.document_uri) {
-            abort();
-        }
-
-        const std::string document_hash = j["documentHash"].get<std::string>();
-        if (document_hash != slp.document_hash) {
-            abort();
-        }
-
-        const std::uint32_t decimals = j["decimals"].get<std::uint32_t>();
-        if (decimals != slp.decimals) {
-            abort();
-        }
-
-        const std::uint32_t mint_baton_vout = j["batonVout"].get<std::uint32_t>();
-        if (mint_baton_vout != slp.mint_baton_vout) {
-            abort();
-        }
-
-        /*
-         * TODO
-        std::string genesisOrMintQuantityStr = j["genesisOrMintQuantity"].get<std::string>();
-        const absl::uint128 genesisOrMintQuantity = 0;
-        absl::SimpleAtoi(genesisOrMintQuantityStr, genesisOrMintQuantity);
-        if (genesisOrMintQuantity != slp.qty) {
-            abort();
-        }
-        */
+        ABORT_CHECK (boost::lexical_cast<std::uint64_t>(j["versionType"]) != slp.token_type);
+        ABORT_CHECK (j["symbol"].get<std::string>() != slp.ticker);
+        ABORT_CHECK (j["name"].get<std::string>() != slp.name);
+        ABORT_CHECK (j["documentUri"].get<std::string>() != slp.document_uri);
+        ABORT_CHECK (j["documentHash"].get<std::string>() != slp.document_hash);
+        ABORT_CHECK (j["decimals"].get<std::uint32_t>() != slp.decimals);
+        ABORT_CHECK (j["batonVout"].get<std::uint32_t>() != slp.mint_baton_vout);
+        ABORT_CHECK (boost::lexical_cast<std::uint64_t>(j["genesisOrMintQuantity"].get<std::string>()) != slp.qty);
     }
-
-    if (transactionType == "MINT") {
-        if (tx.slp.type != gs::slp_transaction_type::mint) {
-            abort();
-        }
-
-        auto slp = absl::get<gs::slp_transaction_mint>(tx.slp.slp_tx);
-        // TODO check other mint attributes
-    }
-
-    if (transactionType == "SEND") {
-        if (tx.slp.type != gs::slp_transaction_type::send) {
-            abort();
-        }
+    else if (transactionType == "MINT") {
+        ABORT_CHECK (tx.slp.type != gs::slp_transaction_type::mint);
 
         auto slp = absl::get<gs::slp_transaction_mint>(tx.slp.slp_tx);
 
-        if (j["tokenIdHex"].get<std::string>() != slp.tokenid.decompress(true)) {
-            abort();
-        }
+        ABORT_CHECK (boost::lexical_cast<std::uint64_t>(j["versionType"]) != slp.token_type);
+        ABORT_CHECK (j["tokenIdHex"].get<std::string>() != slp.tokenid.decompress(true));
+        ABORT_CHECK (boost::lexical_cast<std::uint64_t>(j["genesisOrMintQuantity"].get<std::string>()) != slp.qty);
+        ABORT_CHECK (j["batonVout"].get<std::uint32_t>() != slp.mint_baton_vout);
+    }
+    else if (transactionType == "SEND") {
+        ABORT_CHECK (tx.slp.type != gs::slp_transaction_type::send);
 
+        auto slp = absl::get<gs::slp_transaction_send>(tx.slp.slp_tx);
+
+        ABORT_CHECK (boost::lexical_cast<std::uint64_t>(j["versionType"]) != slp.token_type);
+        ABORT_CHECK (j["tokenIdHex"].get<std::string>() != slp.tokenid.decompress(true));
+        ABORT_CHECK (j["sendOutputs"].size() != slp.amounts.size());
+        std::size_t sendOutputsIdx = 0;
         for (auto soutput : j["sendOutputs"]) {
-            // TODO compare sendoutputs
+            ABORT_CHECK (boost::lexical_cast<std::uint64_t>(soutput.get<std::string>()) != slp.amounts[sendOutputsIdx]);
+            ++sendOutputsIdx;
         }
+    } else {
+        ABORT_CHECK (tx.slp.type != gs::slp_transaction_type::invalid);
     }
 
     return 0;
