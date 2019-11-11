@@ -1,3 +1,5 @@
+include(${CMAKE_SOURCE_DIR}/cmake/ProtobufGRPCGenerateCpp.cmake)
+
 add_executable(gs++
     ${CMAKE_CURRENT_SOURCE_DIR}/gs++.cpp
     ${CMAKE_SOURCE_DIR}/src/mdatabase.cpp
@@ -32,8 +34,10 @@ target_link_libraries(gs++
     mio
     httplib
     cppzmq
-    stdc++fs
+    ${Boost_FILESYSTEM_LIBRARY}
+    ${Boost_SYSTEM_LIBRARY}
 )
+
 
 target_compile_definitions(gs++ PUBLIC
     ${LIBMONGOCXX_DEFINITIONS}

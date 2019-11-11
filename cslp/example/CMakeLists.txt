@@ -5,7 +5,7 @@ add_executable(cslp_example
 )
 
 target_include_directories(cslp_example PRIVATE
-    ${PROJECT_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/include
 )
 
 target_link_libraries(cslp_example

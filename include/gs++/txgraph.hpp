@@ -46,11 +46,6 @@ struct txgraph
         const std::vector<gs_tx> & txs
     );
 
-    // TODO save writes into buffer to prevent many tiny writes
-    // should improve performance
-    bool save_token_to_disk(const gs::tokenid tokenid);
-
-    std::vector<gs_tx> load_token_from_disk(const gs::tokenid tokenid);
 };
 
 }

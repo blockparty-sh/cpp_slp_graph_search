@@ -16,4 +16,5 @@ target_link_libraries(cslp
 )
 
 add_subdirectory(example)
+add_subdirectory(fuzzing)
 # add_subdirectory(swig)

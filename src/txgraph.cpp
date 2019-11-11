@@ -1,11 +1,9 @@
 #include <string>
 #include <vector>
 #include <fstream>
-#include <filesystem>
 #include <absl/container/flat_hash_set.h>
 #include <absl/container/flat_hash_map.h>
 #include <spdlog/spdlog.h>
-#include <gs++/gs++.hpp>
 #include <gs++/graph_node.hpp>
 #include <gs++/token_details.hpp>
 #include <gs++/bhash.hpp>
@@ -66,7 +64,7 @@ void txgraph::clear_token_data (const gs::tokenid tokenid)
 
 unsigned txgraph::insert_token_data (
     const gs::tokenid & tokenid,
-    const std::vector<gs_tx> & txs
+    const std::vector<gs::gs_tx> & txs
 ) {
     std::lock_guard lock(lookup_mtx);
 
@@ -105,83 +103,6 @@ unsigned txgraph::insert_token_data (
             node->inputs.emplace_back(&token.graph[input_txid]);
         }
     }
-
-    return ret;
-}
-
-bool txgraph::save_token_to_disk(const gs::tokenid tokenid)
-{
-    std::shared_lock lock(lookup_mtx);
-    std::string tokenid_str = tokenid.decompress();
-    spdlog::info("saving token to disk {}", tokenid_str);
-
-    const std::filesystem::path tokendir = get_tokendir(tokenid_str);
-    std::filesystem::create_directories(tokendir);
-
-    const std::filesystem::path tokenpath(tokendir / tokenid_str);
-    std::ofstream outf(tokenpath, std::ofstream::binary);
-
-    for (auto it : tokens[tokenid].graph) {
-        auto node = it.second;
-        outf.write(reinterpret_cast<const char *>(node.txid.data()), node.txid.size());
-
-        const std::size_t txdata_size = node.txdata.size();
-        outf.write(reinterpret_cast<const char *>(&txdata_size), sizeof(std::size_t));
-
-        outf.write(node.txdata.data(), node.txdata.size());
-
-        const std::size_t inputs_size = node.inputs.size();
-        outf.write(reinterpret_cast<const char *>(&inputs_size), sizeof(std::size_t));
-
-        for (graph_node* input : node.inputs) {
-            outf.write(reinterpret_cast<const char *>(input->txid.data()), input->txid.size());
-        }
-    }
-
-    return true;
-}
-
-std::vector<gs_tx> txgraph::load_token_from_disk(const gs::tokenid tokenid)
-{
-    std::shared_lock lock(lookup_mtx);
-
-    std::filesystem::path tokenpath = get_tokendir(tokenid) / tokenid.decompress();
-    std::ifstream file(tokenpath, std::ios::binary);
-    spdlog::info("loading token from disk {}", tokenpath.string());
-    std::vector<std::uint8_t> fbuf(std::istreambuf_iterator<char>(file), {});
-    std::vector<gs_tx> ret;
-
-
-    auto it = std::begin(fbuf);
-    while (it != std::end(fbuf)) {
-        gs::txid txid;
-        std::copy(it, it+txid.size(), std::begin(txid));
-        it += txid.size();
-
-        std::size_t txdata_size;
-        std::copy(it, it+sizeof(std::size_t), reinterpret_cast<char*>(&txdata_size));
-        it += sizeof(std::size_t);
-
-        std::string txdata(txdata_size, '\0');
-        std::copy(it, it+txdata_size, std::begin(txdata));
-        it += txdata_size;
-
-        std::size_t inputs_size;
-        std::copy(it, it+sizeof(inputs_size), reinterpret_cast<char*>(&inputs_size));
-        it += sizeof(inputs_size);
-
-        std::vector<gs::txid> inputs;
-        inputs.reserve(inputs_size);
-        for (std::size_t i=0; i<inputs_size; ++i) {
-            gs::txid input;
-            std::copy(it, it+txid.size(), std::begin(input));
-            it += txid.size();
-            inputs.emplace_back(input);
-        }
-
-        ret.emplace_back(gs_tx(txid, txdata, inputs));
-    }
-    file.close();
 
     return ret;
 }

@@ -5,9 +5,6 @@ add_executable(internals_test
     ${PROJECT_SOURCE_DIR}/src/util.cpp
     ${PROJECT_SOURCE_DIR}/src/slp_transaction.cpp
     ${PROJECT_SOURCE_DIR}/src/sha2.cpp
-    ${PROTO_SRCS}
-    ${PROTO_SRCS}
-    ${GRPC_SRCS}
 )
 
 target_include_directories(internals_test PUBLIC
@@ -21,8 +18,6 @@ target_link_libraries(internals_test
     Catch2::Catch2
     absl::flat_hash_map
     absl::node_hash_map
-    gRPC::grpc++_reflection
-    protobuf::libprotobuf
     base64
     mio
     spdlog

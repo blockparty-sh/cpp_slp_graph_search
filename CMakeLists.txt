@@ -8,15 +8,15 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # test that filesystem header actually is there and works
-try_compile(HAS_FS "${CMAKE_BINARY_DIR}/temp"
-"${CMAKE_SOURCE_DIR}/test/has_filesystem.cpp"
-            CMAKE_FLAGS -DCMAKE_CXX_STANDARD=17 -DCMAKE_CXX_STANDARD_REQUIRED=ON
-            LINK_LIBRARIES stdc++fs)
-if(HAS_FS)
-    message(STATUS "Compiler has filesystem support")
-else()
-    message(FATAL_ERROR "Compiler is missing filesystem capabilities")
-endif(HAS_FS)
+#try_compile(HAS_FS "${CMAKE_BINARY_DIR}/temp"
+#"${CMAKE_SOURCE_DIR}/test/has_filesystem.cpp"
+#            CMAKE_FLAGS -DCMAKE_CXX_STANDARD=17 -DCMAKE_CXX_STANDARD_REQUIRED=ON
+#            LINK_LIBRARIES stdc++fs)
+#if(HAS_FS)
+#    message(STATUS "Compiler has filesystem support")
+#else()
+#    message(FATAL_ERROR "Compiler is missing filesystem capabilities")
+#endif(HAS_FS)
 
 
 # TODO should these be here
@@ -33,6 +33,7 @@ endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
+find_package(Boost COMPONENTS system filesystem REQUIRED)
 find_package(Protobuf REQUIRED)
 find_package(GRPC REQUIRED)
 find_package(Threads REQUIRED)
@@ -57,6 +58,18 @@ if(${PROJECT_NAME}_SUPERBUILD)
         )
     endif()
 
+    ExternalProject_Add(slp-unit-test-data
+        PREFIX slp-unit-test-data
+        GIT_REPOSITORY "https://github.com/simpleledger/slp-unit-test-data.git"
+        GIT_TAG "e1d2c638de1c2f50ac559b316faf27d88d982977"
+        INSTALL_DIR     "${CMAKE_BINARY_DIR}/slp-unit-test-data"
+        CONFIGURE_COMMAND ""
+        BUILD_COMMAND ""
+        INSTALL_COMMAND ""
+        CMAKE_CACHE_ARGS
+            -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/slp-unit-test-data
+    )
+    set(slp-unit-test-data_DIR "${CMAKE_CURRENT_BINARY_DIR}/slp-unit-test-data")
 
     ExternalProject_Add(absl
         PREFIX absl
@@ -136,6 +149,7 @@ if(${PROJECT_NAME}_SUPERBUILD)
         CMAKE_CACHE_ARGS
             -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/cppzmq
             -DCPPZMQ_BUILD_TESTS:BOOL=OFF
+            -DZMQ_BUILD_TESTS:BOOL=OFF
     )
     set(cppzmq_DIR "${CMAKE_CURRENT_BINARY_DIR}/cppzmq/src/cppzmq")
 
@@ -209,6 +223,7 @@ if(${PROJECT_NAME}_SUPERBUILD)
         CMAKE_CACHE_ARGS
             ${common_cmake_cache_args}
             -D${PROJECT_NAME}_SUPERBUILD:BOOL=OFF
+            -Dslp-unit-test-data_DIR:PATH=${slp-unit-test-data_DIR}
             -Dlibbsoncxx_DIR:PATH=${libbsoncxx_DIR}
             -Dlibmongocxx_DIR:PATH=${libmongocxx_DIR}
             -Dabsl_DIR:PATH=${absl_DIR}
@@ -222,6 +237,7 @@ if(${PROJECT_NAME}_SUPERBUILD)
             -Dnlohmann-json_DIR:PATH=${nlohmann-json_DIR}
         INSTALL_COMMAND ""
         DEPENDS
+            slp-unit-test-data
             libmongocxx
             absl
             base64
@@ -255,29 +271,19 @@ set (PROTOS
     ${CMAKE_CURRENT_SOURCE_DIR}/pb/graphsearch.proto
 )
 
-set(PROTO_SRC_DIR ${CMAKE_BINARY_DIR}/proto-src)
+set(PROTO_SRC_DIR ${CMAKE_CURRENT_BINARY_DIR}/proto-src)
 file(MAKE_DIRECTORY ${PROTO_SRC_DIR})
 include_directories(${PROTO_SRC_DIR})
 
-protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_SRC_DIR} ${PROTOS})
-grpc_generate_cpp(GRPC_SRCS GRPC_HDRS ${PROTO_SRC_DIR} ${PROTOS})
-
-set_source_files_properties(
-        ${PROTO_SRCS}
-        ${PROTO_HDRS}
-        PROPERTIES GENERATED TRUE)
-
-set_source_files_properties(
-        ${GRPC_SRCS}
-        ${GRPC_HDRS}
-        PROPERTIES GENERATED TRUE)
+# TODO why do we need to add this to all subdirectories
+include(${CMAKE_SOURCE_DIR}/cmake/ProtobufGRPCGenerateCpp.cmake)
 
 # TODO why do we need to run these manually
 # someting is wrong here, these should be automatic
-add_custom_target(protos DEPENDS ${PROTO_SRCS})
-add_custom_target(grpcs DEPENDS ${GRPC_SRCS})
 
+# TODO add options for building different programs
 
+# TODO why do we need to comment these out during first run?
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/server)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/cli)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/cslp)

@@ -1,3 +1,5 @@
+include(${CMAKE_SOURCE_DIR}/cmake/ProtobufGRPCGenerateCpp.cmake)
+
 add_executable(gs++-cli
     ${CMAKE_CURRENT_SOURCE_DIR}/gs++-cli.cpp
     ${CMAKE_SOURCE_DIR}/src/util.cpp

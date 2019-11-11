@@ -2,7 +2,6 @@
 #include <string>
 #include <vector>
 #include <thread>
-#include <filesystem>
 #include <regex>
 #include <atomic>
 #include <chrono>
@@ -12,20 +11,22 @@
 #include <unistd.h>
 #include <getopt.h>
 
+#include <boost/filesystem.hpp>
 #include <grpc++/grpc++.h>
 #include <spdlog/spdlog.h>
 #include <zmq.hpp>
 #include <libbase64.h>
 
-#include <gs++/gs++.hpp>
-#include <gs++/bhash.hpp>
+#include "gs++.hpp"
 #include "graphsearch.grpc.pb.h"
 
-
+#include <gs++/bhash.hpp>
 #include <gs++/mdatabase.hpp>
 #include <gs++/txgraph.hpp>
 #include <gs++/rpc.hpp>
 #include <gs++/bch.hpp>
+#include <gs++/gs_tx.hpp>
+#include <gs++/graph_node.hpp>
 
 std::unique_ptr<grpc::Server> gserver;
 std::atomic<int>  current_block_height    = { -1 };
@@ -36,13 +37,91 @@ gs::txgraph g;
 gs::bch bch;
 
 
-std::filesystem::path get_tokendir(const gs::tokenid tokenid)
+boost::filesystem::path get_tokendir(const gs::tokenid tokenid)
 {
     const std::string tokenid_str = tokenid.decompress();
     const std::string p1 = tokenid_str.substr(0, 1);
     const std::string p2 = tokenid_str.substr(1, 1);
-    return std::filesystem::path("cache") / p1 / p2;
+    return boost::filesystem::path("cache") / p1 / p2;
 }
+
+bool save_token_to_disk(gs::txgraph & g, const gs::tokenid tokenid)
+{
+    std::shared_lock lock(g.lookup_mtx);
+    std::string tokenid_str = tokenid.decompress();
+    spdlog::info("saving token to disk {}", tokenid_str);
+
+    const boost::filesystem::path tokendir = get_tokendir(tokenid_str);
+    boost::filesystem::create_directories(tokendir);
+
+    const boost::filesystem::path tokenpath(tokendir / tokenid_str);
+    std::ofstream outf(tokenpath, std::ofstream::binary);
+
+    for (auto it : g.tokens[tokenid].graph) {
+        auto node = it.second;
+        outf.write(reinterpret_cast<const char *>(node.txid.data()), node.txid.size());
+
+        const std::size_t txdata_size = node.txdata.size();
+        outf.write(reinterpret_cast<const char *>(&txdata_size), sizeof(std::size_t));
+
+        outf.write(node.txdata.data(), node.txdata.size());
+
+        const std::size_t inputs_size = node.inputs.size();
+        outf.write(reinterpret_cast<const char *>(&inputs_size), sizeof(std::size_t));
+
+        for (gs::graph_node* input : node.inputs) {
+            outf.write(reinterpret_cast<const char *>(input->txid.data()), input->txid.size());
+        }
+    }
+
+    return true;
+}
+
+std::vector<gs::gs_tx> load_token_from_disk(gs::txgraph & g, const gs::tokenid tokenid)
+{
+    std::shared_lock lock(g.lookup_mtx);
+
+    boost::filesystem::path tokenpath = get_tokendir(tokenid) / tokenid.decompress();
+    std::ifstream file(tokenpath, std::ios::binary);
+    spdlog::info("loading token from disk {}", tokenpath.string());
+    std::vector<std::uint8_t> fbuf(std::istreambuf_iterator<char>(file), {});
+    std::vector<gs::gs_tx> ret;
+
+
+    auto it = std::begin(fbuf);
+    while (it != std::end(fbuf)) {
+        gs::txid txid;
+        std::copy(it, it+txid.size(), std::begin(txid));
+        it += txid.size();
+
+        std::size_t txdata_size;
+        std::copy(it, it+sizeof(std::size_t), reinterpret_cast<char*>(&txdata_size));
+        it += sizeof(std::size_t);
+
+        std::string txdata(txdata_size, '\0');
+        std::copy(it, it+txdata_size, std::begin(txdata));
+        it += txdata_size;
+
+        std::size_t inputs_size;
+        std::copy(it, it+sizeof(inputs_size), reinterpret_cast<char*>(&inputs_size));
+        it += sizeof(inputs_size);
+
+        std::vector<gs::txid> inputs;
+        inputs.reserve(inputs_size);
+        for (std::size_t i=0; i<inputs_size; ++i) {
+            gs::txid input;
+            std::copy(it, it+txid.size(), std::begin(input));
+            it += txid.size();
+            inputs.emplace_back(input);
+        }
+
+        ret.emplace_back(gs::gs_tx(txid, txdata, inputs));
+    }
+    file.close();
+
+    return ret;
+}
+
 
 std::string scriptpubkey_to_base64(const gs::scriptpubkey& pubkey)
 {
