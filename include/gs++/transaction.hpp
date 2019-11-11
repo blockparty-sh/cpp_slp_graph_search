@@ -25,7 +25,9 @@ struct transaction
     std::vector<gs::output>   outputs;
     gs::slp_transaction slp;
 
-    transaction() = default;
+    transaction()
+    : slp()
+    {}
 
     template <typename BeginIterator, typename EndIterator>
     bool hydrate(

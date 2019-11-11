@@ -22,6 +22,7 @@ slp_output::slp_output(
 {}
 
 slp_transaction_genesis::slp_transaction_genesis(
+    const std::uint16_t token_type,
     const std::string&  ticker,
     const std::string&  name,
     const std::string&  document_uri,
@@ -31,7 +32,8 @@ slp_transaction_genesis::slp_transaction_genesis(
     const std::uint32_t mint_baton_vout,
     const std::uint64_t qty
 )
-: ticker(ticker)
+: token_type(token_type)
+, ticker(ticker)
 , name(name)
 , document_uri(document_uri)
 , document_hash(document_hash)
@@ -42,22 +44,26 @@ slp_transaction_genesis::slp_transaction_genesis(
 {}
 
 slp_transaction_mint::slp_transaction_mint(
+    const std::uint16_t token_type,
     const gs::tokenid&  tokenid,
     const bool          has_mint_baton, // maybe this could be function that checks if mint_baton_vout > 0
     const std::uint32_t mint_baton_vout,
     const std::uint64_t qty
 )
-: tokenid(tokenid)
+: token_type(token_type)
+, tokenid(tokenid)
 , has_mint_baton(has_mint_baton)
 , mint_baton_vout(mint_baton_vout)
 , qty(qty)
 {}
 
 slp_transaction_send::slp_transaction_send(
+    const std::uint16_t               token_type,
     const gs::tokenid&                tokenid,
     const std::vector<std::uint64_t>& amounts
 )
-: tokenid(tokenid)
+: token_type(token_type)
+, tokenid(tokenid)
 , amounts(amounts)
 {}
 
@@ -212,7 +218,7 @@ slp_transaction::slp_transaction(const gs::scriptpubkey& scriptpubkey)
     auto cit = chunks.begin();
     CHECK_NEXT(); // for quick exit check done above
 
-    std::uint64_t token_type = 0;
+    std::uint16_t token_type = 0;
     {
         std::string token_type_str = *cit;
         std::reverse(token_type_str.begin(), token_type_str.end());
@@ -295,6 +301,7 @@ slp_transaction::slp_transaction(const gs::scriptpubkey& scriptpubkey)
 
         this->type = slp_transaction_type::genesis;
         this->slp_tx = slp_transaction_genesis(
+            token_type,
             ticker,
             name,
             document_uri,
@@ -350,6 +357,7 @@ slp_transaction::slp_transaction(const gs::scriptpubkey& scriptpubkey)
 
         this->type = slp_transaction_type::mint;
         this->slp_tx = slp_transaction_mint(
+            token_type,
             tokenid,
             has_mint_baton,
             mint_baton_vout,
@@ -386,6 +394,7 @@ slp_transaction::slp_transaction(const gs::scriptpubkey& scriptpubkey)
 
         this->type = slp_transaction_type::send;
         this->slp_tx = slp_transaction_send(
+            token_type,
             tokenid,
             token_amounts
         );
