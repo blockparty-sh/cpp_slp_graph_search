@@ -26,6 +26,9 @@ void bch::process_block(
 
     ++utxodb.current_block_height;
 
+    // TODO we need to check that block data isnt malformed here
+    // ie CHECK_END or something
+
     auto it = block_data.begin();
     const std::uint32_t version { gs::util::extract_u32(it) };
 
@@ -62,7 +65,9 @@ void bch::process_block(
     std::size_t total_removed = 0;
 
     for (std::uint64_t i=0; i<txn_count; ++i) {
-        gs::transaction tx(it, utxodb.current_block_height);
+        gs::transaction tx;
+        const bool hydration_success = tx.hydrate(it, block_data.end(), utxodb.current_block_height);
+        assert(hydration_success);
 
         for (auto & m : tx.inputs) {
             blk_inputs.emplace_back(m);
@@ -199,7 +204,9 @@ void bch::process_mempool_tx(const std::vector<std::uint8_t>& msg_data)
 {
     std::lock_guard lock(lookup_mtx);
 
-    gs::transaction tx(msg_data.begin(), 0);
+    gs::transaction tx;
+    const bool hydration_success = tx.hydrate(msg_data.begin(), msg_data.end(), 0);
+    assert(hydration_success);
     spdlog::info("processing tx {}", tx.txid.decompress(true));
 
     // std::cout << "txid: " << tx.txid.decompress(true) << std::endl;

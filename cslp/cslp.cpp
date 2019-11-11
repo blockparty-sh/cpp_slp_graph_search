@@ -10,10 +10,11 @@ extern "C" {
         return static_cast<cslp_validator>(slp_validator);
     }
 
-    void cslp_validator_add_tx(cslp_validator validator, const char * txdata)
+    void cslp_validator_add_tx(cslp_validator validator, const char * txdata, int txdata_len)
     {
         gs::slp_validator * slp_validator = static_cast<gs::slp_validator*>(validator);
-        gs::transaction tx(txdata, 0);
+        gs::transaction tx;
+        tx.hydrate(txdata, txdata+txdata_len, 0);
         slp_validator->add_tx(tx);
     }
 

@@ -36,7 +36,7 @@ int main(int argc, char * argv[])
     fclose(file);
 
     cslp_validator validator = cslp_validator_init();
-    cslp_validator_add_tx(validator, buffer);
+    cslp_validator_add_tx(validator, buffer, fileLen);
     cslp_validator_destroy(validator);
 
     free(buffer);
