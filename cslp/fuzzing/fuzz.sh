@@ -1,3 +1,3 @@
 #!/bin/sh
 
-afl-fuzz -i afl_in -o afl_out ./../build/cslp_fuzzing @@
+afl-fuzz -n -i afl_in -o afl_out ./../../build/cslp/fuzzing/cslp_fuzzing @@
