@@ -30,38 +30,38 @@ std::string readfile(const std::string &fileName)
 
 int main(int argc, char * argv[])
 {
-	if (argc < 2) {
-		return 1;
-	}
+    if (argc < 2) {
+        return 1;
+    }
 
-	std::string txdata = readfile(argv[1]);
+    std::string txdata = readfile(argv[1]);
 
 
     gs::slp_validator slp_validator;
     gs::transaction tx;
     const bool hydration_success = tx.hydrate(txdata.begin(), txdata.end(), 0);
 
-	boost::process::ipstream is;
-	boost::process::child c("node nodejs_validation/run_slp_validate.js "+std::string(argv[1]),
-		boost::process::std_out > is);
+    boost::process::ipstream is;
+    boost::process::child c("node nodejs_validation/run_slp_validate.js "+std::string(argv[1]),
+        boost::process::std_out > is);
 
-	std::vector<std::string> data;
+    std::vector<std::string> data;
 
-	std::string line;
-	while (c.running() && std::getline(is, line) && ! line.empty()) {
-		data.push_back(line);
-	}
+    std::string line;
+    while (c.running() && std::getline(is, line) && ! line.empty()) {
+        data.push_back(line);
+    }
 
-	c.wait();
-	int result = c.exit_code();
+    c.wait();
+    int result = c.exit_code();
 
-	// hairy - we look to see if true != 0 and likewise false != 1..
-	if (! hydration_success != !!result) {
-		abort();
-	}
+    // hairy - we look to see if true != 0 and likewise false != 1..
+    if (! hydration_success != !!result) {
+        abort();
+    }
 
-	std::string joined = boost::algorithm::join(data, "\n");
-	nlohmann::json j;
+    std::string joined = boost::algorithm::join(data, "\n");
+    nlohmann::json j;
     
     try {
         j = nlohmann::json::parse(joined.begin(), joined.end());
@@ -74,9 +74,9 @@ int main(int argc, char * argv[])
     }
 
 
-	if (j["transactionType"].is_null() && tx.slp.type != gs::slp_transaction_type::invalid) {
-		abort();
-	}
+    if (j["transactionType"].is_null() && tx.slp.type != gs::slp_transaction_type::invalid) {
+        abort();
+    }
 
     if (j["transactionType"].is_null()) {
         return 0;
