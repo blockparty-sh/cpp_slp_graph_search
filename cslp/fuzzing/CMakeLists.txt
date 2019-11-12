@@ -36,17 +36,20 @@ add_executable(cslp_differential_bitcoinrpc
     ${CMAKE_CURRENT_SOURCE_DIR}/differential_bitcoinrpc.cpp
     ${CMAKE_SOURCE_DIR}/src/slp_transaction.cpp
     ${CMAKE_SOURCE_DIR}/src/sha2.cpp
+    ${CMAKE_SOURCE_DIR}/src/rpc.cpp
 )
 
 target_include_directories(cslp_differential_bitcoinrpc PRIVATE
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_BINARY_DIR}/nlohmann-json/include
+    ${CMAKE_BINARY_DIR}/cpp-httplib/include
 )
 
 target_link_libraries(cslp_differential_bitcoinrpc
     absl::flat_hash_map
     absl::numeric
     absl::strings
+    mio
+    httplib
     ${Boost_FILESYSTEM_LIBRARY}
-    ${Boost_PROCESS_LIBRARY}
 )

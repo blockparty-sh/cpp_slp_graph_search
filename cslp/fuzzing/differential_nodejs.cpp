@@ -15,19 +15,7 @@
 #include <gs++/slp_validator.hpp>
 #include <gs++/transaction.hpp>
 
-
-std::string readfile(const std::string &fileName)
-{
-    std::ifstream ifs(fileName.c_str(), std::ios::in | std::ios::binary | std::ios::ate);
-
-    std::ifstream::pos_type fileSize = ifs.tellg();
-    ifs.seekg(0, std::ios::beg);
-
-    std::vector<char> bytes(fileSize);
-    ifs.read(bytes.data(), fileSize);
-
-    return std::string(bytes.data(), fileSize);
-}
+#include "util.hpp"
 
 int main(int argc, char * argv[])
 {
@@ -56,14 +44,6 @@ int main(int argc, char * argv[])
 
     c.wait();
     const int exit_code = c.exit_code();
-
-
-#define ABORT_CHECK(cond) {\
-    if ((cond)) { \
-        std::cerr << #cond << std::endl;\
-        abort();\
-    }\
-}
 
     // hairy - we look to see if true != 0 and likewise false != 1..
     ABORT_CHECK (hydration_success && !!exit_code && "c++ parsed, nodejs did not");

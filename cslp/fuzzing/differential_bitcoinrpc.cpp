@@ -5,30 +5,50 @@
 #include <cstdlib>
 
 #include <nlohmann/json.hpp>
-#include <boost/process.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/hex.hpp>
+#include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/join.hpp>
+#include <boost/format.hpp>
 #include <absl/strings/numbers.h>
 #include <absl/numeric/int128.h>
 
-
+#include <gs++/rpc.hpp>
 #include <gs++/slp_validator.hpp>
 #include <gs++/transaction.hpp>
 
+#include "util.hpp"
+#include "rpc_config.hpp"
 
-std::string readfile(const std::string &fileName)
+std::uint64_t bch2sats (long double v)
 {
-    std::ifstream ifs(fileName.c_str(), std::ios::in | std::ios::binary | std::ios::ate);
+    std::string bch = boost::str(boost::format("%.8f") % v);
 
-    std::ifstream::pos_type fileSize = ifs.tellg();
-    ifs.seekg(0, std::ios::beg);
+    std::uint64_t ret = 0;
 
-    std::vector<char> bytes(fileSize);
-    ifs.read(bytes.data(), fileSize);
+    std::vector<std::string> parts;
+    boost::split(parts, bch, boost::is_any_of("."));
 
-    return std::string(bytes.data(), fileSize);
+    if (parts.size() == 0) {
+        return ret;
+    }
+
+    ret += boost::lexical_cast<std::uint64_t>(parts[0]) * 100000000;
+
+    if (parts.size() == 1) {
+        return ret;
+    }
+
+    boost::algorithm::trim_left_if(parts[1], [](char c) { return c == '0'; });
+
+    if (parts[1].empty()) {
+        return ret;
+    }
+
+    ret += boost::lexical_cast<std::uint64_t>(parts[1]);
+    return ret;
 }
+
 
 int main(int argc, char * argv[])
 {
@@ -42,37 +62,80 @@ int main(int argc, char * argv[])
     gs::transaction tx;
     const bool hydration_success = tx.hydrate(txdata.begin(), txdata.end(), 0);
 
-    boost::process::ipstream is;
     std::string hex_str;
     boost::algorithm::hex(txdata, std::back_inserter(hex_str));
-    boost::process::child c(
-        "bitcoin-cli decoderawtransaction \"" + hex_str + "\"",
-        boost::process::std_out > is
-    );
 
-    std::vector<std::string> data;
-
-    std::string line;
-    while (c.running() && std::getline(is, line) && ! line.empty()) {
-        data.push_back(line);
+    gs::rpc rpc(RPC_HOST, RPC_PORT, RPC_USER, RPC_PASS);
+    std::pair<bool, nlohmann::json> decoded_tx;
+    
+    try {
+        decoded_tx = rpc.get_decode_raw_transaction(hex_str);
+    } catch (nlohmann::json::parse_error e) {
+        std::cout << e.what() << std::endl;
+        ABORT_CHECK (hydration_success);
+        return 0;
     }
 
-    c.wait();
-    const int exit_code = c.exit_code();
-
-
-#define ABORT_CHECK(cond) {\
-    if ((cond)) { \
-        std::cerr << #cond << std::endl;\
-        abort();\
-    }\
-}
+    if (! hydration_success && ! decoded_tx.first) {
+        return 0;
+    }
 
     // hairy - we look to see if true != 0 and likewise false != 1..
-    ABORT_CHECK (hydration_success && !!exit_code && "c++ parsed, nodejs did not");
-    ABORT_CHECK (! hydration_success && !exit_code && "c++ did not parse, but nodejs did");
+    ABORT_CHECK (hydration_success && ! decoded_tx.first && "c++ parsed, bitcoin did not");
+    ABORT_CHECK (! hydration_success && decoded_tx.first && "c++ did not parse, but bitcoin did");
 
-    // TODO we should check json output here and compare to the gs::transaction
+    /*
+    std::cout
+        << "hydration_success: " << hydration_success << "\n"
+        << "decoded_tx.first: " << decoded_tx.first << "\n"
+        << "decoded_tx.second: " << decoded_tx.second << "\n";
+    */
+
+    nlohmann::json j = decoded_tx.second;
+
+    // std::cout << j["txid"].get<std::string>() << std::endl;
+    std::cout << tx.txid.decompress(true) << std::endl;
+
+    // std::cout << std::endl;
+
+    // std::cout << j["version"].get<std::int32_t>() << std::endl;
+    std::cout << tx.version << std::endl;
+
+    // std::cout << std::endl;
+
+
+    ABORT_CHECK (j["txid"].get<std::string>() != tx.txid.decompress(true));
+    ABORT_CHECK (j["hash"].get<std::string>() != tx.txid.decompress(true));
+    ABORT_CHECK (j["version"].get<std::int32_t>() != tx.version);
+
+    ABORT_CHECK (j["vin"].size() != tx.inputs.size());
+    std::size_t inputsIdx = 0;
+    for (auto v : j["vin"]) {
+        ABORT_CHECK (v["txid"].get<std::string>() != tx.inputs[inputsIdx].txid.decompress(true));
+        ABORT_CHECK (v["vout"].get<std::uint32_t>() != tx.inputs[inputsIdx].vout);
+        ++inputsIdx;
+    }
+
+    ABORT_CHECK (j["vout"].size() != tx.outputs.size());
+    for (auto v : j["vout"]) {
+        const std::size_t outputsIdx = v["n"].get<std::uint64_t>();
+
+        // std::cout << bch2sats(v["value"].get<long double>()) << " " << tx.outputs[outputsIdx].value << std::endl;
+        // bitcoin-rpc treats op_return outputs as having 0 value
+        if (tx.outputs[outputsIdx].is_op_return()) {
+            ABORT_CHECK (bch2sats(v["value"].get<long double>()) != 0);
+        } else {
+            // bitcoin-rpc gives us value in bch ie "0.00000546"
+            ABORT_CHECK (bch2sats(v["value"].get<long double>()) != tx.outputs[outputsIdx].value);
+        }
+
+        ABORT_CHECK (v["scriptPubKey"]["hex"].get<std::string>() != gs::util::decompress_hex(tx.outputs[outputsIdx].scriptpubkey.v));
+    }
+
+
+    // std::cout << j["locktime"].get<std::uint32_t>() << std::endl;
+    std::cout << tx.lock_time << std::endl;
+    ABORT_CHECK (j["locktime"].get<std::uint32_t>() != tx.lock_time);
 
     return 0;
 }
