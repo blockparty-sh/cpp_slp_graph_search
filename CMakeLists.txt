@@ -7,18 +7,6 @@ cmake_minimum_required(VERSION 3.9)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# test that filesystem header actually is there and works
-#try_compile(HAS_FS "${CMAKE_BINARY_DIR}/temp"
-#"${CMAKE_SOURCE_DIR}/test/has_filesystem.cpp"
-#            CMAKE_FLAGS -DCMAKE_CXX_STANDARD=17 -DCMAKE_CXX_STANDARD_REQUIRED=ON
-#            LINK_LIBRARIES stdc++fs)
-#if(HAS_FS)
-#    message(STATUS "Compiler has filesystem support")
-#else()
-#    message(FATAL_ERROR "Compiler is missing filesystem capabilities")
-#endif(HAS_FS)
-
-
 # TODO should these be here
 set(JSON_BuildTests OFF CACHE INTERNAL "")
 set(BUILD_TESTING OFF)
