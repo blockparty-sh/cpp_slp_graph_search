@@ -34,7 +34,7 @@ std::uint16_t extract_u16(Iterator & it)
 }
 
 template <typename Iterator>
-std::uint8_t extract_u32(Iterator & it)
+std::uint32_t extract_u32(Iterator & it)
 {
     std::uint32_t ret;
     std::copy(it, it+4, reinterpret_cast<std::uint8_t*>(&ret));
@@ -68,7 +68,7 @@ std::int16_t extract_i16(Iterator & it)
 }
 
 template <typename Iterator>
-std::uint8_t extract_i32(Iterator & it)
+std::uint32_t extract_i32(Iterator & it)
 {
     std::int32_t ret;
     std::copy(it, it+4, reinterpret_cast<std::uint8_t*>(&ret));
