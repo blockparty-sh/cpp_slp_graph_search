@@ -47,7 +47,6 @@ struct transaction
         }
 
         auto it = begin_it;
-        CHECK_END(1);
 
         CHECK_END(4);
         this->version = gs::util::extract_i32(it);
