@@ -123,6 +123,7 @@ std::pair<bool, nlohmann::json> rpc::get_decode_raw_transaction(const std::strin
         return { false, {} };
     }
 
+    // std::cout << res->body << std::endl;
     auto jbody = nlohmann::json::parse(res->body);
 
     if (jbody.size() == 0) {

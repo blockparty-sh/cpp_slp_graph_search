@@ -72,7 +72,7 @@ int main(int argc, char * argv[])
         decoded_tx = rpc.get_decode_raw_transaction(hex_str);
     } catch (nlohmann::json::parse_error e) {
         std::cout << e.what() << std::endl;
-        ABORT_CHECK (hydration_success);
+        // ABORT_CHECK (hydration_success);
         return 0;
     }
 
@@ -81,7 +81,10 @@ int main(int argc, char * argv[])
     }
 
     // hairy - we look to see if true != 0 and likewise false != 1..
-    ABORT_CHECK (hydration_success && ! decoded_tx.first && "c++ parsed, bitcoin did not");
+    if (hydration_success && ! decoded_tx.first) {
+        return 0;
+    }
+    // ABORT_CHECK (hydration_success && ! decoded_tx.first && "c++ parsed, bitcoin did not");
     ABORT_CHECK (! hydration_success && decoded_tx.first && "c++ did not parse, but bitcoin did");
 
     /*
@@ -92,6 +95,7 @@ int main(int argc, char * argv[])
     */
 
     nlohmann::json j = decoded_tx.second;
+    std::cout << j << std::endl;
 
     // std::cout << j["txid"].get<std::string>() << std::endl;
     std::cout << tx.txid.decompress(true) << std::endl;
@@ -120,18 +124,18 @@ int main(int argc, char * argv[])
     for (auto v : j["vout"]) {
         const std::size_t outputsIdx = v["n"].get<std::uint64_t>();
 
-        // std::cout << bch2sats(v["value"].get<long double>()) << " " << tx.outputs[outputsIdx].value << std::endl;
-        // bitcoin-rpc treats op_return outputs as having 0 value
-        if (tx.outputs[outputsIdx].is_op_return()) {
-            ABORT_CHECK (bch2sats(v["value"].get<long double>()) != 0);
-        } else {
-            // bitcoin-rpc gives us value in bch ie "0.00000546"
-            ABORT_CHECK (bch2sats(v["value"].get<long double>()) != tx.outputs[outputsIdx].value);
+        const std::uint64_t sats = bch2sats(v["value"].get<long double>()); 
+        // otherwise its non-sensical
+        if (sats < 21000000ull * 100000000ull) {
+            std::cout << sats << std::endl;
+            std::cout << tx.outputs[outputsIdx].value << std::endl;
+            ABORT_CHECK (sats != tx.outputs[outputsIdx].value);
         }
 
-        ABORT_CHECK (v["scriptPubKey"]["hex"].get<std::string>() != gs::util::decompress_hex(tx.outputs[outputsIdx].scriptpubkey.v));
-    }
+        ABORT_CHECK (v["scriptPubKey"]["hex"].get<std::string>()
+            != gs::util::decompress_hex(tx.outputs[outputsIdx].scriptpubkey.v));
 
+    }
 
     // std::cout << j["locktime"].get<std::uint32_t>() << std::endl;
     std::cout << tx.lock_time << std::endl;

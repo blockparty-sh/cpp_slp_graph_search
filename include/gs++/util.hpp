@@ -85,6 +85,17 @@ std::int64_t extract_i64(Iterator & it)
 }
 
 template <typename Iterator>
+std::size_t var_int_additional_size(const Iterator & it)
+{
+        const std::uint8_t v = *it;
+
+         if (v  < 0xFD) return 0;
+    else if (v == 0xFD) return 2;
+    else if (v == 0xFE) return 4;
+    else                return 8;
+}
+
+template <typename Iterator>
 std::uint64_t extract_var_int (Iterator & it) 
 {
     const std::uint64_t ret = extract_u8(it);

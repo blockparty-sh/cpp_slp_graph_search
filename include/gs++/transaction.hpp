@@ -1,11 +1,14 @@
 #ifndef GS_TRANSACTION_HPP
 #define GS_TRANSACTION_HPP
 
+#define ENABLE_BCH_PARSE_PRINTING
+
 #include <vector>
 #include <cstdint>
 #include <algorithm>
 
 #include <absl/types/variant.h>
+#include <boost/format.hpp>
 
 #include <gs++/bhash.hpp>
 #include <gs++/util.hpp>
@@ -40,20 +43,40 @@ struct transaction
         constexpr std::uint64_t MAX_OUTPUTS = MAX_TX_SIZE; // TODO set better max
         constexpr std::uint64_t MAX_SCRIPT_SIZE = 1000; // TODO set better max
 
+#ifdef ENABLE_BCH_PARSE_PRINTING
+        #define CHECK_END(n) {    \
+            if (it+n >= end_it) { \
+                std::cerr << "CHECK_END\tline: " << __LINE__ << "\n";\
+                return false;     \
+            }                     \
+        }
+
+        #define DEBUG_PRINT(msg) {\
+            std::cerr << msg << "\tline: " << __LINE__ << "\n";\
+            std::cerr << "offset: " << (boost::format("%1$#x") % (it - begin_it)) << "\n";\
+        }
+#else
         #define CHECK_END(n) {    \
             if (it+n >= end_it) { \
                 return false;     \
             }                     \
         }
 
+        #define DEBUG_PRINT(msg) {\
+        }
+#endif
+
         auto it = begin_it;
 
         CHECK_END(4);
         this->version = gs::util::extract_i32(it);
+        DEBUG_PRINT(this->version);
 
-        CHECK_END(1+8); // TODO this should be length of var int
+        CHECK_END(1+gs::util::var_int_additional_size(it));
         const std::uint64_t in_count { gs::util::extract_var_int(it) };
+        DEBUG_PRINT(in_count);
         if (in_count >= MAX_INPUTS) {
+            DEBUG_PRINT("in_count >= MAX_INPUTS");
             return false;
         }
 
@@ -63,12 +86,16 @@ struct transaction
             gs::txid prev_tx_id;
             std::copy(it, it+32, reinterpret_cast<char*>(prev_tx_id.begin()));
             it+=32;
+            DEBUG_PRINT(prev_tx_id.decompress(true));
 
             CHECK_END(4);
             const std::uint32_t prev_out_idx { gs::util::extract_u32(it) };
-            CHECK_END(1+8); // TODO this should be length of var int
+            DEBUG_PRINT(prev_out_idx);
+            CHECK_END(1+gs::util::var_int_additional_size(it));
             const std::uint64_t script_len   { gs::util::extract_var_int(it) };
+            DEBUG_PRINT(script_len);
             if (script_len >= MAX_SCRIPT_SIZE) {
+                DEBUG_PRINT("len  >= MAX_SCRIPT_SIZE");
                 return false;
             }
             
@@ -80,13 +107,16 @@ struct transaction
 
             CHECK_END(4);
             const std::uint32_t sequence { gs::util::extract_u32(it) };
+            DEBUG_PRINT(sequence);
 
             this->inputs.push_back(gs::outpoint(prev_tx_id, prev_out_idx));
         }
 
-        CHECK_END(1+8); // TODO this should be length of var int
+        CHECK_END(1+gs::util::var_int_additional_size(it));
         const std::uint64_t out_count { gs::util::extract_var_int(it) };
+        DEBUG_PRINT(out_count);
         if (out_count >= MAX_OUTPUTS) {
+            DEBUG_PRINT("out_count >= MAX_OUTPUTS");
             return false;
         }
         
@@ -94,8 +124,11 @@ struct transaction
         for (std::uint32_t out_i=0; out_i<out_count; ++out_i) {
             CHECK_END(8);
             const std::uint64_t value      { gs::util::extract_u64(it) };
-            CHECK_END(1+8); // TODO this should be length of var int
+            DEBUG_PRINT(value);
+
+            CHECK_END(1+gs::util::var_int_additional_size(it));
             const std::uint64_t script_len { gs::util::extract_var_int(it) };
+            DEBUG_PRINT(script_len);
             if (script_len >= MAX_SCRIPT_SIZE) {
                 return false;
             }
@@ -110,6 +143,7 @@ struct transaction
 
         CHECK_END(4-1); // minus 1 because +4 could be the end
         this->lock_time = gs::util::extract_u32(it);
+        DEBUG_PRINT(this->lock_time);
 
         const auto tx_end_it = it;
 
