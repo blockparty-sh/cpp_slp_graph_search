@@ -1,7 +1,5 @@
 #define CATCH_CONFIG_MAIN
 
-// #define ENABLE_SLP_PARSE_ERROR_PRINTING
-
 #include <string>
 #include <fstream>
 #include <streambuf>
@@ -33,7 +31,7 @@ TEST_CASE( "create_txgraph is 1 (pass)", "[single-file]" ) {
 
 
 TEST_CASE( "script_tests", "[single-file]" ) {
-	std::ifstream test_data_stream("./test/script_tests.json");
+	std::ifstream test_data_stream("./slp-unit-test-data/src/slp-unit-test-data/script_tests.json");
 	std::string test_data_str((std::istreambuf_iterator<char>(test_data_stream)),
 							   std::istreambuf_iterator<char>());
 
@@ -55,7 +53,7 @@ TEST_CASE( "script_tests", "[single-file]" ) {
 }
 
 TEST_CASE( "slp_decoding_tx_tests", "[single-file]" ) {
-	std::ifstream test_data_stream("./test/slp_decoding_tx_tests.json");
+	std::ifstream test_data_stream("../test/slp_decoding_tx_tests.json");
 	std::string test_data_str((std::istreambuf_iterator<char>(test_data_stream)),
 							   std::istreambuf_iterator<char>());
 
@@ -131,7 +129,7 @@ TEST_CASE( "slp_decoding_tx_tests", "[single-file]" ) {
 }
 
 TEST_CASE( "bch_decoding_tx_to_slp_tests", "[single-file]" ) {
-	std::ifstream test_data_stream("./test/bch_decoding_tx_to_slp_tests.json");
+	std::ifstream test_data_stream("../test/bch_decoding_tx_to_slp_tests.json");
 	std::string test_data_str((std::istreambuf_iterator<char>(test_data_stream)),
 							   std::istreambuf_iterator<char>());
 
@@ -209,7 +207,7 @@ TEST_CASE( "bch_decoding_tx_to_slp_tests", "[single-file]" ) {
 }
 
 TEST_CASE( "topological_sorting", "[single-file]" ) {
-	std::ifstream test_data_stream("./test/topological_sorting.json");
+	std::ifstream test_data_stream("../test/topological_sorting.json");
 	std::string test_data_str((std::istreambuf_iterator<char>(test_data_stream)),
 							   std::istreambuf_iterator<char>());
 

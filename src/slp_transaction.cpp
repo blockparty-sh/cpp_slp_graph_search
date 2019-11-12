@@ -1,5 +1,8 @@
 #include <gs++/slp_transaction.hpp>
 
+// FOR DEBUGGING
+// #define ENABLE_SLP_PARSE_ERROR_PRINTING
+
 namespace gs {
 
 slp_output::slp_output(
@@ -200,7 +203,12 @@ slp_transaction::slp_transaction(const gs::scriptpubkey& scriptpubkey)
         // quick exit optimization
         if (chunks.size() == 1) {
             const std::string lokad_id_str = chunks[0];
-            PARSE_CHECK(lokad_id_str != R"(SLP\0)", "SLP not in first chunk");
+            PARSE_CHECK(lokad_id_str.size() != 4, "lokad id wrong size");
+            PARSE_CHECK(
+                lokad_id_str[0] != 'S'
+             || lokad_id_str[1] != 'L'
+             || lokad_id_str[2] != 'P'
+             || lokad_id_str[3] != '\0', "SLP not in first chunk");
         }
 
         // for debugging
@@ -229,7 +237,8 @@ slp_transaction::slp_transaction(const gs::scriptpubkey& scriptpubkey)
         PARSE_CHECK(! token_type_check.first, "token_type extraction failed");
 
         token_type = token_type_check.second;
-        PARSE_CHECK(token_type != 1, "token_type not equal to 1");
+        PARSE_CHECK(! (token_type == 1 || token_type == 0x41 || token_type == 0x81),
+                    "token_type not token-type1, nft1-group, or nft1-child");
 
         CHECK_NEXT();
     }
