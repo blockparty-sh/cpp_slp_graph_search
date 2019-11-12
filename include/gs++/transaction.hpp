@@ -116,11 +116,10 @@ struct transaction
 
         std::vector<std::uint8_t> serialized_tx;
         serialized_tx.reserve(tx_end_it - it);
-        std::copy(it, tx_end_it, std::back_inserter(serialized_tx));
+        std::copy(begin_it, tx_end_it, std::back_inserter(serialized_tx));
 
         sha256(serialized_tx.data(), serialized_tx.size(), this->txid.v.data());
         sha256(this->txid.v.data(), this->txid.v.size(), this->txid.v.data());
-        // std::reverse(this->txid.begin(), this->txid.end());
 
         for (auto & m : this->outputs) {
             m.prev_tx_id = this->txid;
