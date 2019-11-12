@@ -112,4 +112,29 @@ std::pair<bool, std::uint32_t> rpc::get_best_block_height()
     return { true, jbody[0]["result"]["blocks"].get<std::uint32_t>() };
 }
 
+std::pair<bool, nlohmann::json> rpc::get_decode_raw_transaction(const std::string hex_str)
+{
+    std::shared_ptr<httplib::Response> res = query("decoderawtransaction", nlohmann::json::array({ hex_str }));
+    if (! res) {
+        return { false, {} };
+    }
+
+    if (res->status != 200) {
+        return { false, {} };
+    }
+
+    auto jbody = nlohmann::json::parse(res->body);
+
+    if (jbody.size() == 0) {
+        return { false, {} };
+    }
+
+    if (! jbody[0]["error"].is_null()) {
+        std::cerr << jbody[0]["error"] << "\n";
+        return { false, {} };
+    }
+
+    return { true, jbody[0]["result"] };
+}
+
 }

@@ -39,6 +39,8 @@ struct rpc
     );
 
     std::pair<bool, std::uint32_t> get_best_block_height();
+
+    std::pair<bool, nlohmann::json> get_decode_raw_transaction(const std::string hex_str);
 };
 
 }
