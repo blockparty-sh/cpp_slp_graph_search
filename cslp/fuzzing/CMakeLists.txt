@@ -1,15 +1,17 @@
 project(cslp_fuzzing)
 
-add_executable(cslp_fuzzcrash
-    ${CMAKE_CURRENT_SOURCE_DIR}/fuzzcrash.c
+add_executable(cslp_fuzzcrash_slpparse
+    ${CMAKE_CURRENT_SOURCE_DIR}/fuzzcrash_slpparse.cpp
+    ${CMAKE_SOURCE_DIR}/src/slp_transaction.cpp
+    ${CMAKE_SOURCE_DIR}/src/sha2.cpp
 )
 
-target_include_directories(cslp_fuzzcrash PRIVATE
+target_include_directories(cslp_fuzzcrash_slpparse PRIVATE
     ${CMAKE_SOURCE_DIR}/include
 )
 
-target_link_libraries(cslp_fuzzcrash
-    cslp
+target_link_libraries(cslp_fuzzcrash_slpparse
+    absl::flat_hash_map
 )
 
 add_executable(cslp_differential_nodejs
