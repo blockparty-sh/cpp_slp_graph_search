@@ -6,6 +6,7 @@
 #include <vector>
 #include <cstdint>
 #include <algorithm>
+#include <cmath>
 
 #include <absl/types/variant.h>
 #include <boost/format.hpp>
@@ -123,7 +124,7 @@ struct transaction
         this->outputs.reserve(out_count);
         for (std::uint32_t out_i=0; out_i<out_count; ++out_i) {
             CHECK_END(8);
-            const std::uint64_t value      { gs::util::extract_u64(it) };
+            const std::int64_t value      { std::abs(gs::util::extract_i64(it)) };
             DEBUG_PRINT(value);
 
             CHECK_END(1+gs::util::var_int_additional_size(it));
