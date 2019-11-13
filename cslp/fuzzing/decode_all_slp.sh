@@ -11,7 +11,3 @@ printf "\t"
 echo "nodejs"
 printf "\t"
 ./decode_nodejs.sh ${1} 2> /dev/null
-
-echo "bitcoinrpc"
-printf "\t"
-./decode_bitcoinrpc.sh ${1} 2> /dev/null

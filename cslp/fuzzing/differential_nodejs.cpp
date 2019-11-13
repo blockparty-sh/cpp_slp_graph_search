@@ -1,3 +1,10 @@
+// README
+//
+// You must pass full path to this program
+// You must also start the node server first ie
+// node nodejs_validation/run_slp_validate.js
+
+
 #include <iostream>
 #include <string>
 #include <vector>
@@ -6,13 +13,11 @@
 #include <iterator>
 
 #include <nlohmann/json.hpp>
-#include <boost/process.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/hex.hpp>
-#include <boost/algorithm/string/join.hpp>
+#include <httplib/httplib.h>
 #include <absl/strings/numbers.h>
 #include <absl/numeric/int128.h>
-
 
 #include <gs++/slp_validator.hpp>
 #include <gs++/slp_transaction.hpp>
@@ -31,37 +36,37 @@ int main(int argc, char * argv[])
     if (argc < 2) {
         return 1;
     }
+    std::cout << argv[1] << std::endl;
 
     std::string txdata = readfile(argv[1]);
 
     gs::slp_transaction slp_transaction((gs::scriptpubkey(txdata)));
     const bool hydration_success = slp_transaction.type != gs::slp_transaction_type::invalid;
 
-    boost::process::ipstream is;
-    boost::process::child c(
-        "node --no-warnings nodejs_validation/run_slp_validate.js " + std::string(argv[1]),
-        boost::process::std_out > is
-    );
+    int exit_code = 0;
 
-    std::vector<std::string> data;
-
-    std::string line;
-    while (c.running() && std::getline(is, line)) {
-        data.push_back(line);
+    httplib::Client cli("127.0.0.1", 8077);
+    std::string path = std::string(argv[1]);
+    auto res = cli.Get(path.c_str());
+    auto jbody = nlohmann::json({});
+    if (res && res->status == 200) {
+        jbody = nlohmann::json::parse(res->body);
+        if (! jbody["success"].get<bool>()) {
+            exit_code = 1;
+        }
+    } else {
+        exit_code = 1;
     }
 
-    c.wait();
-    const int exit_code = c.exit_code();
 
     // hairy - we look to see if true != 0 and likewise false != 1..
     ABORT_CHECK (hydration_success && !!exit_code && "c++ parsed, nodejs did not");
     ABORT_CHECK (! hydration_success && !exit_code && "c++ did not parse, but nodejs did");
 
-    std::string joined = boost::algorithm::join(data, "\n");
     nlohmann::json j;
 
     try {
-        j = nlohmann::json::parse(joined.begin(), joined.end());
+        j = jbody["data"];
         std::cout << j.dump(-1, ' ', true) << std::endl << std::endl;
     
     } catch (nlohmann::json::parse_error e) {
