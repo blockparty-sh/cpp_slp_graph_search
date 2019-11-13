@@ -132,14 +132,9 @@ slp_transaction::slp_transaction(const gs::scriptpubkey& scriptpubkey)
 
         const std::uint8_t cnt = gs::util::extract_u8(it);
 
-        if (cnt < 0x4C) {
+        if (cnt > 0x00 && cnt < 0x4C) {
             if (it+cnt > scriptpubkey.v.end()) {
                 return { false, 0 };
-            }
-
-            // OP_0 not allowed
-            if (cnt == 0) {
-                --it; return { false, 0 };
             }
 
             return { true, cnt };
