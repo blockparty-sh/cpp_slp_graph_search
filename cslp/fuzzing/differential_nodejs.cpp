@@ -36,7 +36,6 @@ int main(int argc, char * argv[])
     if (argc < 2) {
         return 1;
     }
-    std::cout << argv[1] << std::endl;
 
     std::string txdata = readfile(argv[1]);
 
@@ -46,11 +45,12 @@ int main(int argc, char * argv[])
     int exit_code = 0;
 
     httplib::Client cli("127.0.0.1", 8077);
-    std::string path = std::string(argv[1]);
+    std::string path = hex(txdata);
     auto res = cli.Get(path.c_str());
     auto jbody = nlohmann::json({});
     if (res && res->status == 200) {
         jbody = nlohmann::json::parse(res->body);
+        std::cout << jbody << std::endl;
         if (! jbody["success"].get<bool>()) {
             exit_code = 1;
         }

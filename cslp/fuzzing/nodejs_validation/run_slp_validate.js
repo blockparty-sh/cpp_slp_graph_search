@@ -8,9 +8,10 @@ const turbo = require('turbo-http')
 const validate = require('slp-validate');
 
 const server = turbo.createServer(function (req, res) {
+    console.log(req.url);
     let y = null;
     try {
-        const bin = fs.readFileSync(req.url);
+        const bin = Buffer.from(req.url, 'hex');
 
         y = validate.Slp.parseSlpOutputScript(bin);
 
