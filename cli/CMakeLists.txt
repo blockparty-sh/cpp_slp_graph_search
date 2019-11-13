@@ -17,6 +17,7 @@ target_include_directories(gs++-cli PRIVATE
 target_link_libraries(gs++-cli
     gRPC::grpc++_reflection
     protobuf::libprotobuf
+    absl::variant
     absl::flat_hash_map
     absl::node_hash_map
     base64
