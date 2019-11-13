@@ -134,26 +134,26 @@ slp_transaction::slp_transaction(const gs::scriptpubkey& scriptpubkey)
 
         if (cnt > 0x00 && cnt < 0x4C) {
             if (it+cnt > scriptpubkey.v.end()) {
-                return { false, 0 };
+                --it; return { false, 0 };
             }
 
             return { true, cnt };
         }
         else if (cnt == 0x4C) {
             if (it+1 >= scriptpubkey.v.end()) {
-                return { false, 0 };
+                --it; return { false, 0 };
             }
             return { true, gs::util::extract_u8(it) };
         }
         else if (cnt == 0x4D) {
             if (it+2 >= scriptpubkey.v.end()) {
-                return { false, 0 };
+                --it; return { false, 0 };
             }
             return { true, gs::util::extract_u16(it) };
         }
         else if (cnt == 0x4E) {
             if (it+4 >= scriptpubkey.v.end()) {
-                return { false, 0 };
+                --it; return { false, 0 };
             }
             return { true, gs::util::extract_u32(it) };
         }
