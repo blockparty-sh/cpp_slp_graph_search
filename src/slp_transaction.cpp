@@ -347,6 +347,7 @@ slp_transaction::slp_transaction(const gs::scriptpubkey& scriptpubkey)
         std::uint32_t mint_baton_vout = 0;
         {
             const std::string mint_baton_vout_str = *cit;
+            PARSE_CHECK(mint_baton_vout_str.size() >= 2, "mint_baton_vout string length must be 0 or 1");
             if (mint_baton_vout_str != "") {
                 has_mint_baton = true;
                 const std::pair<bool, std::uint64_t> mint_baton_vout_check {
