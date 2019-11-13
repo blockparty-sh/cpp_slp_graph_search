@@ -117,11 +117,12 @@ slp_transaction::slp_transaction(const gs::scriptpubkey& scriptpubkey)
     PARSE_CHECK(scriptpubkey.v.empty(), "scriptpubkey cannot be empty");
 
     auto it = scriptpubkey.v.begin();
-    PARSE_CHECK(scriptpubkey.v[0] != 0x6a, "scriptpubkey not op_return");
+    PARSE_CHECK(scriptpubkey.v[0] != 0x6A, "scriptpubkey not op_return");
     PARSE_CHECK(scriptpubkey.v.size() < 10, "scriptpubkey too small"); // TODO what is correct minimum size?
     ++it;
 
     // success, value
+    // we subtract 1 from iterator to unconsume invalid opcodes
     auto extract_pushdata = [&it, &scriptpubkey]()
     -> std::pair<bool, std::uint32_t>
     {
@@ -138,7 +139,7 @@ slp_transaction::slp_transaction(const gs::scriptpubkey& scriptpubkey)
 
             // OP_0 not allowed
             if (cnt == 0) {
-                return { false, 0 };
+                --it; return { false, 0 };
             }
 
             return { true, cnt };
@@ -162,7 +163,8 @@ slp_transaction::slp_transaction(const gs::scriptpubkey& scriptpubkey)
             return { true, gs::util::extract_u32(it) };
         }
 
-        return { false, 0 };
+        // other opcodes not allowed
+        --it; return { false, 0 };
     };
 
     auto extract_string = [&it, &scriptpubkey](const std::size_t len)
@@ -215,6 +217,8 @@ slp_transaction::slp_transaction(const gs::scriptpubkey& scriptpubkey)
         // const std::string decompressed = gs::util::decompress_hex(data.second);
         // std::cout << "chunk: (" << decompressed.size() << ") " << decompressed << std::endl;
     }
+
+    PARSE_CHECK(it != scriptpubkey.v.end(), "trailing data");
 
     PARSE_CHECK(chunks.empty(), "chunks empty");
 
@@ -299,6 +303,7 @@ slp_transaction::slp_transaction(const gs::scriptpubkey& scriptpubkey)
         std::uint64_t qty = 0;
         {
             std::string initial_qty_str = *cit;
+            PARSE_CHECK (initial_qty_str.size() != 8, "initial_qty must be provided as an 8-byte buffer");
             std::reverse(initial_qty_str.begin(), initial_qty_str.end());
 
             const std::pair<bool, std::uint64_t> initial_qty_check {
@@ -364,6 +369,7 @@ slp_transaction::slp_transaction(const gs::scriptpubkey& scriptpubkey)
         std::uint64_t additional_qty = 0;
         {
             std::string additional_qty_str = *cit;
+            PARSE_CHECK (additional_qty_str.size() != 8, "additional_qty_str must be provided as an 8-byte buffer");
             std::reverse(additional_qty_str.begin(), additional_qty_str.end());
 
             const std::pair<bool, std::uint64_t> additional_qty_check {
