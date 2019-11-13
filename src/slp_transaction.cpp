@@ -308,6 +308,12 @@ slp_transaction::slp_transaction(const gs::scriptpubkey& scriptpubkey)
             qty = initial_qty_check.second;
         }
 
+        if (token_type == 0x41) {
+            PARSE_CHECK(decimals != 0, "NFT1 child token must have divisibility set to 0 decimal places");
+            PARSE_CHECK(mint_baton_vout != 0, "NFT1 child token must not have a minting baton");
+            PARSE_CHECK(qty != 1, "NFT1 child token must have quantity of 1");
+        }
+
         this->type = slp_transaction_type::genesis;
         this->slp_tx = slp_transaction_genesis(
             token_type,
@@ -321,6 +327,10 @@ slp_transaction::slp_transaction(const gs::scriptpubkey& scriptpubkey)
             qty
         );
     } else if(action_type_str == "MINT") {
+        if (token_type == 0x41) {
+            PARSE_CHECK(true, "NFT1 Child cannot have MINT transaction type.");
+        }
+
         PARSE_CHECK(chunks.size() != 6, "wrong number of chunks");
         CHECK_NEXT();
 
