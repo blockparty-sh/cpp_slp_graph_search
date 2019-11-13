@@ -126,9 +126,9 @@ slp_transaction::slp_transaction(const gs::scriptpubkey& scriptpubkey)
     auto extract_pushdata = [&it, &scriptpubkey]()
     -> std::pair<bool, std::uint32_t>
     {
-		if (it == scriptpubkey.v.end()) {
-			return { false, 0 };
-		}
+        if (it == scriptpubkey.v.end()) {
+            return { false, 0 };
+        }
 
         const std::uint8_t cnt = gs::util::extract_u8(it);
 
