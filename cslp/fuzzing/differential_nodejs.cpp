@@ -3,6 +3,7 @@
 // You must pass full path to this program
 // You must also start the node server first ie
 // node nodejs_validation/run_slp_validate.js
+// if you dont do this you wont be doing anything useful
 
 
 #include <iostream>
@@ -11,6 +12,8 @@
 #include <fstream>
 #include <cstdlib>
 #include <iterator>
+#include <thread>
+#include <chrono>
 
 #include <nlohmann/json.hpp>
 #include <boost/lexical_cast.hpp>
@@ -46,15 +49,27 @@ int main(int argc, char * argv[])
 
     httplib::Client cli("127.0.0.1", 8077);
     std::string path = hex(txdata);
-    auto res = cli.Get(path.c_str());
+
     auto jbody = nlohmann::json({});
-    if (res && res->status == 200) {
-        jbody = nlohmann::json::parse(res->body);
-        std::cout << jbody << std::endl;
-        if (! jbody["success"].get<bool>()) {
-            exit_code = 1;
+    for (std::size_t i=0; i<100; ++i) {
+        auto res = cli.Get(path.c_str());
+
+        // we skip over when server is down
+        // TODO improve this
+        if (! res || res->status != 200) {
+            // delay for server down
+            std::this_thread::sleep_for (std::chrono::milliseconds(100));
+            if (i >= 99) {
+                return 0;
+            }
+        } else {
+            jbody = nlohmann::json::parse(res->body);
+            break;
         }
-    } else {
+    }
+
+    std::cout << jbody << std::endl;
+    if (! jbody["success"].get<bool>()) {
         exit_code = 1;
     }
 
