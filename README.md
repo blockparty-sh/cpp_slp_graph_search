@@ -76,15 +76,9 @@ You can use any grpc client to connect to a running server. It is recommended yo
 
 # TODO
 
-cslp\_fuzzer:
-    instrument with afl
-
 set up ubsan
 
 build with "-fsanitize=address" and/or "-fsanitize=undefined"
-
-port to use boost instead of c++17 for easier building
-
 
 gs++:
     look into sending txs and early exit based on that
@@ -117,9 +111,6 @@ rest:
     look up slp utxo
     look up slp token (stats/details + minting baton)
 
-
-test:
-    use slp-unit-test-data for json
 
 swig:
     set up targets to build cslp wrappers for variety of languages
