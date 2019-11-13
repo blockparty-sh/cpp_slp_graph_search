@@ -33,13 +33,15 @@ const server = turbo.createServer(function (req, res) {
             y.sendOutputs = y.sendOutputs.map((v) => v.toString());
         }
     } catch(e) {
-        res.write(Buffer.from(JSON.stringify({success: false, error: e.message})));
-        res.end();
+        const buf = Buffer.from(JSON.stringify({success: false, error: e.message}));
+        res.setHeader('Content-Length', buf.length);
+        res.write(buf);
         return;
     }
 
-    res.write(Buffer.from(JSON.stringify({success: true, data: y})));
-    res.end();
+    const buf = Buffer.from(JSON.stringify({success: true, data: y}));
+    res.setHeader('Content-Length', buf.length);
+    res.write(buf);
     return;
 });
 
