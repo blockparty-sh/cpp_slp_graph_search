@@ -1,3 +1,6 @@
-corpus
-corpus-pre
 rpc_config.hpp
+
+bchtx-corpus
+bchtx-corpus-pre
+slpscript-corpus
+slpscript-corpus-pre

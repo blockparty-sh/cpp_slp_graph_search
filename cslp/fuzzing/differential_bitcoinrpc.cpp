@@ -72,6 +72,7 @@ int main(int argc, char * argv[])
         decoded_tx = rpc.get_decode_raw_transaction(hex_str);
     } catch (nlohmann::json::parse_error e) {
         std::cout << e.what() << std::endl;
+        // we have weaker guarantees on tx validity than bitcoin
         // ABORT_CHECK (hydration_success);
         return 0;
     }
@@ -84,6 +85,8 @@ int main(int argc, char * argv[])
     if (hydration_success && ! decoded_tx.first) {
         return 0;
     }
+
+    // we have weaker guarantees on tx validity than bitcoin
     // ABORT_CHECK (hydration_success && ! decoded_tx.first && "c++ parsed, bitcoin did not");
     ABORT_CHECK (! hydration_success && decoded_tx.first && "c++ did not parse, but bitcoin did");
 

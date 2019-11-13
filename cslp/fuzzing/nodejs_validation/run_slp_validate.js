@@ -1,3 +1,8 @@
+/*
+ * We use slp-validate's internal methods to get a JSON
+ * Then we format this for consumption & comparison by differential fuzzer.
+ */
+
 const fs = require('fs');
 const validate = require('slp-validate');
 
@@ -6,29 +11,31 @@ if (process.argv.length < 3) {
     process.exit(1);
 }
 
-bin = fs.readFileSync(process.argv[2])
+const bin = fs.readFileSync(process.argv[2])
 
 try {
-    x = validate.Transaction.parseFromBuffer(bin);
-} catch {
-    process.exit(1);
-}
+    y = validate.Slp.parseSlpOutputScript(bin);
 
-try {
-    y = validate.Slp.parseSlpOutputScript(x.outputs[0].scriptPubKey);
+    if (y.transactionType == "GENESIS") {
+        y.symbol         = Buffer.from(y.symbol, 'binary').toString('hex').toUpperCase();
+        y.name           = Buffer.from(y.name, 'binary').toString('hex').toUpperCase();
+        y.documentUri    = Buffer.from(y.documentUri, 'binary').toString('hex').toUpperCase();
+        if (y.documentSha256 === null) {
+            y.documentSha256 = "";
+        }
+        y.documentSha256 = Buffer.from(y.documentSha256, 'binary').toString('hex').toUpperCase();
+    }
 
-    if (y.transactionType === "GENESIS" || y.transactionType === "MINT") {
+    if (y.hasOwnProperty("genesisOrMintQuantity")) {
         y.genesisOrMintQuantity = y.genesisOrMintQuantity.toString()
     }
 
-    if (y.transactionType === "SEND") {
+    if (y.hasOwnProperty("sendOutputs")) {
         y.sendOutputs = y.sendOutputs.map((v) => v.toString());
     }
-} catch {
-    y = null;
+} catch(e) {
+    console.log(e);
+    process.exit(1);
 }
 
-x.slp = y;
-
-
-console.log(JSON.stringify(x));
+console.log(JSON.stringify(y));

@@ -5,4 +5,4 @@ do
     bitcoin-cli getrawtransaction ${txid} | xxd -r -p - corpus-pre/${txid}.tx;
 done
 
-afl-cmin -i corpus-pre -o corpus -- ./../../build-afl/cslp/fuzzing/cslp_fuzzing @@
+afl-cmin -i bchtx-corpus-pre -o bchtx-corpus -- ./../../build-afl/cslp/fuzzing/cslp_fuzzing @@

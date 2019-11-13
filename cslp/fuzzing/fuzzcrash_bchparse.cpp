@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "util.hpp"
-#include <gs++/slp_transaction.hpp>
+#include <gs++/transaction.hpp>
 
 int main(int argc, char * argv[])
 {
@@ -13,7 +13,9 @@ int main(int argc, char * argv[])
     }
 
     std::string txdata = readfile(argv[1]);
-    gs::slp_transaction tx((gs::scriptpubkey(txdata)));
+
+    gs::transaction tx;
+    const bool hydration_success = tx.hydrate(txdata.begin(), txdata.end(), 0);
 
     return 0;
 }

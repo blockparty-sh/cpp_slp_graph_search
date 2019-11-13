@@ -11,7 +11,21 @@ target_include_directories(cslp_fuzzcrash_slpparse PRIVATE
 )
 
 target_link_libraries(cslp_fuzzcrash_slpparse
+    absl::variant
     absl::flat_hash_map
+)
+
+add_executable(cslp_fuzzcrash_bchparse
+    ${CMAKE_CURRENT_SOURCE_DIR}/fuzzcrash_slpparse.cpp
+    ${CMAKE_SOURCE_DIR}/src/slp_transaction.cpp
+)
+
+target_include_directories(cslp_fuzzcrash_bchparse PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+target_link_libraries(cslp_fuzzcrash_bchparse
+    absl::variant
 )
 
 add_executable(cslp_differential_nodejs
@@ -26,6 +40,7 @@ target_include_directories(cslp_differential_nodejs PRIVATE
 )
 
 target_link_libraries(cslp_differential_nodejs
+    absl::variant
     absl::flat_hash_map
     absl::numeric
     absl::strings
@@ -48,6 +63,7 @@ target_include_directories(cslp_differential_bitcoinrpc PRIVATE
 )
 
 target_link_libraries(cslp_differential_bitcoinrpc
+    absl::variant
     absl::flat_hash_map
     absl::numeric
     absl::strings
