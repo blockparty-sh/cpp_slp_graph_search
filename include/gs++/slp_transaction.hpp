@@ -35,7 +35,6 @@ struct slp_transaction_invalid
 
 struct slp_transaction_genesis
 {
-    std::uint16_t token_type;
     std::string   ticker;
     std::string   name;
     std::string   document_uri;
@@ -46,7 +45,6 @@ struct slp_transaction_genesis
     std::uint64_t qty;
 
     slp_transaction_genesis(
-        const std::uint16_t token_type,
         const std::string&  ticker,
         const std::string&  name,
         const std::string&  document_uri,
@@ -60,7 +58,6 @@ struct slp_transaction_genesis
 
 struct slp_transaction_mint
 {
-    std::uint16_t token_type;
     gs::tokenid   tokenid;
     bool          has_mint_baton;
     std::uint32_t mint_baton_vout;
@@ -68,7 +65,6 @@ struct slp_transaction_mint
 
 
     slp_transaction_mint(
-        const std::uint16_t token_type,
         const gs::tokenid&  tokenid,
         const bool          has_mint_baton, // maybe this could be function that checks if mint_baton_vout > 0
         const std::uint32_t mint_baton_vout,
@@ -78,12 +74,10 @@ struct slp_transaction_mint
 
 struct slp_transaction_send
 {
-    std::uint16_t              token_type;
     gs::tokenid                tokenid;
     std::vector<std::uint64_t> amounts;
 
     slp_transaction_send(
-        const std::uint16_t               token_type,
         const gs::tokenid&                tokenid,
         const std::vector<std::uint64_t>& amounts
     );
@@ -105,6 +99,7 @@ struct slp_transaction
         slp_transaction_mint,
         slp_transaction_send
     > slp_tx;
+    std::uint16_t token_type;
 
     slp_transaction();
     slp_transaction(const slp_transaction_genesis& slp_tx);
