@@ -5,6 +5,7 @@ add_executable(internals_test
     ${CMAKE_SOURCE_DIR}/src/util.cpp
     ${CMAKE_SOURCE_DIR}/src/slp_transaction.cpp
     ${CMAKE_SOURCE_DIR}/src/sha2.cpp
+    ${CMAKE_SOURCE_DIR}/src/slp_validator.cpp
 )
 
 target_include_directories(internals_test PUBLIC

@@ -16,6 +16,7 @@
 #include <gs++/util.hpp>
 #include <gs++/slpdb.hpp>
 #include <gs++/slp_transaction.hpp>
+#include <gs++/slp_validator.hpp>
 #include <gs++/bch.hpp>
 
 
@@ -48,6 +49,47 @@ TEST_CASE( "script_tests", "[single-file]" ) {
 
             if (valid) REQUIRE( tx.type != gs::slp_transaction_type::invalid );
             else       REQUIRE( tx.type == gs::slp_transaction_type::invalid );
+        }
+    }
+}
+
+TEST_CASE( "input_tests", "[single-file]" ) {
+	std::ifstream test_data_stream("./slp-unit-test-data/src/slp-unit-test-data/tx_input_tests.json");
+	std::string test_data_str((std::istreambuf_iterator<char>(test_data_stream)),
+							   std::istreambuf_iterator<char>());
+
+	auto test_data = nlohmann::json::parse(test_data_str);
+
+    for (auto m : test_data) {
+        SECTION(m["description"].get<std::string>()) {
+            gs::slp_validator slp_validator;
+
+            for (auto o : m["when"]) {
+                const bool valid = o["valid"].get<bool>();
+
+                const std::vector<std::uint8_t> txhex = gs::util::compress_hex(o["tx"].get<std::string>());
+                gs::transaction tx;
+                // check bch parse is true, which should always be the case
+                REQUIRE( tx.hydrate(txhex.begin(), txhex.end(), 0) );
+                const bool slp_valid = tx.slp.type != gs::slp_transaction_type::invalid;
+
+                REQUIRE( valid == slp_valid );
+
+                slp_validator.add_tx(tx);
+            }
+
+            for (auto o : m["should"]) {
+                const bool valid = o["valid"].get<bool>();
+
+                const std::vector<std::uint8_t> txhex = gs::util::compress_hex(o["tx"].get<std::string>());
+                gs::transaction tx;
+                // check bch parse is true, which should always be the case
+                REQUIRE( tx.hydrate(txhex.begin(), txhex.end(), 0) );
+
+                slp_validator.add_tx(tx);
+                const bool validation_result = slp_validator.validate(tx.txid);
+                REQUIRE (valid == validation_result);
+            }
         }
     }
 }
