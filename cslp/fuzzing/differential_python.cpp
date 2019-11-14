@@ -1,8 +1,8 @@
 // README
 //
 // You must pass full path to this program
-// You must also start the node server first ie
-// node nodejs_validation/run_slp_validate.js
+// You must also start the python server first ie
+// python3.7 python3.7 python_validation/server.py
 // if you dont do this you wont be doing anything useful
 
 
@@ -47,16 +47,26 @@ int main(int argc, char * argv[])
 
     int exit_code = 0;
 
-    httplib::Client cli("127.0.0.1", 8077);
+    httplib::Client cli("127.0.0.1", 8078);
     std::string path = "/"+hex(txdata);
 
     auto jbody = nlohmann::json({});
     for (std::size_t i=0; i<100; ++i) {
         auto res = cli.Get(path.c_str());
 
+        std::cout << "retrying...\n";
+
         // we skip over when server is down
         // TODO improve this
         if (! res || res->status != 200) {
+            if (! res) {
+                std::cout << "false res\n";
+            }
+            if (res->status != 200) {
+                std::cout << "not 200\n";
+                std::cout << res->status << std::endl;
+            }
+
             // delay for server down
             std::this_thread::sleep_for (std::chrono::milliseconds(100));
             if (i >= 99) {
@@ -75,8 +85,8 @@ int main(int argc, char * argv[])
 
 
     // hairy - we look to see if true != 0 and likewise false != 1..
-    ABORT_CHECK (hydration_success && !!exit_code && "c++ parsed, nodejs did not");
-    ABORT_CHECK (! hydration_success && !exit_code && "c++ did not parse, but nodejs did");
+    ABORT_CHECK (hydration_success && !!exit_code && "c++ parsed, python did not");
+    ABORT_CHECK (! hydration_success && !exit_code && "c++ did not parse, but python did");
 
     nlohmann::json j;
 

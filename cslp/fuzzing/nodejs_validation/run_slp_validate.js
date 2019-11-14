@@ -11,7 +11,7 @@ const server = turbo.createServer(function (req, res) {
     console.log(req.url);
     let y = null;
     try {
-        const bin = Buffer.from(req.url, 'hex');
+        const bin = Buffer.from(req.url[0] == '/' ? req.url.slice(1) : req.url, 'hex');
 
         y = validate.Slp.parseSlpOutputScript(bin);
 
