@@ -29,7 +29,7 @@ struct slp_validator
         std::vector<gs::transaction>& mints
     ) const;
 
-    bool has_input_which_is_slp_valid(
+    bool nft1_child_genesis_validity_check(
         const gs::transaction& tx
     ) const;
 
@@ -40,6 +40,11 @@ struct slp_validator
 
     bool validate(const gs::txid & txid) const;
     bool validate(const gs::transaction & tx) const;
+
+
+    bool validate_token_type1(const gs::transaction & tx) const;
+    bool validate_token_nft1_child(const gs::transaction & tx) const;
+    bool validate_token_nft1_parent(const gs::transaction & tx) const;
 };
 
 }

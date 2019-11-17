@@ -64,7 +64,7 @@ struct slpdb
         else if (tx.slp.type == gs::slp_transaction_type::mint) {
             spdlog::info("mint begin");
             const auto slp = absl::get<gs::slp_transaction_mint>(tx.slp.slp_tx);
-            auto token_search = tokens.find(slp.tokenid);
+            auto token_search = tokens.find(tx.slp.tokenid);
             if (token_search == tokens.end()) {
                 spdlog::warn("mint token not found");
                 return;
@@ -92,13 +92,13 @@ struct slpdb
 
             const gs::outpoint outpoint(tx.txid, 1);
             token.utxos.insert({ outpoint, gs::slp_output(outpoint, slp.qty) });
-            utxo_to_tokenid.insert({ outpoint, slp.tokenid });
+            utxo_to_tokenid.insert({ outpoint, tx.slp.tokenid });
 
             if (slp.has_mint_baton && slp.mint_baton_vout < tx.outputs.size()) {
                 const gs::outpoint mint_baton_outpoint(tx.txid, slp.mint_baton_vout);
                 token.mint_baton_outpoint = mint_baton_outpoint;
                 token.utxos.insert({ mint_baton_outpoint, gs::slp_output(outpoint, mint_baton_outpoint) });
-                utxo_to_tokenid.insert({ mint_baton_outpoint, slp.tokenid });
+                utxo_to_tokenid.insert({ mint_baton_outpoint, tx.slp.tokenid });
             }
 
             spdlog::info("mint end");
@@ -106,7 +106,7 @@ struct slpdb
         else if (tx.slp.type == gs::slp_transaction_type::send) {
             spdlog::info("send begin");
             const auto slp = absl::get<gs::slp_transaction_send>(tx.slp.slp_tx);
-            auto token_search = tokens.find(slp.tokenid);
+            auto token_search = tokens.find(tx.slp.tokenid);
             if (token_search == tokens.end()) {
                 spdlog::warn("send token not found");
                 return;
@@ -136,7 +136,7 @@ struct slpdb
             for (std::size_t i=0; i<slp.amounts.size() && i<1+tx.outputs.size(); ++i) {
                 const gs::outpoint outpoint(tx.txid, i+1);
                 token.utxos.insert({ outpoint, gs::slp_output(outpoint, slp.amounts[i]) });
-                utxo_to_tokenid.insert({ outpoint, slp.tokenid });
+                utxo_to_tokenid.insert({ outpoint, tx.slp.tokenid });
             }
 
             token.transactions.insert({ tx.txid, tx });

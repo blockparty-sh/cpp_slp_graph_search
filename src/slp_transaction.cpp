@@ -45,23 +45,19 @@ slp_transaction_genesis::slp_transaction_genesis(
 {}
 
 slp_transaction_mint::slp_transaction_mint(
-    const gs::tokenid&  tokenid,
     const bool          has_mint_baton, // maybe this could be function that checks if mint_baton_vout > 0
     const std::uint32_t mint_baton_vout,
     const std::uint64_t qty
 )
-: tokenid(tokenid)
-, has_mint_baton(has_mint_baton)
+: has_mint_baton(has_mint_baton)
 , mint_baton_vout(mint_baton_vout)
 , qty(qty)
 {}
 
 slp_transaction_send::slp_transaction_send(
-    const gs::tokenid&                tokenid,
     const std::vector<std::uint64_t>& amounts
 )
-: tokenid(tokenid)
-, amounts(amounts)
+: amounts(amounts)
 {}
 
 slp_transaction::slp_transaction()
@@ -370,9 +366,9 @@ slp_transaction::slp_transaction(const gs::scriptpubkey& scriptpubkey)
             additional_qty = additional_qty_check.second;
         }
 
-        this->type = slp_transaction_type::mint;
-        this->slp_tx = slp_transaction_mint(
-            tokenid,
+        this->tokenid = tokenid;
+        this->type    = slp_transaction_type::mint;
+        this->slp_tx  = slp_transaction_mint(
             has_mint_baton,
             mint_baton_vout,
             additional_qty
@@ -406,9 +402,9 @@ slp_transaction::slp_transaction(const gs::scriptpubkey& scriptpubkey)
         PARSE_CHECK(token_amounts.size() == 0, "token_amounts size is 0");
         PARSE_CHECK(token_amounts.size() > 19, "token_amounts size is greater than 19");
 
-        this->type = slp_transaction_type::send;
-        this->slp_tx = slp_transaction_send(
-            tokenid,
+        this->tokenid = tokenid;
+        this->type    = slp_transaction_type::send;
+        this->slp_tx  = slp_transaction_send(
             token_amounts
         );
     } else {

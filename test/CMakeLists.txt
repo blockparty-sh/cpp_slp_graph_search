@@ -3,6 +3,7 @@ add_executable(internals_test
     ${CMAKE_SOURCE_DIR}/src/utxodb.cpp
     ${CMAKE_SOURCE_DIR}/src/bch.cpp
     ${CMAKE_SOURCE_DIR}/src/util.cpp
+    ${CMAKE_SOURCE_DIR}/src/transaction.cpp
     ${CMAKE_SOURCE_DIR}/src/slp_transaction.cpp
     ${CMAKE_SOURCE_DIR}/src/sha2.cpp
     ${CMAKE_SOURCE_DIR}/src/slp_validator.cpp
@@ -18,6 +19,7 @@ target_include_directories(internals_test PUBLIC
 target_link_libraries(internals_test
     Catch2::Catch2
     absl::flat_hash_map
+    absl::flat_hash_set
     absl::node_hash_map
     base64
     mio

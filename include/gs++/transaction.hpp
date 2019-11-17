@@ -163,6 +163,9 @@ struct transaction
         if (this->outputs.size() > 0) {
             if (this->outputs[0].is_op_return()) {
                 this->slp = gs::slp_transaction(this->outputs[0].scriptpubkey);
+                if (this->slp.type == gs::slp_transaction_type::genesis) {
+                    this->slp.tokenid = gs::tokenid(this->txid.v);
+                }
             }
         }
 

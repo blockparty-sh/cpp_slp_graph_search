@@ -36,10 +36,12 @@ std::ostream & operator<<(std::ostream &os, const gs::transaction & tx)
     os
         << "slp:\n"
         << "\ttoken_type:       " << tx.slp.token_type << "\n"
+        << "\ttokenid:          " << tx.slp.tokenid.decompress(true) << "\n"
         << "\ttransaction_type: " << slp_type << "\n";
 
     if (tx.slp.type == gs::slp_transaction_type::genesis) {
         const auto & slp = absl::get<gs::slp_transaction_genesis>(tx.slp.slp_tx);
+
         os
             << "\tticker:           " << slp.ticker          << "\n"
             << "\tname:             " << slp.name            << "\n"
@@ -52,15 +54,13 @@ std::ostream & operator<<(std::ostream &os, const gs::transaction & tx)
     }
     if (tx.slp.type == gs::slp_transaction_type::mint) {
         const auto & slp = absl::get<gs::slp_transaction_mint>(tx.slp.slp_tx);
+
         os
-            << "\ttokenid:          " << slp.tokenid.decompress(true) << "\n"
             << "\tmint_baton_vout:  " << slp.mint_baton_vout          << "\n"
             << "\tqty:              " << slp.qty                      << "\n";
     }
     if (tx.slp.type == gs::slp_transaction_type::send) {
         const auto & slp = absl::get<gs::slp_transaction_send>(tx.slp.slp_tx);
-        os
-            << "\ttokenid:          " << slp.tokenid.decompress(true) << "\n";
 
         os << "\tamounts:\n";
         for (auto m : slp.amounts) {

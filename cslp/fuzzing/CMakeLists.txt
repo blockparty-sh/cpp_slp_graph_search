@@ -2,6 +2,7 @@ project(cslp_fuzzing)
 
 add_executable(cslp_fuzzcrash_slpparse
     ${CMAKE_CURRENT_SOURCE_DIR}/fuzzcrash_slpparse.cpp
+    ${CMAKE_SOURCE_DIR}/src/transaction.cpp
     ${CMAKE_SOURCE_DIR}/src/slp_transaction.cpp
     ${CMAKE_SOURCE_DIR}/src/sha2.cpp
 )
@@ -17,6 +18,7 @@ target_link_libraries(cslp_fuzzcrash_slpparse
 
 add_executable(cslp_fuzzcrash_bchparse
     ${CMAKE_CURRENT_SOURCE_DIR}/fuzzcrash_slpparse.cpp
+    ${CMAKE_SOURCE_DIR}/src/transaction.cpp
     ${CMAKE_SOURCE_DIR}/src/slp_transaction.cpp
 )
 
@@ -30,6 +32,7 @@ target_link_libraries(cslp_fuzzcrash_bchparse
 
 add_executable(cslp_differential_nodejs
     ${CMAKE_CURRENT_SOURCE_DIR}/differential_nodejs.cpp
+    ${CMAKE_SOURCE_DIR}/src/transaction.cpp
     ${CMAKE_SOURCE_DIR}/src/slp_transaction.cpp
     ${CMAKE_SOURCE_DIR}/src/sha2.cpp
 )
@@ -51,6 +54,7 @@ target_link_libraries(cslp_differential_nodejs
 
 add_executable(cslp_differential_python
     ${CMAKE_CURRENT_SOURCE_DIR}/differential_python.cpp
+    ${CMAKE_SOURCE_DIR}/src/transaction.cpp
     ${CMAKE_SOURCE_DIR}/src/slp_transaction.cpp
     ${CMAKE_SOURCE_DIR}/src/sha2.cpp
 )
@@ -73,6 +77,7 @@ target_link_libraries(cslp_differential_python
 
 add_executable(cslp_differential_bitcoinrpc
     ${CMAKE_CURRENT_SOURCE_DIR}/differential_bitcoinrpc.cpp
+    ${CMAKE_SOURCE_DIR}/src/transaction.cpp
     ${CMAKE_SOURCE_DIR}/src/slp_transaction.cpp
     ${CMAKE_SOURCE_DIR}/src/sha2.cpp
     ${CMAKE_SOURCE_DIR}/src/rpc.cpp

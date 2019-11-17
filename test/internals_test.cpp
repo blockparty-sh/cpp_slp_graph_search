@@ -73,9 +73,14 @@ TEST_CASE( "input_tests", "[single-file]" ) {
                 REQUIRE( tx.hydrate(txhex.begin(), txhex.end(), 0) );
                 const bool slp_valid = tx.slp.type != gs::slp_transaction_type::invalid;
 
-                REQUIRE( valid == slp_valid );
 
-                slp_validator.add_tx(tx);
+                if (valid && slp_valid) {
+                    if (valid) {
+                        slp_validator.add_valid_txid(tx.txid);
+                    }
+
+                    slp_validator.add_tx(tx);
+                }
             }
 
             for (auto o : m["should"]) {
@@ -86,8 +91,7 @@ TEST_CASE( "input_tests", "[single-file]" ) {
                 // check bch parse is true, which should always be the case
                 REQUIRE( tx.hydrate(txhex.begin(), txhex.end(), 0) );
 
-                slp_validator.add_tx(tx);
-                const bool validation_result = slp_validator.validate(tx.txid);
+                const bool validation_result = slp_validator.validate(tx);
                 REQUIRE (valid == validation_result);
             }
         }
@@ -139,7 +143,7 @@ TEST_CASE( "slp_decoding_tx_tests", "[single-file]" ) {
                 std::reverse(tokenid_bytes.begin(), tokenid_bytes.end());
                 gs::tokenid  tokenid(tokenid_bytes);
 
-                REQUIRE( slp.tokenid        == tokenid );
+                REQUIRE( tx.tokenid         == tokenid );
                 REQUIRE( slp.has_mint_baton == m["data"]["has_mint_baton"].get<bool>() );
 
                 if (m["data"]["has_mint_baton"].get<bool>()) {
@@ -157,7 +161,7 @@ TEST_CASE( "slp_decoding_tx_tests", "[single-file]" ) {
                 std::reverse(tokenid_bytes.begin(), tokenid_bytes.end());
                 gs::tokenid  tokenid(tokenid_bytes);
 
-                REQUIRE( slp.tokenid == tokenid );
+                REQUIRE( tx.tokenid == tokenid );
 
                 std::vector<std::uint64_t> amounts;
                 for (auto amount_json : m["data"]["amounts"]) {

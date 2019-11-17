@@ -58,14 +58,12 @@ struct slp_transaction_genesis
 
 struct slp_transaction_mint
 {
-    gs::tokenid   tokenid;
     bool          has_mint_baton;
     std::uint32_t mint_baton_vout;
     std::uint64_t qty;
 
 
     slp_transaction_mint(
-        const gs::tokenid&  tokenid,
         const bool          has_mint_baton, // maybe this could be function that checks if mint_baton_vout > 0
         const std::uint32_t mint_baton_vout,
         const std::uint64_t qty
@@ -74,11 +72,9 @@ struct slp_transaction_mint
 
 struct slp_transaction_send
 {
-    gs::tokenid                tokenid;
     std::vector<std::uint64_t> amounts;
 
     slp_transaction_send(
-        const gs::tokenid&                tokenid,
         const std::vector<std::uint64_t>& amounts
     );
 };
@@ -92,6 +88,8 @@ enum class slp_transaction_type {
 
 struct slp_transaction
 {
+    gs::tokenid          tokenid;
+    std::uint16_t        token_type;
     slp_transaction_type type;
     absl::variant<
         slp_transaction_invalid,
@@ -99,7 +97,6 @@ struct slp_transaction
         slp_transaction_mint,
         slp_transaction_send
     > slp_tx;
-    std::uint16_t token_type;
 
     slp_transaction();
     slp_transaction(const slp_transaction_genesis& slp_tx);
