@@ -71,12 +71,12 @@ bool slp_validator::check_send(
     const auto & s = absl::get<gs::slp_transaction_send>(tx.slp.slp_tx);
 
     absl::uint128 output_amount = 0;
-    for (auto n : s.amounts) {
+    for (const auto n : s.amounts) {
         output_amount += n;
     }
 
     absl::uint128 input_amount = 0;
-    for (auto & i_outpoint : tx.inputs) {
+    for (const auto & i_outpoint : tx.inputs) {
         VALIDATE_CONTINUE (transaction_map.count(i_outpoint.txid) == 0);
 
         const gs::transaction & txi = transaction_map.at(i_outpoint.txid);
@@ -145,7 +145,7 @@ bool slp_validator::check_genesis(
     )> nft1_child_genesis_validity_check = [&](
         const gs::transaction& tx
     ) -> bool {
-        for (auto & i_outpoint : tx.inputs) {
+        for (const auto & i_outpoint : tx.inputs) {
             VALIDATE_CONTINUE (transaction_map.count(i_outpoint.txid) == 0);
 
             const gs::transaction & txi = transaction_map.at(i_outpoint.txid);

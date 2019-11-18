@@ -34,6 +34,11 @@ struct transaction
     : slp()
     {}
 
+    // vout of 0 means no mint_baton_outpoint
+    gs::outpoint mint_baton_outpoint() const;
+
+    std::uint64_t output_slp_amount(const std::uint64_t vout) const;
+
     template <typename BeginIterator, typename EndIterator>
     bool hydrate(
         BeginIterator&& begin_it,
@@ -179,53 +184,6 @@ struct transaction
         const std::uint32_t height
     ) {
         return hydrate(begin_it, end_it, height);
-    }
-
-    std::uint64_t output_slp_amount(const std::uint64_t vout) const
-    {
-        if      (slp.type == slp_transaction_type::send) {
-            const auto & s = absl::get<gs::slp_transaction_send>(slp.slp_tx);
-
-            if (vout > 0 && vout-1 < s.amounts.size()) {
-                return s.amounts[vout-1];
-            }
-        }
-        else if (slp.type == slp_transaction_type::mint) {
-            const auto & s = absl::get<gs::slp_transaction_mint>(slp.slp_tx);
-            if (vout == 1) {
-                return s.qty;
-            }
-        }
-        else if (slp.type == slp_transaction_type::genesis) {
-            const auto & s = absl::get<gs::slp_transaction_genesis>(slp.slp_tx);
-            if (vout == 1) {
-                return s.qty;
-            }
-        }
-        else if (slp.type == slp_transaction_type::invalid) {
-            return 0;
-        }
-
-        return 0;
-    }
-
-    // vout of 0 means no mint_baton_outpoint
-    gs::outpoint mint_baton_outpoint() const
-    {
-        if (slp.type == slp_transaction_type::mint) {
-            const auto & s = absl::get<gs::slp_transaction_mint>(slp.slp_tx);
-            if (s.mint_baton_vout < outputs.size()) {
-                return gs::outpoint(txid, s.mint_baton_vout);
-            }
-        }
-        else if (slp.type == slp_transaction_type::genesis) {
-            const auto & s = absl::get<gs::slp_transaction_genesis>(slp.slp_tx);
-            if (s.mint_baton_vout < outputs.size()) {
-                return gs::outpoint(txid, s.mint_baton_vout);
-            }
-        }
-
-        return gs::outpoint(txid, 0);
     }
 };
 
