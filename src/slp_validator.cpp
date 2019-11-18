@@ -35,19 +35,31 @@ bool slp_validator::add_valid_txid(const gs::txid& txid)
     return valid.insert(txid).second;
 }
 
+#define ENABLE_SLP_VALIDATE_ERROR_PRINTING
+
+#ifdef ENABLE_SLP_VALIDATE_ERROR_PRINTING
+    #define VALIDATE_CHECK(cond) {\
+        if (cond) { \
+            std::cerr << #cond << "\tline: " << __LINE__ << "\n";\
+            return false;\
+        }\
+    }
+#else
+    #define VALIDATE_CHECK(cond) {\
+        if (cond) { \
+            return false;\
+        }\
+    }
+#endif
+
 bool slp_validator::walk_mints_home (
     std::vector<gs::transaction>& mints
 ) const {
     assert(! mints.empty());
 
     auto & tx = mints.back();
-    if (mints.front().slp.tokenid != tx.slp.tokenid) {
-        return false;
-    }
-    if (mints.front().slp.token_type != tx.slp.token_type) {
-        std::cout << "walk_mints_home token_type not original token_type\n";
-        return false;
-    }
+    VALIDATE_CHECK (mints.front().slp.tokenid != tx.slp.tokenid);
+    VALIDATE_CHECK (mints.front().slp.token_type != tx.slp.token_type);
 
     for (auto & i_outpoint : tx.inputs) {
         if (transaction_map.count(i_outpoint.txid) == 0) {
@@ -110,7 +122,7 @@ bool slp_validator::nft1_child_genesis_validity_check(
             }
 
             absl::flat_hash_set<gs::txid> seen;
-            if (check_outputs_valid(seen, txi.txid)) {
+            if (check_outputs_valid(seen, txi)) {
                 return true;
             }
         }
@@ -119,205 +131,121 @@ bool slp_validator::nft1_child_genesis_validity_check(
     return false;
 }
 
+bool slp_validator::check_send(
+    absl::flat_hash_set<gs::txid> & seen,
+    const gs::transaction & tx
+) const {
+    const auto & s = absl::get<gs::slp_transaction_send>(tx.slp.slp_tx);
+
+    absl::uint128 output_amount = 0;
+    for (const std::uint64_t n : s.amounts) {
+        output_amount += n;
+    }
+
+    absl::uint128 input_amount = 0;
+    for (auto & i_outpoint : tx.inputs) {
+        if (transaction_map.count(i_outpoint.txid) == 0) {
+            continue;
+        }
+
+        const gs::transaction & txi               = transaction_map.at(i_outpoint.txid);
+        const std::uint64_t     slp_output_amount = txi.output_slp_amount(i_outpoint.vout);
+
+        if (tx.slp.token_type != txi.slp.token_type) {
+            continue;
+        }
+
+        if (tx.slp.tokenid != txi.slp.tokenid) {
+            continue;
+        }
+
+        if (! check_outputs_valid(seen, txi)) {
+            continue;
+        }
+
+        input_amount += slp_output_amount;
+    }
+
+    VALIDATE_CHECK (output_amount > input_amount);
+
+    return true;
+}
+
+bool slp_validator::check_mint(
+    const gs::transaction & tx
+) const {
+    std::vector<gs::transaction> mints;
+    mints.push_back(tx);
+    VALIDATE_CHECK (! walk_mints_home(mints));
+
+    return true;
+}
+
+bool slp_validator::check_genesis(
+    const gs::transaction & tx
+) const {
+    const auto & s = absl::get<gs::slp_transaction_genesis>(tx.slp.slp_tx);
+
+    if (tx.slp.token_type == 0x41) {
+        VALIDATE_CHECK (! nft1_child_genesis_validity_check(tx));
+    }
+
+    return true;
+}
+
 bool slp_validator::check_outputs_valid (
     absl::flat_hash_set<gs::txid> & seen,
-    const gs::txid & txid
+    const gs::transaction & tx
 ) const {
-    // std::cout << txid.decompress(true) << "\n";
-
-    // already was in set
-    if (! seen.insert(txid).second) {
-        return true;
+    if (transaction_map.count(tx.txid) == 0) {
+        return false;
     }
 
-    if (transaction_map.count(txid) == 0) {
+    if (! seen.insert(tx.txid).second) {
         return true;
     }
-
-    auto & tx = transaction_map.at(txid);
 
     if (valid.count(tx.txid) > 0) {
-        // TODO What about different token_type
         return true;
     }
 
     if (tx.slp.type == gs::slp_transaction_type::send) {
-        const auto & s = absl::get<gs::slp_transaction_send>(tx.slp.slp_tx);
-
-        absl::uint128 output_amount = 0;
-        for (const std::uint64_t n : s.amounts) {
-            output_amount += n;
-        }
-
-        absl::uint128 input_amount = 0;
-        for (auto & i_outpoint : tx.inputs) {
-            if (transaction_map.count(i_outpoint.txid) == 0) {
-                continue;
-            }
-            const gs::transaction & txi = transaction_map.at(i_outpoint.txid);
-            if (tx.slp.token_type != txi.slp.token_type) {
-                continue;
-            }
-
-            if (tx.slp.tokenid != txi.slp.tokenid) {
-                continue;
-            }
-
-            if (! check_outputs_valid(seen, i_outpoint.txid)) {
-                std::cout << "!check_outputs_valid: "  << i_outpoint.txid.decompress(true) << "\n";
-                // return false;
-                continue;
-            }
-
-            const std::uint64_t slp_output_amount = txi.output_slp_amount(i_outpoint.vout);
-            input_amount += slp_output_amount;
-        }
-
-        if (output_amount > input_amount) {
-            std::cout << "output_amount > input_amount : "  << txid.decompress(true) << "\n";
-            return false;
-        }
-
-        return true;
+        return check_send(seen, tx);
     }
     else if (tx.slp.type == gs::slp_transaction_type::mint) {
-        std::vector<gs::transaction> mints;
-        mints.push_back(tx);
-        // TODO ensure mints have baton moving correctly
-        if (! walk_mints_home(mints)) {
-            std::cout << "! walk_mints_home\n";
-            return false;
-        }
-
-        return true;
+        return check_mint(tx);
     }
     else if (tx.slp.type == gs::slp_transaction_type::genesis) {
-        std::cout << "genesus" << std::endl;
-        std::cout << "token_type : " << tx.slp.token_type << std::endl;
-        const auto & s = absl::get<gs::slp_transaction_genesis>(tx.slp.slp_tx);
-
-        if (tx.slp.token_type == 0x41) {
-            std::cout << "child token_type" << std::endl;
-            // TODO what happens if there are 2 different inputs here?
-            if (! nft1_child_genesis_validity_check(tx)) {
-                std::cout << "not nft1_child_genesis_validity_check" << std::endl;
-                return false;
-            }
-        }
-
-        return true;
+        return check_genesis(tx);
     }
-
-
 
     return false;
 }
 
 // TODO should this take gs::transaction rather than txid?
 // or maybe allow for both
-bool slp_validator::validate(const gs::txid & txid) const
-{
-    auto & tx = transaction_map.at(txid);
-    if (tx.slp.type == gs::slp_transaction_type::invalid) {
-        return false;
-    }
 
-    absl::flat_hash_set<gs::txid> seen;
-    return check_outputs_valid(seen, txid);
-}
-
-bool slp_validator::validate_token_type1(const gs::transaction & tx) const
+bool slp_validator::validate(const gs::transaction & tx) const
 {
     absl::flat_hash_set<gs::txid> seen;
 
     if (tx.slp.type == gs::slp_transaction_type::send) {
-        const auto & s = absl::get<gs::slp_transaction_send>(tx.slp.slp_tx);
-
-        absl::uint128 output_amount = 0;
-        for (const std::uint64_t n : s.amounts) {
-            output_amount += n;
-        }
-
-        absl::uint128 input_amount = 0;
-        for (auto & i_outpoint : tx.inputs) {
-            if (transaction_map.count(i_outpoint.txid) > 0) {
-                const gs::transaction & txi               = transaction_map.at(i_outpoint.txid);
-                const std::uint64_t     slp_output_amount = txi.output_slp_amount(i_outpoint.vout);
-                if (tx.slp.tokenid != txi.slp.tokenid) {
-                    continue;
-                }
-                if (! check_outputs_valid(seen, i_outpoint.txid)) {
-                    std::cout << "!check_outputs_valid: "  << i_outpoint.txid.decompress(true) << "\n";
-                    continue;
-                }
-                input_amount += slp_output_amount;
-            }
-        }
-
-        if (output_amount > input_amount) {
-            std::cout << "output_amount > input_amount : "  << tx.txid.decompress(true) << "\n";
-            return false;
-        }
-
-        return true;
+        return check_send(seen, tx);
     }
     else if (tx.slp.type == gs::slp_transaction_type::mint) {
-        std::vector<gs::transaction> mints;
-        mints.push_back(tx);
-
-        // TODO ensure mints have baton moving correctly
-        if (! walk_mints_home(mints)) {
-            std::cout << "! walk_mints_home\n";
-            return false;
-        }
-
-        return true;
+        return check_mint(tx);
     }
     else if (tx.slp.type == gs::slp_transaction_type::genesis) {
-        std::cout << "genesus" << std::endl;
-        std::cout << "token_type : " << tx.slp.token_type << std::endl;
-        const auto & s = absl::get<gs::slp_transaction_genesis>(tx.slp.slp_tx);
-
-        if (tx.slp.token_type == 0x41) {
-            std::cout << "child token_type" << std::endl;
-            // TODO what happens if there are 2 different inputs here?
-            if (! nft1_child_genesis_validity_check(tx)) {
-                std::cout << "not nft1_child_genesis_validity_check" << std::endl;
-                return false;
-            }
-        }
-
-        return true;
+        return check_genesis(tx);
     }
 
     return false;
 }
 
-bool slp_validator::validate_token_nft1_child(const gs::transaction & tx) const
+bool slp_validator::validate(const gs::txid & txid) const
 {
-    // if (tx.slp.
-    return false;
-}
-
-bool slp_validator::validate_token_nft1_parent(const gs::transaction & tx) const
-{
-    return false;
-}
-
-bool slp_validator::validate(const gs::transaction & tx) const
-{
-    return validate_token_type1(tx);
-    if (tx.slp.token_type == 0x01) {
-        return validate_token_type1(tx);
-    }
-    else if (tx.slp.token_type == 0x41) {
-        return validate_token_nft1_child(tx);
-    }
-    else if (tx.slp.token_type == 0x81) {
-        return validate_token_nft1_parent(tx);
-    }
-
-    return false;
+    VALIDATE_CHECK (transaction_map.count(txid) == 0);
+    return validate(transaction_map.at(txid));
 }
 
 }

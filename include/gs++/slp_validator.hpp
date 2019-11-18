@@ -24,7 +24,7 @@ struct slp_validator
     bool remove_tx(const gs::txid& txid);
     bool add_valid_txid(const gs::txid& txid);
 
-    bool walk_mints_home (
+    bool walk_mints_home(
         std::vector<gs::transaction>& mints
     ) const;
 
@@ -32,18 +32,20 @@ struct slp_validator
         const gs::transaction& tx
     ) const;
 
-    bool check_outputs_valid (
+    bool check_outputs_valid(
         absl::flat_hash_set<gs::txid> & seen,
-        const gs::txid & txid
+        const gs::transaction & tx
     ) const;
 
-    bool validate(const gs::txid & txid) const;
+    bool check_send(
+        absl::flat_hash_set<gs::txid> & seen,
+        const gs::transaction & tx
+    ) const;
+    bool check_mint(const gs::transaction & tx) const;
+    bool check_genesis(const gs::transaction & tx) const;
+
     bool validate(const gs::transaction & tx) const;
-
-
-    bool validate_token_type1(const gs::transaction & tx) const;
-    bool validate_token_nft1_child(const gs::transaction & tx) const;
-    bool validate_token_nft1_parent(const gs::transaction & tx) const;
+    bool validate(const gs::txid & txid) const;
 };
 
 }
