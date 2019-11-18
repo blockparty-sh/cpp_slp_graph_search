@@ -58,6 +58,9 @@ struct outpoint
     bool operator==(const outpoint &o) const
     { return txid == o.txid && vout == o.vout; }
 
+    bool operator!=(const outpoint &o) const
+    { return ! operator==(o); }
+
     template <typename H>
     friend H AbslHashValue(H h, const outpoint& m)
     {

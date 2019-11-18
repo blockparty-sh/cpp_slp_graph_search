@@ -108,25 +108,20 @@ bool slp_validator::check_mint(
         VALIDATE_CHECK (front.slp.tokenid    != back.slp.tokenid);
         VALIDATE_CHECK (front.slp.token_type != back.slp.token_type);
 
-        for (auto & i_outpoint : back.inputs) {
+        for (const auto & i_outpoint : back.inputs) {
             VALIDATE_CONTINUE (transaction_map.count(i_outpoint.txid) == 0);
 
             const gs::transaction & txi = transaction_map.at(i_outpoint.txid);
 
             VALIDATE_CONTINUE (front.slp.tokenid    != txi.slp.tokenid);
             VALIDATE_CONTINUE (front.slp.token_type != txi.slp.token_type);
+            VALIDATE_CONTINUE (i_outpoint != txi.mint_baton_outpoint());
 
             if (txi.slp.type == gs::slp_transaction_type::mint) {
-                const gs::outpoint mint_baton_outpoint = txi.mint_baton_outpoint();
-                if (i_outpoint == mint_baton_outpoint) {
-                    return walk_mints_home(back, txi); 
-                }
+                return walk_mints_home(back, txi); 
             }
             else if (txi.slp.type == gs::slp_transaction_type::genesis) {
-                const gs::outpoint mint_baton_outpoint = txi.mint_baton_outpoint();
-                if (i_outpoint == mint_baton_outpoint) {
-                    return true;
-                }
+                return true;
             }
         }
 
