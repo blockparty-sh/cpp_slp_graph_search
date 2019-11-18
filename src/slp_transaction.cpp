@@ -404,9 +404,7 @@ slp_transaction::slp_transaction(const gs::scriptpubkey& scriptpubkey)
 
         this->tokenid = tokenid;
         this->type    = slp_transaction_type::send;
-        this->slp_tx  = slp_transaction_send(
-            token_amounts
-        );
+        this->slp_tx  = slp_transaction_send(token_amounts);
     } else {
         PARSE_CHECK(true, "unknown action type");
     }
