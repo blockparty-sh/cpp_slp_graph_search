@@ -24,14 +24,6 @@ struct slp_validator
     bool remove_tx(const gs::txid& txid);
     bool add_valid_txid(const gs::txid& txid);
 
-    bool walk_mints_home(
-        std::vector<gs::transaction>& mints
-    ) const;
-
-    bool nft1_child_genesis_validity_check(
-        const gs::transaction& tx
-    ) const;
-
     bool check_outputs_valid(
         absl::flat_hash_set<gs::txid> & seen,
         const gs::transaction & tx
