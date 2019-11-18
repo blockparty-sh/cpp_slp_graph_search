@@ -25,7 +25,6 @@ struct slp_validator
     bool add_valid_txid(const gs::txid& txid);
 
     bool walk_mints_home (
-        absl::flat_hash_set<gs::txid> & seen,
         std::vector<gs::transaction>& mints
     ) const;
 
