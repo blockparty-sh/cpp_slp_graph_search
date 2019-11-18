@@ -35,19 +35,30 @@ bool slp_validator::add_valid_txid(const gs::txid& txid)
     return valid.insert(txid).second;
 }
 
-#define ENABLE_SLP_VALIDATE_ERROR_PRINTING
+#define ENABLE_SLP_VALIDATE_DEBUG_PRINTING
 
-#ifdef ENABLE_SLP_VALIDATE_ERROR_PRINTING
+#ifdef ENABLE_SLP_VALIDATE_DEBUG_PRINTING
     #define VALIDATE_CHECK(cond) {\
         if (cond) { \
-            std::cerr << #cond << "\tline: " << __LINE__ << "\n";\
+            std::cerr << "slp_validate:check\t" << #cond << "\tline: " << __LINE__ << "\n";\
             return false;\
+        }\
+    }
+    #define VALIDATE_CONTINUE(cond) {\
+        if (cond) { \
+            std::cerr << "slp_validate:skip\t" << #cond << "\tline: " << __LINE__ << "\n";\
+            continue;\
         }\
     }
 #else
     #define VALIDATE_CHECK(cond) {\
         if (cond) { \
             return false;\
+        }\
+    }
+    #define VALIDATE_CONTINUE(cond) {\
+        if (cond) { \
+            continue;\
         }\
     }
 #endif
@@ -69,32 +80,21 @@ bool slp_validator::check_send(
     const auto & s = absl::get<gs::slp_transaction_send>(tx.slp.slp_tx);
 
     absl::uint128 output_amount = 0;
-    for (const std::uint64_t n : s.amounts) {
+    for (auto n : s.amounts) {
         output_amount += n;
     }
 
     absl::uint128 input_amount = 0;
     for (auto & i_outpoint : tx.inputs) {
-        if (transaction_map.count(i_outpoint.txid) == 0) {
-            continue;
-        }
+        VALIDATE_CONTINUE (transaction_map.count(i_outpoint.txid) == 0);
 
-        const gs::transaction & txi               = transaction_map.at(i_outpoint.txid);
-        const std::uint64_t     slp_output_amount = txi.output_slp_amount(i_outpoint.vout);
+        const gs::transaction & txi = transaction_map.at(i_outpoint.txid);
 
-        if (tx.slp.token_type != txi.slp.token_type) {
-            continue;
-        }
+        VALIDATE_CONTINUE (tx.slp.token_type != txi.slp.token_type);
+        VALIDATE_CONTINUE (tx.slp.tokenid    != txi.slp.tokenid);
+        VALIDATE_CONTINUE (! check_outputs_valid(seen, txi));
 
-        if (tx.slp.tokenid != txi.slp.tokenid) {
-            continue;
-        }
-
-        if (! check_outputs_valid(seen, txi)) {
-            continue;
-        }
-
-        input_amount += slp_output_amount;
+        input_amount += txi.output_slp_amount(i_outpoint.vout);
     }
 
     VALIDATE_CHECK (output_amount > input_amount);
@@ -118,28 +118,22 @@ bool slp_validator::check_mint(
         VALIDATE_CHECK (front.slp.token_type != back.slp.token_type);
 
         for (auto & i_outpoint : back.inputs) {
-            if (transaction_map.count(i_outpoint.txid) == 0) {
-                continue;
-            }
+            VALIDATE_CONTINUE (transaction_map.count(i_outpoint.txid) == 0);
 
             const gs::transaction & txi = transaction_map.at(i_outpoint.txid);
 
-            if (front.slp.tokenid != txi.slp.tokenid) {
-                continue;
-            }
-            if (front.slp.token_type != txi.slp.token_type) {
-                continue;
-            }
+            VALIDATE_CONTINUE (front.slp.tokenid    != txi.slp.tokenid);
+            VALIDATE_CONTINUE (front.slp.token_type != txi.slp.token_type);
 
             if (txi.slp.type == gs::slp_transaction_type::mint) {
                 const gs::outpoint mint_baton_outpoint = txi.mint_baton_outpoint();
-                if (mint_baton_outpoint.vout > 0 && i_outpoint == mint_baton_outpoint) {
+                if (i_outpoint == mint_baton_outpoint) {
                     return walk_mints_home(back, txi); 
                 }
             }
             else if (txi.slp.type == gs::slp_transaction_type::genesis) {
                 const gs::outpoint mint_baton_outpoint = txi.mint_baton_outpoint();
-                if (mint_baton_outpoint.vout > 0 && i_outpoint == mint_baton_outpoint) {
+                if (i_outpoint == mint_baton_outpoint) {
                     return true;
                 }
             }
@@ -166,16 +160,12 @@ bool slp_validator::check_genesis(
         const gs::transaction& tx
     ) -> bool {
         for (auto & i_outpoint : tx.inputs) {
-            if (transaction_map.count(i_outpoint.txid) == 0) {
-                continue;
-            }
+            VALIDATE_CONTINUE (transaction_map.count(i_outpoint.txid) == 0);
 
             const gs::transaction & txi = transaction_map.at(i_outpoint.txid);
             
             if (txi.slp.token_type == 0x81) {
-                if (txi.output_slp_amount(i_outpoint.vout) < 1) {
-                    continue;
-                }
+                VALIDATE_CONTINUE (txi.output_slp_amount(i_outpoint.vout) < 1);
 
                 absl::flat_hash_set<gs::txid> seen;
                 if (check_outputs_valid(seen, txi)) {
@@ -198,9 +188,7 @@ bool slp_validator::check_outputs_valid (
     absl::flat_hash_set<gs::txid> & seen,
     const gs::transaction & tx
 ) const {
-    if (transaction_map.count(tx.txid) == 0) {
-        return false;
-    }
+    VALIDATE_CHECK (transaction_map.count(tx.txid) == 0);
 
     // already has been validated during search
     if (! seen.insert(tx.txid).second) {
@@ -211,34 +199,24 @@ bool slp_validator::check_outputs_valid (
         return true;
     }
 
-    if (tx.slp.type == gs::slp_transaction_type::send) {
-        return check_send(seen, tx);
+    switch (tx.slp.type) {
+        case gs::slp_transaction_type::send:    return check_send(seen, tx);
+        case gs::slp_transaction_type::mint:    return check_mint(tx);
+        case gs::slp_transaction_type::genesis: return check_genesis(tx);
+        default: return false;
     }
-    else if (tx.slp.type == gs::slp_transaction_type::mint) {
-        return check_mint(tx);
-    }
-    else if (tx.slp.type == gs::slp_transaction_type::genesis) {
-        return check_genesis(tx);
-    }
-
-    return false;
 }
 
 bool slp_validator::validate(const gs::transaction & tx) const
 {
     absl::flat_hash_set<gs::txid> seen;
 
-    if (tx.slp.type == gs::slp_transaction_type::send) {
-        return check_send(seen, tx);
+    switch (tx.slp.type) {
+        case gs::slp_transaction_type::send:    return check_send(seen, tx);
+        case gs::slp_transaction_type::mint:    return check_mint(tx);
+        case gs::slp_transaction_type::genesis: return check_genesis(tx);
+        default: return false;
     }
-    else if (tx.slp.type == gs::slp_transaction_type::mint) {
-        return check_mint(tx);
-    }
-    else if (tx.slp.type == gs::slp_transaction_type::genesis) {
-        return check_genesis(tx);
-    }
-
-    return false;
 }
 
 bool slp_validator::validate(const gs::txid & txid) const
