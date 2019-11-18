@@ -34,7 +34,7 @@ struct slpdb
         if (tx.slp.type == gs::slp_transaction_type::genesis) {
             const auto slp = absl::get<gs::slp_transaction_genesis>(tx.slp.slp_tx);
 
-            spdlog::info("genesis begin");
+            // spdlog::info("genesis begin");
 
             if (tx.outputs.size() < 2) {
                 // cannot have less than 2 outputs for genesis
@@ -59,10 +59,10 @@ struct slpdb
                 }
             }
 
-            spdlog::info("genesis end");
+            // spdlog::info("genesis end");
         }
         else if (tx.slp.type == gs::slp_transaction_type::mint) {
-            spdlog::info("mint begin");
+            // spdlog::info("mint begin");
             const auto slp = absl::get<gs::slp_transaction_mint>(tx.slp.slp_tx);
             auto token_search = tokens.find(tx.slp.tokenid);
             if (token_search == tokens.end()) {
@@ -101,10 +101,10 @@ struct slpdb
                 utxo_to_tokenid.insert({ mint_baton_outpoint, tx.slp.tokenid });
             }
 
-            spdlog::info("mint end");
+            // spdlog::info("mint end");
         }
         else if (tx.slp.type == gs::slp_transaction_type::send) {
-            spdlog::info("send begin");
+            // spdlog::info("send begin");
             const auto slp = absl::get<gs::slp_transaction_send>(tx.slp.slp_tx);
             auto token_search = tokens.find(tx.slp.tokenid);
             if (token_search == tokens.end()) {
@@ -141,7 +141,7 @@ struct slpdb
 
             token.transactions.insert({ tx.txid, tx });
 
-            spdlog::info("send end");
+            // spdlog::info("send end");
         }
     }
 };
