@@ -52,29 +52,33 @@ bool slp_validator::walk_mints_home (
     seen.insert(tx.txid);
 
     for (auto & i_outpoint : tx.inputs) {
-        if (transaction_map.count(i_outpoint.txid) > 0) {
-            if (transaction_map.count(i_outpoint.txid) == 0) {
-                // TODO should this be continue ?
-                continue;
+        if (transaction_map.count(i_outpoint.txid) == 0) {
+            continue;
+        }
+
+        const gs::transaction & txi = transaction_map.at(i_outpoint.txid);
+
+        if (mints.front().slp.tokenid != txi.slp.tokenid) {
+            continue;
+        }
+        if (mints.front().slp.token_type != txi.slp.token_type) {
+            continue;
+        }
+
+        if (txi.slp.type == gs::slp_transaction_type::mint) {
+            const auto & s = absl::get<gs::slp_transaction_mint>(txi.slp.slp_tx);
+
+            if (s.has_mint_baton) {
+                mints.push_back(txi);
+                return walk_mints_home(seen, mints); 
             }
+        }
+        else if (txi.slp.type == gs::slp_transaction_type::genesis) {
+            const auto & s = absl::get<gs::slp_transaction_genesis>(txi.slp.slp_tx);
 
-            const gs::transaction & txi = transaction_map.at(i_outpoint.txid);
-
-            if (txi.slp.type == gs::slp_transaction_type::mint) {
-                const auto & s = absl::get<gs::slp_transaction_mint>(txi.slp.slp_tx);
-
-                if (s.has_mint_baton) {
-                    mints.push_back(txi);
-                    return walk_mints_home(seen, mints); 
-                }
-            }
-            else if (txi.slp.type == gs::slp_transaction_type::genesis) {
-                const auto & s = absl::get<gs::slp_transaction_genesis>(txi.slp.slp_tx);
-
-                if (s.has_mint_baton) {
-                    mints.push_back(txi);
-                    return true;
-                }
+            if (s.has_mint_baton) {
+                mints.push_back(txi);
+                return true;
             }
         }
     }
@@ -106,6 +110,10 @@ bool slp_validator::nft1_child_genesis_validity_check(
         const gs::transaction & txi = transaction_map.at(i_outpoint.txid);
         
         if (txi.slp.token_type == 0x81) {
+            if (txi.output_slp_amount(i_outpoint.vout) < 1) {
+                continue;
+            }
+
             absl::flat_hash_set<gs::txid> seen;
             if (check_outputs_valid(seen, txi.txid)) {
                 return true;
@@ -144,21 +152,26 @@ bool slp_validator::check_outputs_valid (
 
         absl::uint128 input_amount = 0;
         for (auto & i_outpoint : tx.inputs) {
-            if (transaction_map.count(i_outpoint.txid) > 0) {
-                const gs::transaction & txi               = transaction_map.at(i_outpoint.txid);
-                const std::uint64_t     slp_output_amount = txi.output_slp_amount(i_outpoint.vout);
-
-                if (tx.slp.tokenid != txi.slp.tokenid) {
-                    continue;
-                }
-
-                if (! check_outputs_valid(seen, i_outpoint.txid)) {
-                    std::cout << "!check_outputs_valid: "  << i_outpoint.txid.decompress(true) << "\n";
-                    // return false;
-                    continue;
-                }
-                input_amount += slp_output_amount;
+            if (transaction_map.count(i_outpoint.txid) == 0) {
+                continue;
             }
+            const gs::transaction & txi = transaction_map.at(i_outpoint.txid);
+            if (tx.slp.token_type != txi.slp.token_type) {
+                continue;
+            }
+
+            if (tx.slp.tokenid != txi.slp.tokenid) {
+                continue;
+            }
+
+            if (! check_outputs_valid(seen, i_outpoint.txid)) {
+                std::cout << "!check_outputs_valid: "  << i_outpoint.txid.decompress(true) << "\n";
+                // return false;
+                continue;
+            }
+
+            const std::uint64_t slp_output_amount = txi.output_slp_amount(i_outpoint.vout);
+            input_amount += slp_output_amount;
         }
 
         if (output_amount > input_amount) {

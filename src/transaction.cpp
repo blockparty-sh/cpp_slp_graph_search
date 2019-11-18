@@ -3,26 +3,9 @@
 std::ostream & operator<<(std::ostream &os, const gs::transaction & tx)
 {
     os
-        << "txid:      " << tx.txid.decompress(true) << "\n"
-        << "version:   " << tx.version << "\n"
-        << "lock_time: " << tx.lock_time << "\n\n";
-
-    os << "inputs:\n";
-    for (auto m : tx.inputs) {
-        os
-            << "\ttxid: " << m.txid.decompress(true) << "\n"
-            << "\tvout: " << m.vout << "\n\n";
-    }
-
-    os << "outputs:\n";
-    std::size_t n = 0;
-    for (auto m : tx.outputs) {
-        os
-            << "\tn:            " << n                                          << "\n"
-            << "\tvalue:        " << m.value                                    << "\n"
-            << "\tscriptpubkey: " << gs::util::decompress_hex(m.scriptpubkey.v) << "\n\n";
-        ++n;
-    }
+        << "txid:             " << tx.txid.decompress(true) << "\n"
+        << "version:          " << tx.version << "\n"
+        << "lock_time:        " << tx.lock_time << "\n";
 
 
     std::string slp_type = "";
@@ -33,41 +16,92 @@ std::ostream & operator<<(std::ostream &os, const gs::transaction & tx)
         default:                                slp_type = "INVALID"; break;
     }
 
+    if (tx.slp.type == gs::slp_transaction_type::invalid) {
+        os
+            << "slp: INVALID\n";
+    } else {
+        os
+            << "token_type:       " << tx.slp.token_type << "\n"
+            << "tokenid:          " << tx.slp.tokenid.decompress(true) << "\n"
+            << "transaction_type: " << slp_type << "\n";
+    }
     os
-        << "slp:\n"
-        << "\ttoken_type:       " << tx.slp.token_type << "\n"
-        << "\ttokenid:          " << tx.slp.tokenid.decompress(true) << "\n"
-        << "\ttransaction_type: " << slp_type << "\n";
+        << "\n";
 
     if (tx.slp.type == gs::slp_transaction_type::genesis) {
         const auto & slp = absl::get<gs::slp_transaction_genesis>(tx.slp.slp_tx);
 
         os
-            << "\tticker:           " << slp.ticker          << "\n"
-            << "\tname:             " << slp.name            << "\n"
-            << "\tdocument_uri:     " << slp.document_uri    << "\n"
-            << "\tdocument_hash:    " << slp.document_hash   << "\n"
-            << "\tdecimals:         " << slp.decimals        << "\n"
-            << "\thas_mint_baton:   " << slp.has_mint_baton  << "\n"
-            << "\tmint_baton_vout:  " << slp.mint_baton_vout << "\n"
-            << "\tqty:              " << slp.qty             << "\n";
+            << "ticker:           " << (! slp.ticker.empty()          ? slp.ticker          : "[none]") << "\n"
+            << "name:             " << (! slp.name.empty()            ? slp.name            : "[none]") << "\n"
+            << "document_uri:     " << (! slp.document_uri.empty()    ? slp.document_uri    : "[none]") << "\n"
+            << "document_hash:    " << (! slp.document_hash.empty()   ? slp.document_hash   : "[none]") << "\n"
+            << "decimals:         " << slp.decimals                                                     << "\n"
+            << "has_mint_baton:   " << slp.has_mint_baton                                               << "\n";
+        if (slp.has_mint_baton) {
+            os
+                << "mint_baton_vout:  " << slp.mint_baton_vout << "\n";
+        }
+        os
+            << "\n";
+
     }
-    if (tx.slp.type == gs::slp_transaction_type::mint) {
-        const auto & slp = absl::get<gs::slp_transaction_mint>(tx.slp.slp_tx);
+
+    os << "inputs:\n";
+    std::size_t in = 0;
+    for (auto m : tx.inputs) {
+        os
+            << "#" << in << "\n"
+            << "    txid: " << m.txid.decompress(true) << "\n"
+            << "    vout: " << m.vout << "\n\n";
+        ++in;
+    }
+
+    os << "outputs:\n";
+    std::size_t on = 0;
+    for (auto m : tx.outputs) {
+        os
+            << "#" << on << "\n"
+            << "    value:        " << m.value                                    << "\n"
+            << "    scriptpubkey: " << gs::util::decompress_hex(m.scriptpubkey.v) << "\n";
+
+        if (tx.slp.type == gs::slp_transaction_type::genesis) {
+            const auto & slp = absl::get<gs::slp_transaction_genesis>(tx.slp.slp_tx);
+            if (on == 1) {
+                os
+                    << "    slp_amount:   " << (slp.qty ? std::to_string(slp.qty) : "[none]") << "\n";
+            }
+            if (on == slp.mint_baton_vout) {
+                os
+                    << "    mint_baton\n";
+            }
+        }
+
+        if (tx.slp.type == gs::slp_transaction_type::mint) {
+            const auto & slp = absl::get<gs::slp_transaction_mint>(tx.slp.slp_tx);
+            if (on == 1) {
+                os
+                    << "    baton_vout:   " << slp.mint_baton_vout          << "\n"
+                    << "    slp_amount:   " << slp.qty                      << "\n";
+            }
+            if (on == slp.mint_baton_vout) {
+                os
+                    << "    mint_baton\n";
+            }
+        }
+
+        if (tx.slp.type == gs::slp_transaction_type::send) {
+            const auto & slp = absl::get<gs::slp_transaction_send>(tx.slp.slp_tx);
+            const std::uint64_t amnt = (on > 0 && on-1 < slp.amounts.size()) ? slp.amounts[on-1] : 0;
+            os
+                << "    slp_amount:   " << amnt << "\n";
+        }
 
         os
-            << "\tmint_baton_vout:  " << slp.mint_baton_vout          << "\n"
-            << "\tqty:              " << slp.qty                      << "\n";
-    }
-    if (tx.slp.type == gs::slp_transaction_type::send) {
-        const auto & slp = absl::get<gs::slp_transaction_send>(tx.slp.slp_tx);
+            << "\n";
 
-        os << "\tamounts:\n";
-        for (auto m : slp.amounts) {
-            os << "\t\t" << m << "\n";
-        }
+        ++on;
     }
 
     return os;
 }
-
