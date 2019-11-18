@@ -64,15 +64,6 @@ bool slp_validator::add_valid_txid(const gs::txid& txid)
 #endif
 
 
-// This is used for NFT1-Child Genesis validity check
-// When the input is an SLP-invalid BCH-only tx, the GENESIS tx should be SLP-
-// invalid since it is not token type 1 or 129 (NFT1 parent)
-//
-// TODO what happens if there are 2 different inputs here?
-// what if there are nft parent inputs here
-// what if there are multiple genesis txs 
-// etc
-
 bool slp_validator::check_send(
     absl::flat_hash_set<gs::txid> & seen,
     const gs::transaction & tx
