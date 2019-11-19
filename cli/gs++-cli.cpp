@@ -73,7 +73,7 @@ public:
                     auto start = std::chrono::high_resolution_clock::now();
                     for (auto & n : reply.txdata()) {
                         gs::transaction tx;
-                        if (! tx.hydrate(n.begin(), n.end(), 0)) {
+                        if (! tx.hydrate(n.begin(), n.end())) {
                             std::cerr << "ERROR: could not hydrate from txdata\n";
                             continue;
                         }

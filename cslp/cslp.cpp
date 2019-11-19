@@ -14,7 +14,7 @@ extern "C" {
     {
         gs::slp_validator * slp_validator = static_cast<gs::slp_validator*>(validator);
         gs::transaction tx;
-        tx.hydrate(txdata, txdata+txdata_len, 0);
+        tx.hydrate(txdata, txdata+txdata_len);
         slp_validator->add_tx(tx);
     }
 
@@ -35,7 +35,7 @@ extern "C" {
     {
         gs::slp_validator * slp_validator = static_cast<gs::slp_validator*>(validator);
         gs::transaction tx;
-        if (! tx.hydrate(txdata, txdata+txdata_len, 0)) {
+        if (! tx.hydrate(txdata, txdata+txdata_len)) {
             return false;
         }
         bool valid = slp_validator->validate(tx);

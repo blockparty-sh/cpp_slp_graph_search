@@ -61,10 +61,6 @@ bool utxodb::load_from_bchd_checkpoint (
         it+=4;
 
 
-        std::uint32_t height;
-        std::copy(it, it+4, reinterpret_cast<char*>(&height));
-        it+=4;
-
         std::uint64_t value;
         std::copy(it, it+8, reinterpret_cast<char*>(&value));
         it+=8;
@@ -84,7 +80,6 @@ bool utxodb::load_from_bchd_checkpoint (
         const gs::output out = gs::output(
             prev_tx_id,
             prev_out_idx,
-            height,
             value,
             scriptpubkey
         );
@@ -102,7 +97,6 @@ bool utxodb::load_from_bchd_checkpoint (
         // std::cout << prev_tx_id.decompress(true) << "\t" << prev_out_idx << std::endl; 
         /*
         std::cout << (int) is_coinbase << std::endl;
-        std::cout << height << std::endl;
         std::cout << value << std::endl;
         std::cout << script_len << std::endl;
         */
@@ -154,7 +148,6 @@ bool utxodb::save_bchd_checkpoint (
         // std::cout << m.second.prev_tx_id.decompress(true) << ":" << m.second.prev_out_idx << "\n";
         outf.write(reinterpret_cast<const char *>(m.second.prev_tx_id.data()), m.second.prev_tx_id.size());
         outf.write(reinterpret_cast<const char *>(&m.second.prev_out_idx), sizeof(m.second.prev_out_idx));
-        outf.write(reinterpret_cast<const char *>(&m.second.height), sizeof(m.second.height));
         outf.write(reinterpret_cast<const char *>(&m.second.value), sizeof(m.second.value));
         const std::uint32_t script_len = static_cast<std::uint32_t>(m.second.scriptpubkey.size());
         outf.write(reinterpret_cast<const char *>(&script_len), sizeof(script_len));
@@ -164,7 +157,6 @@ bool utxodb::save_bchd_checkpoint (
         // std::cout << prev_tx_id.decompress(true) << "\t" << prev_out_idx << std::endl; 
         /*
         std::cout << (int) is_coinbase << std::endl;
-        std::cout << height << std::endl;
         std::cout << value << std::endl;
         std::cout << script_len << std::endl;
         */

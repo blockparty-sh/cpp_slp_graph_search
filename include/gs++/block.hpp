@@ -46,7 +46,7 @@ struct block
         const std::uint64_t txn_count { gs::util::extract_var_int(it) };
         for (std::uint64_t i=0; i<txn_count; ++i) {
             gs::transaction tx;
-            const std::uint64_t txdata_size = tx.hydrate(it, end_it, 0);
+            const std::uint64_t txdata_size = tx.hydrate(it, end_it);
 
             if (! txdata_size) {
                 assert(! txdata_size);

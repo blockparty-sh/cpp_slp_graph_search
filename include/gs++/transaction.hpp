@@ -43,8 +43,7 @@ struct transaction
     template <typename BeginIterator, typename EndIterator>
     std::uint64_t hydrate(
         BeginIterator&& begin_it,
-        EndIterator&& end_it,
-        const std::uint32_t height
+        EndIterator&& end_it
     ) {
         constexpr std::uint64_t MAX_TX_SIZE = 1000000;
         constexpr std::uint64_t MAX_INPUTS  = MAX_TX_SIZE / 64; // TODO set better max
@@ -146,7 +145,7 @@ struct transaction
             std::copy(it, it+script_len, std::back_inserter(scriptpubkey.v));
             it+=script_len;
 
-            this->outputs.push_back(gs::output({}, out_i, height, value, scriptpubkey));
+            this->outputs.push_back(gs::output({}, out_i, value, scriptpubkey));
         }
 
         CHECK_END(4-1); // minus 1 because +4 could be the end
@@ -181,10 +180,9 @@ struct transaction
     template <typename BeginIterator, typename EndIterator>
     std::uint64_t hydrate(
         const BeginIterator&& begin_it,
-        const EndIterator&& end_it,
-        const std::uint32_t height
+        const EndIterator&& end_it
     ) {
-        return hydrate(begin_it, end_it, height);
+        return hydrate(begin_it, end_it);
     }
 };
 

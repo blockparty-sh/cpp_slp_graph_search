@@ -174,7 +174,7 @@ void bch::process_mempool_tx(const std::vector<std::uint8_t>& msg_data)
     boost::lock_guard<boost::shared_mutex> lock(lookup_mtx);
 
     gs::transaction tx;
-    const bool hydration_success = tx.hydrate(msg_data.begin(), msg_data.end(), 0);
+    const bool hydration_success = tx.hydrate(msg_data.begin(), msg_data.end());
     assert(hydration_success);
     spdlog::info("processing tx {}", tx.txid.decompress(true));
 

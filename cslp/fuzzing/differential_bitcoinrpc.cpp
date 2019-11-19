@@ -60,7 +60,7 @@ int main(int argc, char * argv[])
 
     gs::slp_validator slp_validator;
     gs::transaction tx;
-    const bool hydration_success = tx.hydrate(txdata.begin(), txdata.end(), 0);
+    const bool hydration_success = tx.hydrate(txdata.begin(), txdata.end());
 
     std::string hex_str;
     boost::algorithm::hex(txdata, std::back_inserter(hex_str));

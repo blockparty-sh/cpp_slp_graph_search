@@ -14,7 +14,6 @@ struct output
 {
 	gs::txid         prev_tx_id; // TODO we should use outpoint here
 	std::uint32_t    prev_out_idx;
-	std::uint32_t    height;
 	std::uint64_t    value;
     gs::scriptpubkey scriptpubkey;
 
@@ -23,13 +22,11 @@ struct output
 	output (
 		const gs::txid         prev_tx_id,
 		const std::uint32_t    prev_out_idx,
-		const std::uint32_t    height,
 		const std::uint64_t    value,
 		const gs::scriptpubkey scriptpubkey
 	)
 	: prev_tx_id(prev_tx_id)
 	, prev_out_idx(prev_out_idx)
-	, height(height)
 	, value(value)
 	, scriptpubkey(scriptpubkey)
 	{}

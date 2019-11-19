@@ -70,7 +70,7 @@ TEST_CASE( "input_tests", "[single-file]" ) {
                 const std::vector<std::uint8_t> txhex = gs::util::compress_hex(o["tx"].get<std::string>());
                 gs::transaction tx;
                 // check bch parse is true, which should always be the case
-                REQUIRE( tx.hydrate(txhex.begin(), txhex.end(), 0) );
+                REQUIRE( tx.hydrate(txhex.begin(), txhex.end()) );
                 const bool slp_valid = tx.slp.type != gs::slp_transaction_type::invalid;
 
 
@@ -89,7 +89,7 @@ TEST_CASE( "input_tests", "[single-file]" ) {
                 const std::vector<std::uint8_t> txhex = gs::util::compress_hex(o["tx"].get<std::string>());
                 gs::transaction tx;
                 // check bch parse is true, which should always be the case
-                REQUIRE( tx.hydrate(txhex.begin(), txhex.end(), 0) );
+                REQUIRE( tx.hydrate(txhex.begin(), txhex.end()) );
 
                 const bool validation_result = slp_validator.validate(tx);
                 REQUIRE (valid == validation_result);
@@ -188,7 +188,7 @@ TEST_CASE( "bch_decoding_tx_to_slp_tests", "[single-file]" ) {
             for (auto& j_tx : m["transactions"]) {
                 const std::vector<std::uint8_t> txhex = gs::util::compress_hex(j_tx.get<std::string>());
                 gs::transaction tx;
-                REQUIRE( tx.hydrate(txhex.begin(), txhex.end(), 0) );
+                REQUIRE( tx.hydrate(txhex.begin(), txhex.end()) );
                 slpdb.add_transaction(tx);
             }
 
@@ -286,7 +286,7 @@ TEST_CASE( "topological_sorting", "[single-file]" ) {
                     for (const std::string & tx_str : txdata_strs) {
                         const std::vector<std::uint8_t> txhex = gs::util::compress_hex(tx_str);
                         gs::transaction tx;
-                        REQUIRE( tx.hydrate(txhex.begin(), txhex.end(), 0) );
+                        REQUIRE( tx.hydrate(txhex.begin(), txhex.end()) );
                         transactions.push_back(tx);
                     }
 

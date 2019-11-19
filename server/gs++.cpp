@@ -224,7 +224,6 @@ class GraphSearchServiceImpl final
             graphsearch::Output* el = reply->add_outputs();
             el->set_prev_tx_id(o.prev_tx_id.begin(), o.prev_tx_id.size());
             el->set_prev_out_idx(o.prev_out_idx);
-            el->set_height(o.height);
             el->set_value(o.value);
             el->set_scriptpubkey(o.scriptpubkey.data(), o.scriptpubkey.size());
         }
@@ -252,7 +251,6 @@ class GraphSearchServiceImpl final
             graphsearch::Output* el = reply->add_outputs();
             el->set_prev_tx_id(o.prev_tx_id.begin(), o.prev_tx_id.size());
             el->set_prev_out_idx(o.prev_out_idx);
-            el->set_height(o.height);
             el->set_value(o.value);
             el->set_scriptpubkey(o.scriptpubkey.data(), o.scriptpubkey.size());
         }
