@@ -34,7 +34,7 @@ bool slp_validator::add_valid_txid(const gs::txid& txid)
     return valid.insert(txid).second;
 }
 
-#define ENABLE_SLP_VALIDATE_DEBUG_PRINTING
+// #define ENABLE_SLP_VALIDATE_DEBUG_PRINTING
 
 #ifdef ENABLE_SLP_VALIDATE_DEBUG_PRINTING
     #define VALIDATE_CHECK(cond) {\
