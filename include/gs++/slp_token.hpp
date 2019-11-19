@@ -3,9 +3,9 @@
 
 #include <cassert>
 
-#include <boost/optional.hpp>
 #include <absl/container/flat_hash_map.h>
 #include <absl/container/node_hash_map.h>
+#include <absl/types/optional.h>
 
 #include <gs++/bhash.hpp>
 #include <gs++/output.hpp>
@@ -21,7 +21,7 @@ struct slp_token
 
     absl::flat_hash_map<gs::txid, gs::transaction> transactions;
     absl::flat_hash_map<gs::outpoint, gs::slp_output> utxos;
-    boost::optional<gs::outpoint> mint_baton_outpoint;
+    absl::optional<gs::outpoint> mint_baton_outpoint;
     
     slp_token()
     {}
