@@ -17,8 +17,7 @@
 #include <gs++/transaction.hpp>
 #include <gs++/bhash.hpp>
 #include <gs++/scriptpubkey.hpp>
-
-#include <cslp/cslp.h>
+#include <gs++/slp_validator.hpp>
 
 
 class GraphSearchServiceClient
@@ -67,14 +66,41 @@ public:
 
 
         if (status.ok()) {
-            cslp_validator validator = cslp_validator_init();
+            gs::slp_validator validator;
             {
-                auto start = std::chrono::high_resolution_clock::now();
-                for (auto & n : reply.txdata()) {
-                    cslp_validator_add_tx(validator, n.data(), n.size());
+                std::vector<gs::transaction> txs;
+                {
+                    auto start = std::chrono::high_resolution_clock::now();
+                    for (auto & n : reply.txdata()) {
+                        gs::transaction tx;
+                        std::string txdata(n.begin(), n.end());
+                        if (! tx.hydrate(n.begin(), n.end(), 0)) {
+                            std::cerr << "ERROR: could not hydrate from txdata\n";
+                            continue;
+                        }
+
+                        txs.push_back(tx);
+                    }
+                    auto end = std::chrono::high_resolution_clock::now();
+                    std::cerr << "hydrate " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
                 }
-                auto end = std::chrono::high_resolution_clock::now();
-                std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
+
+                {
+                    auto start = std::chrono::high_resolution_clock::now();
+                    txs = gs::util::topological_sort(txs);
+                    auto end = std::chrono::high_resolution_clock::now();
+                    std::cerr << "toposort " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
+                }
+
+                {
+                    auto start = std::chrono::high_resolution_clock::now();
+                    for (auto & n : txs) {
+                        validator.add_tx(n);
+                    }
+
+                    auto end = std::chrono::high_resolution_clock::now();
+                    std::cerr << "validator.add_tx " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
+                }
             }
 
             gs::txid txid(txid_str);
@@ -82,13 +108,12 @@ public:
 
             {
                 auto start = std::chrono::high_resolution_clock::now();
-                const bool valid = cslp_validator_validate_txid(validator, reinterpret_cast<const char*>(txid.v.data()));
+                const bool valid = validator.validate(txid);
                 std::cout << txid.decompress(true) << ": " << ((valid) ? "valid" : "invalid") << "\n";
                 auto end = std::chrono::high_resolution_clock::now();
-                std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
+                std::cerr << "validate " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
             }
 
-            cslp_validator_destroy(validator);
             return true;
         } else {
             std::cout << status.error_code() << ": " << status.error_message() << std::endl;
