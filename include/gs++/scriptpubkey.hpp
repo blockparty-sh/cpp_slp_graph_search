@@ -59,7 +59,7 @@ struct scriptpubkey
         if (v.size() > 5 
          && v[0] == 0x76 // OP_DUP
          && v[1] == 0xA9 // OP_HASH160
-         && v.size() == 3+v[2]+2 // scriptpubkey[2] holds length of sig
+         && v.size() == 3u+v[2]+2u // scriptpubkey[2] holds length of sig
         ) { 
             return std::string(v.begin()+3, v.end()-2);
         }   
