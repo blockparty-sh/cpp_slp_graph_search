@@ -10,26 +10,29 @@ namespace gs {
 namespace util {
 
 void topological_sort_internal(
-	const gs::transaction& tx,
+    const gs::transaction& tx,
     const absl::flat_hash_map<gs::txid, gs::transaction> & transactions,
-    std::vector<gs::txid> & stack,
+    std::vector<gs::transaction> & stack,
     absl::flat_hash_set<gs::txid> & visited
 ) {
     visited.insert(tx.txid);
 
     for (const gs::outpoint & outpoint : tx.inputs) {
-        if (visited.count(outpoint.txid)      == 0
-        &&  transactions.count(outpoint.txid) == 1
+        if (visited.count(outpoint.txid)      != 0
+        || transactions.count(outpoint.txid)  != 1
         ) {
-            topological_sort_internal(
-				transactions.at(outpoint.txid),
-                transactions,
-                stack,
-                visited
-			);
+            continue;
         }
+
+        topological_sort_internal(
+            transactions.at(outpoint.txid),
+            transactions,
+            stack,
+            visited
+        );
     }
-    stack.push_back(tx.txid);
+
+    stack.push_back(tx);
 }
 
 std::vector<gs::transaction> topological_sort(
@@ -41,7 +44,7 @@ std::vector<gs::transaction> topological_sort(
         transactions.insert({ tx.txid, tx });
     }
 
-    std::vector<gs::txid> stack;
+    std::vector<gs::transaction> stack;
     stack.reserve(tx_list.size());
 
     absl::flat_hash_set<gs::txid> visited;
@@ -53,13 +56,7 @@ std::vector<gs::transaction> topological_sort(
         }
     }
 
-    std::vector<gs::transaction> ret;
-    ret.reserve(stack.size());
-    for (const gs::txid & txid : stack) {
-        ret.emplace_back(transactions[txid]);
-    }
-
-    return ret;
+    return stack;
 }
 
 }
