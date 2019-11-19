@@ -73,7 +73,6 @@ public:
                     auto start = std::chrono::high_resolution_clock::now();
                     for (auto & n : reply.txdata()) {
                         gs::transaction tx;
-                        std::string txdata(n.begin(), n.end());
                         if (! tx.hydrate(n.begin(), n.end(), 0)) {
                             std::cerr << "ERROR: could not hydrate from txdata\n";
                             continue;
@@ -82,14 +81,18 @@ public:
                         txs.push_back(tx);
                     }
                     auto end = std::chrono::high_resolution_clock::now();
-                    std::cerr << "hydrate " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
+                    std::cout
+                        << "hydrate (" << reply.txdata_size() << ") "
+                        << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
                 }
 
                 {
                     auto start = std::chrono::high_resolution_clock::now();
                     txs = gs::util::topological_sort(txs);
                     auto end = std::chrono::high_resolution_clock::now();
-                    std::cerr << "toposort " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
+                    std::cout
+                        << "toposort "
+                        << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
                 }
 
                 {
@@ -99,7 +102,9 @@ public:
                     }
 
                     auto end = std::chrono::high_resolution_clock::now();
-                    std::cerr << "validator.add_tx " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
+                    std::cout
+                        << "validator.add_tx "
+                        << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
                 }
             }
 
@@ -111,7 +116,9 @@ public:
                 const bool valid = validator.validate(txid);
                 std::cout << txid.decompress(true) << ": " << ((valid) ? "valid" : "invalid") << "\n";
                 auto end = std::chrono::high_resolution_clock::now();
-                std::cerr << "validate " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
+                std::cout
+                    << "validate "
+                    << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
             }
 
             return true;
