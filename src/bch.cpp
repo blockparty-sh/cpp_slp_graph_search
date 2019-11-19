@@ -12,6 +12,7 @@
 #include <gs++/bch.hpp>
 #include <gs++/transaction.hpp>
 #include <gs++/slp_transaction.hpp>
+#include <gs++/block.hpp>
 
 namespace gs {
 
@@ -26,36 +27,8 @@ void bch::process_block(
 
     ++utxodb.current_block_height;
 
-    // TODO we need to check that block data isnt malformed here
-    // ie CHECK_END or something
-
-    auto it = block_data.begin();
-    const std::uint32_t version { gs::util::extract_u32(it) };
-
-    gs::txid prev_block; // TODO detect re-org
-    std::copy(it, it+32, reinterpret_cast<char*>(prev_block.begin()));
-    it+=32;
-
-    gs::txid merkle_root;
-    std::copy(it, it+32, reinterpret_cast<char*>(merkle_root.begin()));
-    it+=32;
-
-    const std::uint32_t timestamp { gs::util::extract_u32(it) };
-    const std::uint32_t bits      { gs::util::extract_u32(it) };
-    const std::uint32_t nonce     { gs::util::extract_u32(it) };
-    const std::uint64_t txn_count { gs::util::extract_var_int(it) };
-
-
-    /*
-    std::cout
-        << version << "\n"
-        << prev_block.decompress(true) << "\n"
-        << merkle_root.decompress(true) << "\n"
-        << timestamp << "\n"
-        << bits << "\n"
-        << nonce << "\n"
-        << txn_count << "\n";
-    */
+    gs::block block;
+    block.hydrate(block_data.begin(), block_data.end());
 
     std::vector<gs::outpoint>    blk_inputs;
     std::vector<gs::output>      blk_outputs;
@@ -64,11 +37,7 @@ void bch::process_block(
     std::size_t total_added = 0;
     std::size_t total_removed = 0;
 
-    for (std::uint64_t i=0; i<txn_count; ++i) {
-        gs::transaction tx;
-        const bool hydration_success = tx.hydrate(it, block_data.end(), utxodb.current_block_height);
-        assert(hydration_success);
-
+    for (auto & tx : block.txs) {
         for (auto & m : tx.inputs) {
             blk_inputs.emplace_back(m);
         }

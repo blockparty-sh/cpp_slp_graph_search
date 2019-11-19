@@ -310,6 +310,7 @@ int main(int argc, char * argv[])
     bool disable_zmq              = false;
     bool disable_mongowatch       = false;
     bool disable_grpc             = false;
+    bool disable_slpbitcoindsync  = false;
 
     std::string   utxo_chkpnt_file         = "../utxo-checkpoints/latest";
     std::uint32_t utxo_chkpnt_block_height = 0;
@@ -334,6 +335,7 @@ int main(int argc, char * argv[])
             { "disable_zmq",                 no_argument, nullptr, 2004 },
             { "disable_mongowatch",          no_argument, nullptr, 2005 },
             { "disable_grpc",                no_argument, nullptr, 2006 },
+            { "disable_slpbitcoindsync",     no_argument, nullptr, 2007 },
             { "utxo_chkpnt_file",         required_argument, nullptr, 3000 },
             { "utxo_chkpnt_block_height", required_argument, nullptr, 3001 },
             { "utxo_chkpnt_block_hash",   required_argument, nullptr, 3002 },
@@ -382,6 +384,7 @@ int main(int argc, char * argv[])
             case 2004: disable_zmq              = true; break;
             case 2005: disable_mongowatch       = true; break;
             case 2006: disable_grpc             = true; break;
+            case 2007: disable_slpbitcoindsync  = true; break;
 
             case 3000: ss >> utxo_chkpnt_file;         break;
             case 3001: ss >> utxo_chkpnt_block_height; break;
@@ -403,6 +406,7 @@ int main(int argc, char * argv[])
     if (disable_zmq)              std::cout << "disable_zmq\n";
     if (disable_mongowatch)       std::cout << "disable_mongowatch\n";
     if (disable_grpc)             std::cout << "disable_grpc\n";
+    if (disable_slpbitcoindsync)  std::cout << "disable_slpbitcoindsync\n";
 
 
     gs::mdatabase mdb(mongo_db_name, mongo_uri);
@@ -458,6 +462,31 @@ int main(int argc, char * argv[])
 
     // setup utxodb stuff
     gs::rpc rpc(rpc_host, rpc_port, rpc_user, rpc_pass);
+
+    if (! disable_slpbitcoindsync) {
+        const std::pair<bool, std::uint32_t> best_block_height = rpc.get_best_block_height();
+        if (! best_block_height.first) {
+            spdlog::error("could not connect to rpc");
+            return EXIT_FAILURE;
+        }
+
+        spdlog::info("best block height: {}", best_block_height.second);
+
+        constexpr std::uint32_t slp_start_block = 543375;
+        for (std::uint32_t h=slp_start_block; h<=best_block_height.second; ++h) {
+            const std::pair<bool, std::vector<std::uint8_t>> block_data = rpc.get_raw_block(h);
+            if (! block_data.first) {
+                spdlog::warn("rpc request failed, trying again...");
+                const std::chrono::milliseconds await_time { 1000 };
+                std::this_thread::sleep_for(await_time);
+                --h;
+                continue;
+            }
+            spdlog::info("processing block {}", h);
+            // process_block(block_data.second, true);
+        }
+
+    }
 
     if (! disable_utxo_chkpnt_load) {
         bch.utxodb.load_from_bchd_checkpoint(

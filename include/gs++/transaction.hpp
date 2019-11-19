@@ -39,8 +39,9 @@ struct transaction
 
     std::uint64_t output_slp_amount(const std::uint64_t vout) const;
 
+    // returns size of tx data read or false on error
     template <typename BeginIterator, typename EndIterator>
-    bool hydrate(
+    std::uint64_t hydrate(
         BeginIterator&& begin_it,
         EndIterator&& end_it,
         const std::uint32_t height
@@ -174,11 +175,11 @@ struct transaction
             }
         }
 
-        return true;
+        return serialized_tx.size();
     }
 
     template <typename BeginIterator, typename EndIterator>
-    bool hydrate(
+    std::uint64_t hydrate(
         const BeginIterator&& begin_it,
         const EndIterator&& end_it,
         const std::uint32_t height

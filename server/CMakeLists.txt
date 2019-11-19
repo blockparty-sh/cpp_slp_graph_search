@@ -10,6 +10,7 @@ add_executable(gs++
     ${CMAKE_SOURCE_DIR}/src/util.cpp
     ${CMAKE_SOURCE_DIR}/src/slp_transaction.cpp
     ${CMAKE_SOURCE_DIR}/src/sha2.cpp
+    ${CMAKE_SOURCE_DIR}/src/block.cpp
     ${PROTO_SRCS}
     ${GRPC_SRCS}
 )
