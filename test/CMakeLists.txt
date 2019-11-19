@@ -25,4 +25,5 @@ target_link_libraries(internals_test
     mio
     spdlog
     ${Boost_THREAD_LIBRARY}
+    ${Boost_SYSTEM_LIBRARY}
 )
