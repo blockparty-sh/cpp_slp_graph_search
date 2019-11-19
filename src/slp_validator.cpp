@@ -18,8 +18,7 @@ namespace gs {
 bool slp_validator::add_tx(const gs::transaction& tx)
 {
     if (tx.slp.type != gs::slp_transaction_type::invalid) {
-        transaction_map.insert({ tx.txid, tx });
-        return true;
+        return transaction_map.insert({ tx.txid, tx }).second;
     }
 
     return false;
