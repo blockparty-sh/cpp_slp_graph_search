@@ -24,10 +24,21 @@ extern "C" {
         slp_validator->remove_tx(gs::txid(std::string(txid)));
     }
 
-    int cslp_validator_validate(cslp_validator validator, const char * txid)
+    int cslp_validator_validate_txid(cslp_validator validator, const char * txid)
     {
         gs::slp_validator * slp_validator = static_cast<gs::slp_validator*>(validator);
         bool valid = slp_validator->validate(gs::txid(std::string(txid)));
+        return valid;
+    }
+
+    int cslp_validator_validate_tx(cslp_validator validator, const char * txdata, int txdata_len)
+    {
+        gs::slp_validator * slp_validator = static_cast<gs::slp_validator*>(validator);
+        gs::transaction tx;
+        if (! tx.hydrate(txdata, txdata+txdata_len, 0)) {
+            return false;
+        }
+        bool valid = slp_validator->validate(tx);
         return valid;
     }
 

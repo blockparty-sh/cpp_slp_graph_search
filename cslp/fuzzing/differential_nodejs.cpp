@@ -129,7 +129,7 @@ int main(int argc, char * argv[])
         auto slp = absl::get<gs::slp_transaction_mint>(slp_transaction.slp_tx);
 
         ABORT_CHECK (boost::lexical_cast<std::uint64_t>(j["versionType"]) != slp_transaction.token_type);
-        ABORT_CHECK (j["tokenIdHex"].get<std::string>() != slp.tokenid.decompress(true));
+        ABORT_CHECK (j["tokenIdHex"].get<std::string>() != slp_transaction.tokenid.decompress(true));
         ABORT_CHECK (boost::lexical_cast<std::uint64_t>(j["genesisOrMintQuantity"].get<std::string>()) != slp.qty);
         if (j["batonVout"].is_null()) {
             ABORT_CHECK (slp.mint_baton_vout != 0);
@@ -143,7 +143,7 @@ int main(int argc, char * argv[])
         auto slp = absl::get<gs::slp_transaction_send>(slp_transaction.slp_tx);
 
         ABORT_CHECK (boost::lexical_cast<std::uint64_t>(j["versionType"]) != slp_transaction.token_type);
-        ABORT_CHECK (j["tokenIdHex"].get<std::string>() != slp.tokenid.decompress(true));
+        ABORT_CHECK (j["tokenIdHex"].get<std::string>() != slp_transaction.tokenid.decompress(true));
         std::cout << j["sendOutputs"].size() << " " << slp.amounts.size() << std::endl;
         ABORT_CHECK (j["sendOutputs"].size()-1 != slp.amounts.size());
         std::size_t sendOutputsIdx = 0;

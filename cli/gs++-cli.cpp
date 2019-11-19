@@ -82,7 +82,7 @@ public:
 
             {
                 auto start = std::chrono::high_resolution_clock::now();
-                const bool valid = cslp_validator_validate(validator, reinterpret_cast<const char*>(txid.v.data()));
+                const bool valid = cslp_validator_validate_txid(validator, reinterpret_cast<const char*>(txid.v.data()));
                 std::cout << txid.decompress(true) << ": " << ((valid) ? "valid" : "invalid") << "\n";
                 auto end = std::chrono::high_resolution_clock::now();
                 std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
