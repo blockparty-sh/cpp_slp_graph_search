@@ -8,9 +8,11 @@ add_executable(gs++
     ${CMAKE_SOURCE_DIR}/src/utxodb.cpp
     ${CMAKE_SOURCE_DIR}/src/rpc.cpp
     ${CMAKE_SOURCE_DIR}/src/util.cpp
+    ${CMAKE_SOURCE_DIR}/src/transaction.cpp
     ${CMAKE_SOURCE_DIR}/src/slp_transaction.cpp
     ${CMAKE_SOURCE_DIR}/src/sha2.cpp
     ${CMAKE_SOURCE_DIR}/src/block.cpp
+    ${CMAKE_SOURCE_DIR}/src/slp_validator.cpp
     ${PROTO_SRCS}
     ${GRPC_SRCS}
 )

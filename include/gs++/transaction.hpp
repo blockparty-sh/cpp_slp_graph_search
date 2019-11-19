@@ -29,6 +29,7 @@ struct transaction
     std::vector<gs::outpoint> inputs;
     std::vector<gs::output>   outputs;
     gs::slp_transaction slp;
+    std::vector<std::uint8_t> serialized;
 
     transaction()
     : slp()
@@ -41,7 +42,7 @@ struct transaction
 
     // returns size of tx data read or false on error
     template <typename BeginIterator, typename EndIterator>
-    std::uint64_t hydrate(
+    bool hydrate(
         BeginIterator&& begin_it,
         EndIterator&& end_it
     ) {
@@ -154,11 +155,10 @@ struct transaction
 
         const auto tx_end_it = it;
 
-        std::vector<std::uint8_t> serialized_tx;
-        serialized_tx.reserve(tx_end_it - it);
-        std::copy(begin_it, tx_end_it, std::back_inserter(serialized_tx));
+        serialized.reserve(tx_end_it - it);
+        std::copy(begin_it, tx_end_it, std::back_inserter(serialized));
 
-        sha256(serialized_tx.data(), serialized_tx.size(), this->txid.v.data());
+        sha256(serialized.data(), serialized.size(), this->txid.v.data());
         sha256(this->txid.v.data(), this->txid.v.size(), this->txid.v.data());
 
         for (auto & m : this->outputs) {
@@ -174,11 +174,11 @@ struct transaction
             }
         }
 
-        return serialized_tx.size();
+        return true;
     }
 
     template <typename BeginIterator, typename EndIterator>
-    std::uint64_t hydrate(
+    bool hydrate(
         const BeginIterator&& begin_it,
         const EndIterator&& end_it
     ) {

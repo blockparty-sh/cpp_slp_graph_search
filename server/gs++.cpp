@@ -28,6 +28,11 @@
 #include <gs++/bch.hpp>
 #include <gs++/gs_tx.hpp>
 #include <gs++/graph_node.hpp>
+#include <gs++/transaction.hpp>
+#include <gs++/slp_transaction.hpp>
+#include <gs++/block.hpp>
+#include <gs++/slp_validator.hpp>
+#include <gs++/util.hpp>
 
 std::unique_ptr<grpc::Server> gserver;
 std::atomic<int>  current_block_height    = { -1 };
@@ -284,6 +289,67 @@ class GraphSearchServiceImpl final
     }
 };
 
+void slpsync_bitcoind_process_block(const std::vector<std::uint8_t>& block_data)
+{
+    static gs::slp_validator validator;
+
+    gs::block block;
+    if (! block.hydrate(block_data.begin(), block_data.end())) {
+        std::cerr << "failed to parse block\n";
+    }
+
+    std::vector<gs::transaction> slp_txs;
+    for (auto & tx : block.txs) {
+        if (tx.slp.type != gs::slp_transaction_type::invalid) {
+            slp_txs.push_back(tx);
+        }
+    }
+    slp_txs = gs::util::topological_sort(slp_txs);
+
+    absl::flat_hash_map<gs::tokenid, std::vector<gs::transaction>> valid_txs;
+    for (auto & tx : slp_txs) {
+        if (! validator.add_tx(tx)) {
+            std::cerr << "invalid tx: " << tx.txid.decompress(true) << std::endl;
+            continue;
+        }
+
+        if (! valid_txs.count(tx.slp.tokenid)) {
+            valid_txs.insert({ tx.slp.tokenid, { tx } });
+        } else {
+            valid_txs[tx.slp.tokenid].push_back(tx);
+        }
+    }
+
+    for (auto & m : valid_txs) {
+        std::vector<gs::gs_tx> gs_txs;
+        std::transform(
+            m.second.begin(),
+            m.second.end(),
+            std::back_inserter(gs_txs),
+            [](const gs::transaction& tx) -> gs::gs_tx {
+                std::vector<gs::txid> inputs;
+                std::transform(
+                    tx.inputs.begin(),
+                    tx.inputs.end(),
+                    std::back_inserter(inputs),
+                    [](const gs::outpoint & outpoint) -> gs::txid {
+                        return outpoint.txid;
+                    }
+                );
+
+                std::string txdata(tx.serialized.begin(), tx.serialized.end());
+
+                return gs::gs_tx(
+                    tx.txid,
+                    txdata,
+                    inputs
+                );
+            }
+        );
+
+        g.insert_token_data(m.first, gs_txs);
+    }
+}
 
 
 int main(int argc, char * argv[])
@@ -481,7 +547,7 @@ int main(int argc, char * argv[])
                 continue;
             }
             spdlog::info("processing block {}", h);
-            // process_block(block_data.second, true);
+            slpsync_bitcoind_process_block(block_data.second);
         }
 
     }

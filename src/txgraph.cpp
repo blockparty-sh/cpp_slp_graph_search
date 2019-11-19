@@ -69,7 +69,7 @@ unsigned txgraph::insert_token_data (
 ) {
     boost::lock_guard<boost::shared_mutex> lock(lookup_mtx);
 
-    if (! tokens.count(tokenid)) {
+    if (tokens.count(tokenid) == 0) {
         tokens.insert({ tokenid, token_details(tokenid) });
     }
 
@@ -97,11 +97,12 @@ unsigned txgraph::insert_token_data (
     for (graph_node * node : latest) {
         for (const gs::txid & input_txid : input_map[node->txid]) {
             if (! token.graph.count(input_txid)) {
-                spdlog::warn("insert_token_data: input_txid not found in tokengraph {}", input_txid.decompress());
+                spdlog::warn("insert_token_data: input_txid not found in tokengraph {}", input_txid.decompress(true));
                 continue;
             }
 
             node->inputs.emplace_back(&token.graph[input_txid]);
+            spdlog::info("insert_token_data: input_txid {}", input_txid.decompress(true));
         }
     }
 
