@@ -250,6 +250,7 @@ add_subdirectory(${catch_DIR})
 add_subdirectory(${spdlog_DIR})
 add_subdirectory(${mio_DIR})
 add_subdirectory(${cpp-httplib_DIR})
+set(CPPZMQ_BUILD_TESTS OFF)
 add_subdirectory(${cppzmq_DIR})
 add_subdirectory(${nlohmann-json_DIR})
 
