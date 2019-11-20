@@ -143,6 +143,7 @@ struct transaction
 
             CHECK_END(script_len);
             gs::scriptpubkey scriptpubkey(script_len);
+            scriptpubkey.v.reserve(script_len);
             std::copy(it, it+script_len, std::back_inserter(scriptpubkey.v));
             it+=script_len;
 
@@ -155,7 +156,7 @@ struct transaction
 
         const auto tx_end_it = it;
 
-        serialized.reserve(tx_end_it - it);
+        serialized.reserve(tx_end_it - begin_it);
         std::copy(begin_it, tx_end_it, std::back_inserter(serialized));
 
         sha256(serialized.data(), serialized.size(), this->txid.v.data());
