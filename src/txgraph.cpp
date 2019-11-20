@@ -1,5 +1,6 @@
 #include <string>
 #include <vector>
+#include <stack>
 #include <fstream>
 #include <iterator>
 #include <algorithm>
@@ -15,20 +16,6 @@
 
 namespace gs {
 
-void txgraph::recursive_walk__ptr (
-    const graph_node* node,
-    absl::flat_hash_set<const graph_node*> & seen,
-	std::vector<std::string>& ret
-) const {
-    for (const graph_node* n : node->inputs) {
-        if (! seen.count(n)) {
-            seen.insert(n);
-			ret.push_back(n->txdata);
-            recursive_walk__ptr(n, seen, ret);
-        }
-    }
-}
-
 std::pair<graph_search_status, std::vector<std::string>>
 txgraph::graph_search__ptr(const gs::txid lookup_txid)
 {
@@ -40,14 +27,27 @@ txgraph::graph_search__ptr(const gs::txid lookup_txid)
     }
 
     token_details* token = txid_to_token[lookup_txid];
-
     if (token->graph.count(lookup_txid) == 0) {
         return { graph_search_status::NOT_IN_TOKENGRAPH, {} };
     }
 
     absl::flat_hash_set<const graph_node*> seen = { &token->graph[lookup_txid] };
+    std::stack<const graph_node*> stack;
+    stack.push(&token->graph[lookup_txid]);
     std::vector<std::string> ret = { token->graph[lookup_txid].txdata };
-    recursive_walk__ptr(&token->graph[lookup_txid], seen, ret);
+
+    do {
+        const graph_node* node = stack.top();
+        stack.pop();
+
+        for (const graph_node* n : node->inputs) {
+            if (! seen.count(n)) {
+                seen.insert(n);
+                stack.push(n);
+                ret.push_back(n->txdata);
+            }
+        }
+    } while(! stack.empty());
 
     return { graph_search_status::OK, ret };
 }
