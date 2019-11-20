@@ -109,8 +109,8 @@ struct transaction
             
             CHECK_END(script_len);
             std::vector<std::uint8_t> sigscript;
-            sigscript.reserve(script_len);
-            std::copy(it, it+script_len, std::back_inserter(sigscript));
+            sigscript.resize(script_len);
+            std::copy(it, it+script_len, sigscript.begin());
             it+=script_len;
 
             CHECK_END(4);
@@ -143,8 +143,8 @@ struct transaction
 
             CHECK_END(script_len);
             gs::scriptpubkey scriptpubkey(script_len);
-            scriptpubkey.v.reserve(script_len);
-            std::copy(it, it+script_len, std::back_inserter(scriptpubkey.v));
+            scriptpubkey.v.resize(script_len);
+            std::copy(it, it+script_len, scriptpubkey.v.begin());
             it+=script_len;
 
             this->outputs.emplace_back(gs::txid(), out_i, value, scriptpubkey);
@@ -156,8 +156,8 @@ struct transaction
 
         const auto tx_end_it = it;
 
-        serialized.reserve(tx_end_it - begin_it);
-        std::copy(begin_it, tx_end_it, std::back_inserter(serialized));
+        serialized.resize(tx_end_it - begin_it);
+        std::copy(begin_it, tx_end_it, serialized.begin());
 
         sha256(serialized.data(), serialized.size(), this->txid.v.data());
         sha256(this->txid.v.data(), this->txid.v.size(), this->txid.v.data());
