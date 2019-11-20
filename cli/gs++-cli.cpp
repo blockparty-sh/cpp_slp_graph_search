@@ -123,11 +123,10 @@ public:
         }
 
         for (auto n : reply.outputs()) {
-            const std::string   prev_tx_id_str = n.prev_tx_id();
-            const std::uint32_t prev_out_idx   = n.prev_out_idx();
-            const std::uint32_t height         = n.height();
-            const std::uint64_t value          = n.value();
-            const std::string   scriptpubkey_str  = n.scriptpubkey();
+            const std::string   prev_tx_id_str   = n.prev_tx_id();
+            const std::uint32_t prev_out_idx     = n.prev_out_idx();
+            const std::uint64_t value            = n.value();
+            const std::string   scriptpubkey_str = n.scriptpubkey();
 
             gs::txid prev_tx_id(prev_tx_id_str);
 
@@ -144,9 +143,8 @@ public:
 
             std::cout
                 << prev_tx_id.decompress(true) << ":" << prev_out_idx << "\n"
-                << "\theight:       " << height                       << "\n"
                 << "\tvalue:        " << value                        << "\n"
-                << "\tscriptpubkey:    " << scriptpubkey_b64                << "\n";
+                << "\tscriptpubkey: " << scriptpubkey_b64             << "\n";
         }
 
         return true;
@@ -167,11 +165,10 @@ public:
         }
 
         for (auto n : reply.outputs()) {
-            const std::string   prev_tx_id_str = n.prev_tx_id();
-            const std::uint32_t prev_out_idx   = n.prev_out_idx();
-            const std::uint32_t height         = n.height();
-            const std::uint64_t value          = n.value();
-            const std::string   scriptpubkey_str  = n.scriptpubkey();
+            const std::string   prev_tx_id_str   = n.prev_tx_id();
+            const std::uint32_t prev_out_idx     = n.prev_out_idx();
+            const std::uint64_t value            = n.value();
+            const std::string   scriptpubkey_str = n.scriptpubkey();
 
             gs::txid prev_tx_id(prev_tx_id_str);
 
@@ -188,8 +185,7 @@ public:
 
             std::cout
                 << prev_tx_id.decompress(true) << ":" << prev_out_idx << "\n"
-                << "\theight:       " << height                       << "\n"
-                << "\tvalue:        " << value                        << "\n";
+                << "\tvalue: " << value                               << "\n";
         }
 
         return true;

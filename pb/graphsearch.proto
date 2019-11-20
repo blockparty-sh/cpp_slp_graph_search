@@ -30,9 +30,8 @@ message Outpoint {
 message Output {
     bytes  prev_tx_id   = 1;
     uint32 prev_out_idx = 2;
-    uint32 height       = 3;
-    uint64 value        = 4;
-    bytes  scriptpubkey = 5;
+    uint64 value        = 3;
+    bytes  scriptpubkey = 4;
 }
 
 message UtxoSearchByOutpointsRequest {
