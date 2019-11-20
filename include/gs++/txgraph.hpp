@@ -32,7 +32,8 @@ struct txgraph
     // this is the meat
     void recursive_walk__ptr (
         const graph_node* node,
-        absl::flat_hash_set<const graph_node*> & seen
+        absl::flat_hash_set<const graph_node*> & seen,
+        std::vector<std::string>& ret
     ) const;
 
     std::pair<graph_search_status, std::vector<std::string>>

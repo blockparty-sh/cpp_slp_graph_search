@@ -1,6 +1,8 @@
 #include <string>
 #include <vector>
 #include <fstream>
+#include <iterator>
+#include <algorithm>
 #include <boost/thread.hpp>
 #include <absl/container/flat_hash_set.h>
 #include <absl/container/flat_hash_map.h>
@@ -15,12 +17,14 @@ namespace gs {
 
 void txgraph::recursive_walk__ptr (
     const graph_node* node,
-    absl::flat_hash_set<const graph_node*> & seen
+    absl::flat_hash_set<const graph_node*> & seen,
+	std::vector<std::string>& ret
 ) const {
     for (const graph_node* n : node->inputs) {
         if (! seen.count(n)) {
             seen.insert(n);
-            recursive_walk__ptr(n, seen);
+			ret.push_back(n->txdata);
+            recursive_walk__ptr(n, seen, ret);
         }
     }
 }
@@ -42,14 +46,8 @@ txgraph::graph_search__ptr(const gs::txid lookup_txid)
     }
 
     absl::flat_hash_set<const graph_node*> seen = { &token->graph[lookup_txid] };
-    recursive_walk__ptr(&token->graph[lookup_txid], seen);
-
-    std::vector<std::string> ret;
-    ret.reserve(seen.size());
-
-    for (auto it = std::begin(seen); it != std::end(seen); ) {
-        ret.push_back(std::move(seen.extract(it++).value())->txdata);
-    }
+    std::vector<std::string> ret = { token->graph[lookup_txid].txdata };
+    recursive_walk__ptr(&token->graph[lookup_txid], seen, ret);
 
     return { graph_search_status::OK, ret };
 }
@@ -70,7 +68,7 @@ unsigned txgraph::insert_token_data (
     boost::lock_guard<boost::shared_mutex> lock(lookup_mtx);
 
     if (tokens.count(tokenid) == 0) {
-        tokens.insert({ tokenid, token_details(tokenid) });
+        tokens.emplace(tokenid, tokenid);
     }
 
     token_details& token = tokens[tokenid];
@@ -102,7 +100,7 @@ unsigned txgraph::insert_token_data (
             }
 
             node->inputs.push_back(&token.graph[input_txid]);
-            spdlog::info("insert_token_data: input_txid {}", input_txid.decompress(true));
+            // spdlog::info("insert_token_data: input_txid {}", input_txid.decompress(true));
         }
     }
 
