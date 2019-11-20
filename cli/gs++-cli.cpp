@@ -56,6 +56,7 @@ public:
 
     bool GraphSearchValidate(const std::string& txid_str)
     {
+        std::cout << "LOOK\t" << txid_str << std::endl;
         graphsearch::GraphSearchRequest request;
         request.set_txid(txid_str);
 
@@ -83,15 +84,6 @@ public:
                     auto end = std::chrono::high_resolution_clock::now();
                     std::cout
                         << "hydrate (" << reply.txdata_size() << ") "
-                        << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
-                }
-
-                {
-                    auto start = std::chrono::high_resolution_clock::now();
-                    txs = gs::util::topological_sort(txs);
-                    auto end = std::chrono::high_resolution_clock::now();
-                    std::cout
-                        << "toposort "
                         << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
                 }
 
