@@ -19,6 +19,15 @@
 #include <gs++/scriptpubkey.hpp>
 #include <gs++/slp_validator.hpp>
 
+#define TIMER(title, code) {\
+    auto start = std::chrono::high_resolution_clock::now();\
+    code\
+    auto end = std::chrono::high_resolution_clock::now();\
+    std::cout\
+        << title << ":\t"\
+        << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";\
+}
+
 
 class GraphSearchServiceClient
 {
@@ -36,27 +45,25 @@ public:
 
         grpc::ClientContext context;
         grpc::Status status = stub_->GraphSearch(&context, request, &reply);
-
-        if (status.ok()) {
-            for (auto n : reply.txdata()) {
-                // 4/3 is recommended size with a bit of a buffer
-                std::string b64(n.size()*1.5, '\0');
-                std::size_t b64_len = 0;
-                base64_encode(n.data(), n.size(), const_cast<char*>(b64.data()), &b64_len, 0);
-                b64.resize(b64_len);
-                std::cout << b64 << "\n";
-            }
-
-            return true;
-        } else {
+        if (! status.ok()) {
             std::cout << status.error_code() << ": " << status.error_message() << std::endl;
             return false;
         }
+
+        for (auto n : reply.txdata()) {
+            // 4/3 is recommended size with a bit of a buffer
+            std::string b64(n.size()*1.5, '\0');
+            std::size_t b64_len = 0;
+            base64_encode(n.data(), n.size(), const_cast<char*>(b64.data()), &b64_len, 0);
+            b64.resize(b64_len);
+            std::cout << b64 << "\n";
+        }
+
+        return true;
     }
 
     bool GraphSearchValidate(const std::string& txid_str)
     {
-        std::cout << "LOOK\t" << txid_str << std::endl;
         graphsearch::GraphSearchRequest request;
         request.set_txid(txid_str);
 
@@ -66,58 +73,33 @@ public:
         grpc::Status status = stub_->GraphSearch(&context, request, &reply);
 
 
-        if (status.ok()) {
-            gs::slp_validator validator;
-            {
-                std::vector<gs::transaction> txs;
-                {
-                    auto start = std::chrono::high_resolution_clock::now();
-                    for (auto & n : reply.txdata()) {
-                        gs::transaction tx;
-                        if (! tx.hydrate(n.begin(), n.end())) {
-                            std::cerr << "ERROR: could not hydrate from txdata\n";
-                            continue;
-                        }
-
-                        txs.push_back(tx);
-                    }
-                    auto end = std::chrono::high_resolution_clock::now();
-                    std::cout
-                        << "hydrate (" << reply.txdata_size() << ") "
-                        << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
-                }
-
-                {
-                    auto start = std::chrono::high_resolution_clock::now();
-                    for (auto & n : txs) {
-                        validator.add_tx(n);
-                    }
-
-                    auto end = std::chrono::high_resolution_clock::now();
-                    std::cout
-                        << "validator.add_tx "
-                        << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
-                }
-            }
-
-            gs::txid txid(txid_str);
-            std::reverse(txid.v.begin(), txid.v.end());
-
-            {
-                auto start = std::chrono::high_resolution_clock::now();
-                const bool valid = validator.validate(txid);
-                std::cout << txid.decompress(true) << ": " << ((valid) ? "valid" : "invalid") << "\n";
-                auto end = std::chrono::high_resolution_clock::now();
-                std::cout
-                    << "validate "
-                    << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
-            }
-
-            return true;
-        } else {
+        if (! status.ok()) {
             std::cout << status.error_code() << ": " << status.error_message() << std::endl;
             return false;
         }
+
+        gs::slp_validator validator;
+        TIMER("hydrate", {
+            for (auto & n : reply.txdata()) {
+                gs::transaction tx;
+                if (! tx.hydrate(n.begin(), n.end())) {
+                    std::cerr << "ERROR: could not hydrate from txdata\n";
+                    continue;
+                }
+
+                validator.add_tx(tx);
+            }
+        });
+
+        gs::txid txid(txid_str);
+        std::reverse(txid.v.begin(), txid.v.end());
+
+        TIMER("validate", {
+            const bool valid = validator.validate(txid);
+            std::cout << txid.decompress(true) << ": " << ((valid) ? "valid" : "invalid") << "\n";
+        });
+
+        return true;
     }
 
     bool UtxoSearchByOutpoints(
@@ -135,40 +117,39 @@ public:
 
         grpc::ClientContext context;
         grpc::Status status = stub_->UtxoSearchByOutpoints(&context, request, &reply);
-
-        if (status.ok()) {
-            for (auto n : reply.outputs()) {
-                const std::string   prev_tx_id_str = n.prev_tx_id();
-                const std::uint32_t prev_out_idx   = n.prev_out_idx();
-                const std::uint32_t height         = n.height();
-                const std::uint64_t value          = n.value();
-                const std::string   scriptpubkey_str  = n.scriptpubkey();
-
-                gs::txid prev_tx_id(prev_tx_id_str);
-
-                std::string scriptpubkey_b64(scriptpubkey_str.size()*1.5, '\0');
-                std::size_t scriptpubkey_b64_len = 0;
-                base64_encode(
-                    scriptpubkey_str.data(),
-                    scriptpubkey_str.size(),
-                    const_cast<char*>(scriptpubkey_b64.data()),
-                    &scriptpubkey_b64_len,
-                    0
-                );
-                scriptpubkey_b64.resize(scriptpubkey_b64_len);
-
-                std::cout
-                    << prev_tx_id.decompress(true) << ":" << prev_out_idx << "\n"
-                    << "\theight:       " << height                       << "\n"
-                    << "\tvalue:        " << value                        << "\n"
-                    << "\tscriptpubkey:    " << scriptpubkey_b64                << "\n";
-            }
-
-            return true;
-        } else {
+        if (! status.ok()) {
             std::cout << status.error_code() << ": " << status.error_message() << std::endl;
             return false;
         }
+
+        for (auto n : reply.outputs()) {
+            const std::string   prev_tx_id_str = n.prev_tx_id();
+            const std::uint32_t prev_out_idx   = n.prev_out_idx();
+            const std::uint32_t height         = n.height();
+            const std::uint64_t value          = n.value();
+            const std::string   scriptpubkey_str  = n.scriptpubkey();
+
+            gs::txid prev_tx_id(prev_tx_id_str);
+
+            std::string scriptpubkey_b64(scriptpubkey_str.size()*1.5, '\0');
+            std::size_t scriptpubkey_b64_len = 0;
+            base64_encode(
+                scriptpubkey_str.data(),
+                scriptpubkey_str.size(),
+                const_cast<char*>(scriptpubkey_b64.data()),
+                &scriptpubkey_b64_len,
+                0
+            );
+            scriptpubkey_b64.resize(scriptpubkey_b64_len);
+
+            std::cout
+                << prev_tx_id.decompress(true) << ":" << prev_out_idx << "\n"
+                << "\theight:       " << height                       << "\n"
+                << "\tvalue:        " << value                        << "\n"
+                << "\tscriptpubkey:    " << scriptpubkey_b64                << "\n";
+        }
+
+        return true;
     }
 
     bool UtxoSearchByScriptPubKey(const gs::scriptpubkey scriptpubkey)
@@ -180,39 +161,38 @@ public:
 
         grpc::ClientContext context;
         grpc::Status status = stub_->UtxoSearchByScriptPubKey(&context, request, &reply);
-
-        if (status.ok()) {
-            for (auto n : reply.outputs()) {
-                const std::string   prev_tx_id_str = n.prev_tx_id();
-                const std::uint32_t prev_out_idx   = n.prev_out_idx();
-                const std::uint32_t height         = n.height();
-                const std::uint64_t value          = n.value();
-                const std::string   scriptpubkey_str  = n.scriptpubkey();
-
-                gs::txid prev_tx_id(prev_tx_id_str);
-
-                std::string scriptpubkey_b64(scriptpubkey_str.size()*1.5, '\0');
-                std::size_t scriptpubkey_b64_len = 0;
-                base64_encode(
-                    scriptpubkey_str.data(),
-                    scriptpubkey_str.size(),
-                    const_cast<char*>(scriptpubkey_b64.data()),
-                    &scriptpubkey_b64_len,
-                    0
-                );
-                scriptpubkey_b64.resize(scriptpubkey_b64_len);
-
-                std::cout
-                    << prev_tx_id.decompress(true) << ":" << prev_out_idx << "\n"
-                    << "\theight:       " << height                       << "\n"
-                    << "\tvalue:        " << value                        << "\n";
-            }
-
-            return true;
-        } else {
+        if (! status.ok()) {
             std::cout << status.error_code() << ": " << status.error_message() << std::endl;
             return false;
         }
+
+        for (auto n : reply.outputs()) {
+            const std::string   prev_tx_id_str = n.prev_tx_id();
+            const std::uint32_t prev_out_idx   = n.prev_out_idx();
+            const std::uint32_t height         = n.height();
+            const std::uint64_t value          = n.value();
+            const std::string   scriptpubkey_str  = n.scriptpubkey();
+
+            gs::txid prev_tx_id(prev_tx_id_str);
+
+            std::string scriptpubkey_b64(scriptpubkey_str.size()*1.5, '\0');
+            std::size_t scriptpubkey_b64_len = 0;
+            base64_encode(
+                scriptpubkey_str.data(),
+                scriptpubkey_str.size(),
+                const_cast<char*>(scriptpubkey_b64.data()),
+                &scriptpubkey_b64_len,
+                0
+            );
+            scriptpubkey_b64.resize(scriptpubkey_b64_len);
+
+            std::cout
+                << prev_tx_id.decompress(true) << ":" << prev_out_idx << "\n"
+                << "\theight:       " << height                       << "\n"
+                << "\tvalue:        " << value                        << "\n";
+        }
+
+        return true;
     }
 
     bool BalanceByScriptPubKey(const gs::scriptpubkey scriptpubkey)
@@ -224,15 +204,14 @@ public:
 
         grpc::ClientContext context;
         grpc::Status status = stub_->BalanceByScriptPubKey(&context, request, &reply);
-
-        if (status.ok()) {
-            const std::uint64_t balance = reply.balance();
-            std::cout << balance << "\n";
-            return true;
-        } else {
+        if (! status.ok()) {
             std::cout << status.error_code() << ": " << status.error_message() << std::endl;
             return false;
         }
+
+        const std::uint64_t balance = reply.balance();
+        std::cout << balance << "\n";
+        return true;
     }
 
 private:
