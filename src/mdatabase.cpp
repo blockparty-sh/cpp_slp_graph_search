@@ -35,7 +35,7 @@ std::vector<gs::tokenid> mdatabase::get_all_token_ids()
         const auto el = doc["tokenDetails"]["tokenIdHex"];
         assert(el && el.type() == bsoncxx::type::k_utf8);
         const std::string tokenidhex_str = bsoncxx::string::to_string(el.get_utf8().value);
-        ret.emplace_back(gs::tokenid(tokenidhex_str));
+        ret.emplace_back(tokenidhex_str);
     }
 
     return ret;
@@ -205,10 +205,10 @@ std::vector<gs_tx> mdatabase::load_token(
             auto input_txid_el = input_s_el["txid"];
             assert(input_txid_el && input_txid_el.type() == bsoncxx::type::k_utf8);
             const std::string input_txid_str = bsoncxx::string::to_string(input_txid_el.get_utf8().value);
-            inputs.emplace_back(gs::txid(input_txid_str));
+            inputs.emplace_back(input_txid_str);
         }
 
-        ret.emplace_back(gs_tx(gs::txid(txid_str), txdata_str, inputs));
+        ret.emplace_back(gs::txid(txid_str), txdata_str, inputs);
     }
 
     return ret;
@@ -288,14 +288,14 @@ absl::flat_hash_map<gs::tokenid, std::vector<gs_tx>> mdatabase::load_block(
                 auto input_txid_el = input_s_el["txid"];
                 assert(input_txid_el && input_txid_el.type() == bsoncxx::type::k_utf8);
                 const std::string input_txid_str = bsoncxx::string::to_string(input_txid_el.get_utf8().value);
-                inputs.emplace_back(gs::txid(input_txid_str));
+                inputs.emplace_back(input_txid_str);
             }
 
             if (! ret.count(tokenidhex)) {
                 ret.insert({ tokenidhex, {} });
             }
 
-            ret[tokenidhex].emplace_back(gs_tx(gs::txid(txid_str), txdata_str, inputs));
+            ret[tokenidhex].emplace_back(gs::txid(txid_str), txdata_str, inputs);
 
             break; // this is used for $lookup so just 1 item
         }

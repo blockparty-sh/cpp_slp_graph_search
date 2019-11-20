@@ -117,7 +117,7 @@ struct transaction
             const std::uint32_t sequence { gs::util::extract_u32(it) };
             DEBUG_PRINT(sequence);
 
-            this->inputs.push_back(gs::outpoint(prev_tx_id, prev_out_idx));
+            this->inputs.emplace_back(prev_tx_id, prev_out_idx);
         }
 
         CHECK_END(1+gs::util::var_int_additional_size(it));
@@ -146,7 +146,7 @@ struct transaction
             std::copy(it, it+script_len, std::back_inserter(scriptpubkey.v));
             it+=script_len;
 
-            this->outputs.push_back(gs::output({}, out_i, value, scriptpubkey));
+            this->outputs.emplace_back(gs::txid(), out_i, value, scriptpubkey);
         }
 
         CHECK_END(4-1); // minus 1 because +4 could be the end

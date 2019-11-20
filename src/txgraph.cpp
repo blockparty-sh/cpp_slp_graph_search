@@ -48,7 +48,7 @@ txgraph::graph_search__ptr(const gs::txid lookup_txid)
     ret.reserve(seen.size());
 
     for (auto it = std::begin(seen); it != std::end(seen); ) {
-        ret.emplace_back(std::move(seen.extract(it++).value())->txdata);
+        ret.push_back(std::move(seen.extract(it++).value())->txdata);
     }
 
     return { graph_search_status::OK, ret };
@@ -88,7 +88,7 @@ unsigned txgraph::insert_token_data (
             token.graph.insert({ tx.txid, graph_node(tx.txid, tx.txdata) });
             txid_to_token.insert({ tx.txid, &token });
             input_map.insert({ tx.txid, tx.inputs });
-            latest.emplace_back(&token.graph[tx.txid]);
+            latest.push_back(&token.graph[tx.txid]);
             ++ret;
         }
     }
@@ -101,7 +101,7 @@ unsigned txgraph::insert_token_data (
                 continue;
             }
 
-            node->inputs.emplace_back(&token.graph[input_txid]);
+            node->inputs.push_back(&token.graph[input_txid]);
             spdlog::info("insert_token_data: input_txid {}", input_txid.decompress(true));
         }
     }

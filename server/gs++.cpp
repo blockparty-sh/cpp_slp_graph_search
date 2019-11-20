@@ -118,10 +118,10 @@ std::vector<gs::gs_tx> load_token_from_disk(gs::txgraph & g, const gs::tokenid t
             gs::txid input;
             std::copy(it, it+txid.size(), std::begin(input));
             it += txid.size();
-            inputs.emplace_back(input);
+            inputs.push_back(input);
         }
 
-        ret.emplace_back(gs::gs_tx(txid, txdata, inputs));
+        ret.emplace_back(txid, txdata, inputs);
     }
     file.close();
 
@@ -220,7 +220,7 @@ class GraphSearchServiceImpl final
 
         std::vector<gs::outpoint> outpoints;
         for (auto o : request->outpoints()) {
-            outpoints.push_back(gs::outpoint(o.txid(), o.vout()));
+            outpoints.emplace_back(o.txid(), o.vout());
         }
 
         const std::vector<gs::output> outputs = bch.utxodb.get_outputs_by_outpoints(outpoints);

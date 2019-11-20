@@ -90,7 +90,7 @@ bool utxodb::load_from_bchd_checkpoint (
             if (! scriptpubkey_to_output.count(scriptpubkey)) {
                 scriptpubkey_to_output.insert({ scriptpubkey, { oid } });
             } else {
-                scriptpubkey_to_output[scriptpubkey].emplace(oid);
+                scriptpubkey_to_output[scriptpubkey].insert(oid);
             }
         }
 
@@ -191,7 +191,7 @@ void utxodb::rollback()
         if (! scriptpubkey_to_output.count(m.scriptpubkey)) {
             scriptpubkey_to_output.insert({ m.scriptpubkey, { oid } });
         } else {
-            scriptpubkey_to_output[m.scriptpubkey].emplace(oid);
+            scriptpubkey_to_output[m.scriptpubkey].insert(oid);
         }
 
         // std::cout << "\tadded: " << m.prev_tx_id.decompress(true) << ":" << m.prev_out_idx << "\n";

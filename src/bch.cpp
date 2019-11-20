@@ -39,15 +39,15 @@ void bch::process_block(
 
     for (auto & tx : block.txs) {
         for (auto & m : tx.inputs) {
-            blk_inputs.emplace_back(m);
+            blk_inputs.push_back(m);
         }
 
         for (auto & m : tx.outputs) {
-            blk_outputs.emplace_back(m);
+            blk_outputs.push_back(m);
         }
 
         if (tx.slp.type != gs::slp_transaction_type::invalid) {
-            slp_txs.emplace_back(tx);
+            slp_txs.push_back(tx);
         }
     }
 
@@ -67,7 +67,7 @@ void bch::process_block(
         if (! utxodb.scriptpubkey_to_output.count(m.scriptpubkey)) {
             utxodb.scriptpubkey_to_output.insert({ m.scriptpubkey, { oid } });
         } else {
-            utxodb.scriptpubkey_to_output[m.scriptpubkey].emplace(oid);
+            utxodb.scriptpubkey_to_output[m.scriptpubkey].insert(oid);
         }
 
         utxodb.mempool_outpoint_map.erase(outpoint);
@@ -194,7 +194,7 @@ void bch::process_mempool_tx(const std::vector<std::uint8_t>& msg_data)
         if (! utxodb.scriptpubkey_to_output.count(m.scriptpubkey)) {
             utxodb.mempool_scriptpubkey_to_output.insert({ m.scriptpubkey, { oid } });
         } else {
-            utxodb.mempool_scriptpubkey_to_output[m.scriptpubkey].emplace(oid);
+            utxodb.mempool_scriptpubkey_to_output[m.scriptpubkey].insert(oid);
         }
     }
 

@@ -185,7 +185,7 @@ slp_transaction::slp_transaction(const gs::scriptpubkey& scriptpubkey)
         const std::pair<bool, std::string> data = extract_string(len_check.second);
         PARSE_CHECK(! data.first, "pushdata data extraction failed");
 
-        chunks.emplace_back(data.second);
+        chunks.push_back(data.second);
 
         // quick exit optimization
         if (chunks.size() == 1) {
