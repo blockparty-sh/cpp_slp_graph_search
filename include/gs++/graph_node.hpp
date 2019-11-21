@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <cstdint>
 #include "graph_node.hpp"
 #include "bhash.hpp"
 
@@ -10,15 +11,15 @@ namespace gs {
 
 struct graph_node
 {
-    gs::txid                 txid;
-    std::vector<graph_node*> inputs;
-    std::string              txdata;
+    gs::txid                  txid;
+    std::vector<graph_node*>  inputs;
+    std::vector<std::uint8_t> txdata;
 
     graph_node () {}
 
     graph_node (
-        const gs::txid     & txid,
-        const std::string  & txdata
+        const gs::txid&                  txid,
+        const std::vector<std::uint8_t>& txdata
     )
     : txid(txid)
     , txdata(txdata)

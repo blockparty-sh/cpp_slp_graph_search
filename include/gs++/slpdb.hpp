@@ -31,7 +31,7 @@ struct slpdb
             // TODO remove utxos / cause burns here
             return;
         }
-        std::cout << tx.txid.decompress(true) << "\n";
+        // std::cout << tx.txid.decompress(true) << "\n";
 
         if (tx.slp.type == gs::slp_transaction_type::genesis) {
             const auto slp = absl::get<gs::slp_transaction_genesis>(tx.slp.slp_tx);

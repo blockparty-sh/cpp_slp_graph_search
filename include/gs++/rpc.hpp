@@ -8,6 +8,7 @@
 #include <iostream>
 #include <httplib/httplib.h>
 #include <nlohmann/json.hpp>
+#include <gs++/bhash.hpp>
 #include <gs++/util.hpp>
 
 namespace gs {
@@ -41,6 +42,8 @@ struct rpc
     std::pair<bool, std::uint32_t> get_best_block_height();
 
     std::pair<bool, nlohmann::json> get_decode_raw_transaction(const std::string hex_str);
+    std::pair<bool, std::vector<gs::txid>> get_raw_mempool();
+    std::pair<bool, std::vector<std::uint8_t>> get_raw_transaction(const gs::txid& txid);
 };
 
 }

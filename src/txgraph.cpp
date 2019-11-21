@@ -8,15 +8,15 @@
 #include <absl/container/flat_hash_set.h>
 #include <absl/container/flat_hash_map.h>
 #include <spdlog/spdlog.h>
+#include <gs++/transaction.hpp>
 #include <gs++/graph_node.hpp>
 #include <gs++/token_details.hpp>
 #include <gs++/bhash.hpp>
-#include <gs++/gs_tx.hpp>
 #include <gs++/txgraph.hpp>
 
 namespace gs {
 
-std::pair<graph_search_status, std::vector<std::string>>
+std::pair<graph_search_status, std::vector<std::vector<std::uint8_t>>>
 txgraph::graph_search__ptr(const gs::txid lookup_txid)
 {
     boost::shared_lock<boost::shared_mutex> lock(lookup_mtx);
@@ -34,7 +34,7 @@ txgraph::graph_search__ptr(const gs::txid lookup_txid)
     absl::flat_hash_set<const graph_node*> seen = { &token->graph[lookup_txid] };
     std::stack<const graph_node*> stack;
     stack.push(&token->graph[lookup_txid]);
-    std::vector<std::string> ret = { token->graph[lookup_txid].txdata };
+    std::vector<std::vector<std::uint8_t>> ret = { token->graph[lookup_txid].txdata };
 
     do {
         const graph_node* node = stack.top();
@@ -63,7 +63,7 @@ void txgraph::clear_token_data (const gs::tokenid tokenid)
 
 unsigned txgraph::insert_token_data (
     const gs::tokenid & tokenid,
-    const std::vector<gs::gs_tx> & txs
+    const std::vector<gs::transaction> & txs
 ) {
     boost::lock_guard<boost::shared_mutex> lock(lookup_mtx);
 
@@ -82,25 +82,41 @@ unsigned txgraph::insert_token_data (
     latest.reserve(txs.size());
 
     for (auto & tx : txs) {
-        if (! txid_to_token.count(tx.txid)) {
-            token.graph.insert({ tx.txid, graph_node(tx.txid, tx.txdata) });
-            txid_to_token.insert({ tx.txid, &token });
-            input_map.insert({ tx.txid, tx.inputs });
-            latest.push_back(&token.graph[tx.txid]);
-            ++ret;
+        if (txid_to_token.count(tx.txid)) {
+            continue;
         }
+
+        token.graph.insert({ tx.txid, graph_node(tx.txid, tx.serialized) });
+        txid_to_token.insert({ tx.txid, &token });
+
+        std::vector<gs::txid> inputs;
+        inputs.reserve(tx.inputs.size());
+        std::transform(
+            tx.inputs.begin(),
+            tx.inputs.end(),
+            std::back_inserter(inputs),
+            [](const gs::outpoint& outpoint) -> gs::txid {
+                return outpoint.txid;
+            }
+        );
+
+        input_map.insert({ tx.txid, inputs });
+        latest.push_back(&token.graph[tx.txid]);
+        ++ret;
+
+        // std::cout << "txid:\t" << tx.txid.decompress(true) << "\n";
     }
 
     // second pass to add inputs
     for (graph_node * node : latest) {
         for (const gs::txid & input_txid : input_map[node->txid]) {
             if (! token.graph.count(input_txid)) {
-                spdlog::warn("insert_token_data: input_txid not found in tokengraph {}", input_txid.decompress(true));
+                // spdlog::warn("insert_token_data: input_txid not found in tokengraph {}", input_txid.decompress(true));
                 continue;
             }
 
             node->inputs.push_back(&token.graph[input_txid]);
-            // spdlog::info("insert_token_data: input_txid {}", input_txid.decompress(true));
+            spdlog::info("insert_token_data: input_txid {}", input_txid.decompress(true));
         }
     }
 

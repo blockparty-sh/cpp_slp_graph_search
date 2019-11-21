@@ -11,7 +11,6 @@
 #include <unistd.h>
 #include <getopt.h>
 
-#include <boost/filesystem.hpp>
 #include <boost/thread.hpp>
 #include <grpc++/grpc++.h>
 #include <spdlog/spdlog.h>
@@ -22,11 +21,9 @@
 #include "graphsearch.grpc.pb.h"
 
 #include <gs++/bhash.hpp>
-#include <gs++/mdatabase.hpp>
 #include <gs++/txgraph.hpp>
 #include <gs++/rpc.hpp>
 #include <gs++/bch.hpp>
-#include <gs++/gs_tx.hpp>
 #include <gs++/graph_node.hpp>
 #include <gs++/transaction.hpp>
 #include <gs++/slp_transaction.hpp>
@@ -35,98 +32,12 @@
 #include <gs++/util.hpp>
 
 std::unique_ptr<grpc::Server> gserver;
-std::atomic<int>  current_block_height    = { -1 };
-std::atomic<bool> continue_watching_mongo = { true };
+std::atomic<int>  current_block_height    = { 543375 };
 std::atomic<bool> exit_early = { false };
 
+gs::slp_validator validator;
 gs::txgraph g;
 gs::bch bch;
-
-
-boost::filesystem::path get_tokendir(const gs::tokenid tokenid)
-{
-    const std::string tokenid_str = tokenid.decompress();
-    const std::string p1 = tokenid_str.substr(0, 1);
-    const std::string p2 = tokenid_str.substr(1, 1);
-    return boost::filesystem::path("cache") / p1 / p2;
-}
-
-bool save_token_to_disk(gs::txgraph & g, const gs::tokenid tokenid)
-{
-    boost::shared_lock<boost::shared_mutex> lock(g.lookup_mtx);
-    std::string tokenid_str = tokenid.decompress();
-    spdlog::info("saving token to disk {}", tokenid_str);
-
-    const boost::filesystem::path tokendir = get_tokendir(tokenid_str);
-    boost::filesystem::create_directories(tokendir);
-
-    const boost::filesystem::path tokenpath(tokendir / tokenid_str);
-    boost::filesystem::ofstream outf(tokenpath, std::ofstream::binary);
-
-    for (auto it : g.tokens[tokenid].graph) {
-        auto node = it.second;
-        outf.write(reinterpret_cast<const char *>(node.txid.data()), node.txid.size());
-
-        const std::size_t txdata_size = node.txdata.size();
-        outf.write(reinterpret_cast<const char *>(&txdata_size), sizeof(std::size_t));
-
-        outf.write(node.txdata.data(), node.txdata.size());
-
-        const std::size_t inputs_size = node.inputs.size();
-        outf.write(reinterpret_cast<const char *>(&inputs_size), sizeof(std::size_t));
-
-        for (gs::graph_node* input : node.inputs) {
-            outf.write(reinterpret_cast<const char *>(input->txid.data()), input->txid.size());
-        }
-    }
-
-    return true;
-}
-
-std::vector<gs::gs_tx> load_token_from_disk(gs::txgraph & g, const gs::tokenid tokenid)
-{
-    boost::shared_lock<boost::shared_mutex> lock(g.lookup_mtx);
-
-    boost::filesystem::path tokenpath = get_tokendir(tokenid) / tokenid.decompress();
-    boost::filesystem::ifstream file(tokenpath, std::ios::binary);
-    spdlog::info("loading token from disk {}", tokenpath.string());
-    std::vector<std::uint8_t> fbuf(std::istreambuf_iterator<char>(file), {});
-    std::vector<gs::gs_tx> ret;
-
-
-    auto it = std::begin(fbuf);
-    while (it != std::end(fbuf)) {
-        gs::txid txid;
-        std::copy(it, it+txid.size(), std::begin(txid));
-        it += txid.size();
-
-        std::size_t txdata_size;
-        std::copy(it, it+sizeof(std::size_t), reinterpret_cast<char*>(&txdata_size));
-        it += sizeof(std::size_t);
-
-        std::string txdata(txdata_size, '\0');
-        std::copy(it, it+txdata_size, std::begin(txdata));
-        it += txdata_size;
-
-        std::size_t inputs_size;
-        std::copy(it, it+sizeof(inputs_size), reinterpret_cast<char*>(&inputs_size));
-        it += sizeof(inputs_size);
-
-        std::vector<gs::txid> inputs;
-        inputs.reserve(inputs_size);
-        for (std::size_t i=0; i<inputs_size; ++i) {
-            gs::txid input;
-            std::copy(it, it+txid.size(), std::begin(input));
-            it += txid.size();
-            inputs.push_back(input);
-        }
-
-        ret.emplace_back(txid, txdata, inputs);
-    }
-    file.close();
-
-    return ret;
-}
 
 
 std::string scriptpubkey_to_base64(const gs::scriptpubkey& pubkey)
@@ -149,7 +60,6 @@ void signal_handler(int signal)
     spdlog::info("received signal {} requesting to shut down", signal);
 
     exit_early              = true;
-    continue_watching_mongo = false;
 
     if (gserver) {
         const auto deadline = std::chrono::system_clock::now() +
@@ -168,18 +78,18 @@ class GraphSearchServiceImpl final
     ) override {
         const auto start = std::chrono::steady_clock::now();
 
-        const std::string lookup_txid = request->txid();
+        const gs::txid lookup_txid(request->txid());
 
-        std::pair<gs::graph_search_status, std::vector<std::string>> result;
+        std::pair<gs::graph_search_status, std::vector<std::vector<std::uint8_t>>> result;
         // cowardly validating user provided data
         static const std::regex txid_regex("^[0-9a-fA-F]{64}$");
-        const bool rmatch = std::regex_match(lookup_txid, txid_regex);
+        const bool rmatch = std::regex_match(request->txid(), txid_regex);
         if (rmatch) {
-            result = g.graph_search__ptr(gs::txid(lookup_txid));
+            result = g.graph_search__ptr(lookup_txid);
 
             if (result.first == gs::graph_search_status::OK) {
-                for (auto i : result.second) {
-                    reply->add_txdata(i);
+                for (auto & m : result.second) {
+                    reply->add_txdata(m.data(), m.size());
                 }
             }
         }
@@ -189,7 +99,7 @@ class GraphSearchServiceImpl final
         const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
 
         if (rmatch) {
-            spdlog::info("lookup: {} {} ({} ms)", lookup_txid, result.second.size(), diff_ms);
+            spdlog::info("lookup: {} {} ({} ms)", lookup_txid.decompress(true), result.second.size(), diff_ms);
 
             switch (result.first) {
                 case gs::graph_search_status::OK:
@@ -198,7 +108,7 @@ class GraphSearchServiceImpl final
                     return { grpc::StatusCode::NOT_FOUND,
                             "txid not found" };
                 case gs::graph_search_status::NOT_IN_TOKENGRAPH:
-                    spdlog::error("graph_search__ptr: txid not found in tokengraph {}", lookup_txid);
+                    spdlog::error("graph_search__ptr: txid not found in tokengraph {}", lookup_txid.decompress(true));
                     return { grpc::StatusCode::INTERNAL, 
                             "txid found but not in tokengraph" };
                 default:
@@ -289,14 +199,9 @@ class GraphSearchServiceImpl final
     }
 };
 
-void slpsync_bitcoind_process_block(const std::vector<std::uint8_t>& block_data)
+bool slpsync_bitcoind_process_block(const gs::block& block)
 {
-    static gs::slp_validator validator;
-
-    gs::block block;
-    if (! block.hydrate(block_data.begin(), block_data.end())) {
-        std::cerr << "failed to parse block\n";
-    }
+    spdlog::info("processing block {}", current_block_height);
 
     std::vector<gs::transaction> slp_txs;
     for (auto & tx : block.txs) {
@@ -321,36 +226,33 @@ void slpsync_bitcoind_process_block(const std::vector<std::uint8_t>& block_data)
     }
 
     for (auto & m : valid_txs) {
-        std::vector<gs::gs_tx> gs_txs;
-        std::transform(
-            m.second.begin(),
-            m.second.end(),
-            std::back_inserter(gs_txs),
-            [](const gs::transaction& tx) -> gs::gs_tx {
-                std::vector<gs::txid> inputs;
-                std::transform(
-                    tx.inputs.begin(),
-                    tx.inputs.end(),
-                    std::back_inserter(inputs),
-                    [](const gs::outpoint & outpoint) -> gs::txid {
-                        return outpoint.txid;
-                    }
-                );
-
-                std::string txdata(tx.serialized.begin(), tx.serialized.end());
-
-                return gs::gs_tx(
-                    tx.txid,
-                    txdata,
-                    inputs
-                );
-            }
-        );
-
-        g.insert_token_data(m.first, gs_txs);
+        g.insert_token_data(m.first, m.second);
     }
+    return true;
 }
 
+bool slpsync_bitcoind_process_tx(const std::vector<std::uint8_t>& txdata)
+{
+    gs::transaction tx;
+    if (! tx.hydrate(txdata.begin(), txdata.end())) {
+        std::cerr << "failed to parse tx\n";
+        return false; // TODO better handling
+    }
+    spdlog::info("zmq-tx {}", tx.txid.decompress(true));
+
+    if (tx.slp.type == gs::slp_transaction_type::invalid) {
+        return true;
+    }
+
+    if (! validator.add_tx(tx)) {
+        std::cerr << "invalid tx: " << tx.txid.decompress(true) << std::endl;
+        return false;
+    }
+
+    g.insert_token_data(tx.slp.tokenid, { tx });
+
+    return true;
+}
 
 int main(int argc, char * argv[])
 {
@@ -359,8 +261,6 @@ int main(int argc, char * argv[])
 
     std::string grpc_host = "0.0.0.0";
     std::string grpc_port = "50051";
-    std::string mongo_db_name = "slpdb";
-    std::string mongo_uri     = "";
 
     std::string   rpc_host = "0.0.0.0";
     std::uint16_t rpc_port = 8332;
@@ -372,7 +272,6 @@ int main(int argc, char * argv[])
     bool disable_utxo_chkpnt_save = false;
     bool disable_utxosync         = false;
     bool disable_zmq              = false;
-    bool disable_mongowatch       = false;
     bool disable_grpc             = false;
     bool disable_slpbitcoindsync  = false;
 
@@ -384,8 +283,6 @@ int main(int argc, char * argv[])
         static struct option long_options[] = {
             { "help",      no_argument,       nullptr, 'h' },
             { "version",   no_argument,       nullptr, 'v' },
-            { "mongo_db",  required_argument, nullptr, 90 },
-            { "mongo_uri", required_argument, nullptr, 91 },
             { "host",      required_argument, nullptr, 100 },
             { "port",      required_argument, nullptr, 101 },
             { "rpc_host",  required_argument, nullptr, 1000 },
@@ -397,7 +294,6 @@ int main(int argc, char * argv[])
             { "disable_utxo_chkpnt_save",    no_argument, nullptr, 2002 },
             { "disable_utxosync",            no_argument, nullptr, 2003 },
             { "disable_zmq",                 no_argument, nullptr, 2004 },
-            { "disable_mongowatch",          no_argument, nullptr, 2005 },
             { "disable_grpc",                no_argument, nullptr, 2006 },
             { "disable_slpbitcoindsync",     no_argument, nullptr, 2007 },
             { "utxo_chkpnt_file",         required_argument, nullptr, 3000 },
@@ -430,8 +326,6 @@ int main(int argc, char * argv[])
                     "gs++ v" << GS_VERSION << std::endl;
                 return EXIT_SUCCESS;
 
-            case 90: ss >> mongo_db_name; break;
-            case 91: ss >> mongo_uri; break;
 
             case 100: ss >> grpc_host; break;
             case 101: ss >> grpc_port; break;
@@ -446,7 +340,6 @@ int main(int argc, char * argv[])
             case 2002: disable_utxo_chkpnt_save = true; break;
             case 2003: disable_utxosync         = true; break;
             case 2004: disable_zmq              = true; break;
-            case 2005: disable_mongowatch       = true; break;
             case 2006: disable_grpc             = true; break;
             case 2007: disable_slpbitcoindsync  = true; break;
 
@@ -468,89 +361,13 @@ int main(int argc, char * argv[])
     if (disable_utxo_chkpnt_save) std::cout << "disable_utxo_chkpnt_save\n";
     if (disable_utxosync)         std::cout << "disable_utxosync\n";
     if (disable_zmq)              std::cout << "disable_zmq\n";
-    if (disable_mongowatch)       std::cout << "disable_mongowatch\n";
     if (disable_grpc)             std::cout << "disable_grpc\n";
     if (disable_slpbitcoindsync)  std::cout << "disable_slpbitcoindsync\n";
 
 
-    gs::mdatabase mdb(mongo_db_name, mongo_uri);
-
-
-    if (! disable_slpsync) {
-        spdlog::info("waiting for slpdb to sync...");
-        bool running = false;
-        while (! running) {
-            if (exit_early) {
-                return EXIT_SUCCESS;
-            }
-
-            current_block_height = mdb.get_current_block_height(running);
-
-            if (current_block_height < 0) {
-                std::cerr << "Current block height could not be retrieved.\n"
-                             "This can be caused by a few things:\n"
-                             "\t* Are you running recent SLPDB version?\n"
-                             "\t* Do you have correct database selected?\n";
-                return EXIT_FAILURE;
-            }
-
-            // skip 1 second delay below
-            if (running) {
-                break;
-            }
-
-            const std::chrono::milliseconds await_time { 1000 };
-            std::this_thread::sleep_for(await_time);
-        }
-
-        try {
-            const std::vector<gs::tokenid> token_ids = mdb.get_all_token_ids();
-
-            unsigned cnt = 0;
-            for (const gs::tokenid & tokenid : token_ids) {
-                if (exit_early) {
-                    return EXIT_SUCCESS;
-                }
-
-                auto txs = mdb.load_token(tokenid, current_block_height);
-                const unsigned txs_inserted = g.insert_token_data(tokenid, txs);
-
-                ++cnt;
-                spdlog::info("loaded: {} {}\t({}/{})", tokenid.decompress(), txs_inserted, cnt, token_ids.size());
-            }
-        } catch (const std::logic_error& e) {
-            spdlog::error(e.what());
-            return EXIT_FAILURE;
-        }
-    }
-
     // setup utxodb stuff
     gs::rpc rpc(rpc_host, rpc_port, rpc_user, rpc_pass);
 
-    if (! disable_slpbitcoindsync) {
-        const std::pair<bool, std::uint32_t> best_block_height = rpc.get_best_block_height();
-        if (! best_block_height.first) {
-            spdlog::error("could not connect to rpc");
-            return EXIT_FAILURE;
-        }
-
-        spdlog::info("best block height: {}", best_block_height.second);
-
-        constexpr std::uint32_t slp_start_block = 543375;
-        for (std::uint32_t h=slp_start_block; h<=best_block_height.second; ++h) {
-            const std::pair<bool, std::vector<std::uint8_t>> block_data = rpc.get_raw_block(h);
-            if (! block_data.first) {
-                spdlog::warn("rpc request failed, trying again...");
-                const std::chrono::milliseconds await_time { 1000 };
-                std::this_thread::sleep_for(await_time);
-                --h;
-                continue;
-            }
-            spdlog::info("processing block {}", h);
-            slpsync_bitcoind_process_block(block_data.second);
-        }
-
-    }
 
     if (! disable_utxo_chkpnt_load) {
         bch.utxodb.load_from_bchd_checkpoint(
@@ -586,17 +403,90 @@ int main(int argc, char * argv[])
         bch.utxodb.save_bchd_checkpoint("../utxo-checkpoints/test");
     }
 
-    std::thread mongo_status_update_thread([&] {
-        if (disable_mongowatch) {
-            return;
+    if (! disable_slpbitcoindsync) {
+        while (true) {
+            const std::pair<bool, std::uint32_t> best_block_height = rpc.get_best_block_height();
+            if (! best_block_height.first) {
+                spdlog::error("could not connect to rpc");
+                return EXIT_FAILURE;
+            }
+
+            spdlog::info("best block height: {}", best_block_height.second);
+
+            if (current_block_height == best_block_height.second) {
+                break;
+            }
+
+            for (
+                ;
+                current_block_height<=best_block_height.second;
+                ++current_block_height
+            ) {
+                const std::pair<bool, std::vector<std::uint8_t>> block_data = rpc.get_raw_block(current_block_height);
+                if (! block_data.first) {
+                    spdlog::warn("rpc request failed, trying again...");
+                    const std::chrono::milliseconds await_time { 1000 };
+                    std::this_thread::sleep_for(await_time);
+                    --current_block_height;
+                    continue;
+                }
+                spdlog::info("processing block {}", current_block_height);
+
+                gs::block block;
+                if (! block.hydrate(block_data.second.begin(), block_data.second.end())) {
+                    std::cerr << "failed to parse block\n";
+                    --current_block_height;
+                    continue;
+                }
+                if (! slpsync_bitcoind_process_block(block)) {
+                    std::cerr << "failed to process block\n";
+                    --current_block_height;
+                    continue;
+                }
+            }
+            current_block_height = best_block_height.second;
         }
 
-        mdb.watch_for_status_update(
-            g,
-            current_block_height,
-            continue_watching_mongo
-        );
-    });
+    }
+
+    // TODO we should start zmq prior to this and have some extensive handling
+    // so we dont miss any txs on boot, right now with bad timing this is 
+    // possible. 
+    if (! disable_slpbitcoindsync) {
+        std::pair<bool, std::vector<gs::txid>> txids = rpc.get_raw_mempool();
+        if (! txids.first) {
+            std::cerr << "canot get mempool\n";
+        } else {
+            std::vector<gs::transaction> slp_txs;
+
+            for (const gs::txid & txid : txids.second) {
+                const std::pair<bool, std::vector<std::uint8_t>> txdata = rpc.get_raw_transaction(txid);
+
+                if (! txdata.first) {
+                    std::cerr << "cannot decode tx\n";
+                    continue;
+                }
+                gs::transaction tx;
+                const bool hydration_success = tx.hydrate(txdata.second.begin(), txdata.second.end());
+
+                std::cout << "hydrated mempool: " << hydration_success << " " << tx.txid.decompress(true) << "\n";
+
+                if (hydration_success) {
+                    if (tx.slp.type != gs::slp_transaction_type::invalid) {
+                        slp_txs.push_back(tx);
+                    }
+                }
+            }
+
+            slp_txs = gs::util::topological_sort(slp_txs);
+
+            // special mempool block
+            gs::block block;
+            block.txs = slp_txs;
+
+            slpsync_bitcoind_process_block(block);
+        }
+    }
 
     std::thread zmq_listener([&] {
         if (disable_zmq) {
@@ -629,10 +519,21 @@ int main(int argc, char * argv[])
                     );
 
                     if (env_str == "rawtx") {
-                        bch.process_mempool_tx(msg_data);
+                        slpsync_bitcoind_process_tx(msg_data);
+                        // bch.process_mempool_tx(msg_data);
                     }
                     if (env_str == "rawblock") {
-                        bch.process_block(msg_data, true);
+                        gs::block block;
+                        if (! block.hydrate(msg_data.begin(), msg_data.end())) {
+                            std::cerr << "failed to parse block\n";
+                            continue;
+                        }
+                        if (! slpsync_bitcoind_process_block(block)) {
+                            std::cerr << "failed to process block\n";
+                            continue;
+                        }
+                        // bch.process_block(msg_data, true);
+                        ++current_block_height;
                     }
                 }
             } catch (const zmq::error_t& e) {
@@ -640,6 +541,7 @@ int main(int argc, char * argv[])
             }
         }
     });
+
 
     if (! disable_grpc) {
         const std::string server_address(grpc_host+":"+grpc_port);
@@ -655,8 +557,6 @@ int main(int argc, char * argv[])
             gserver->Wait();
         }
     }
-
-    mongo_status_update_thread.join();
 
     spdlog::info("goodbye");
 

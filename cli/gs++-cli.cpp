@@ -65,7 +65,11 @@ public:
     bool GraphSearchValidate(const std::string& txid_str)
     {
         graphsearch::GraphSearchRequest request;
-        request.set_txid(txid_str);
+
+        gs::txid txid(txid_str);
+        std::reverse(txid.v.begin(), txid.v.end());
+
+        request.set_txid(txid.decompress());
 
         graphsearch::GraphSearchReply reply;
 
@@ -90,9 +94,6 @@ public:
                 validator.add_tx(tx);
             }
         });
-
-        gs::txid txid(txid_str);
-        std::reverse(txid.v.begin(), txid.v.end());
 
         TIMER("validate", {
             const bool valid = validator.validate(txid);

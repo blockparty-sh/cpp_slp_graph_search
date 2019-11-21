@@ -6,10 +6,10 @@
 #include <boost/thread.hpp>
 #include <absl/container/flat_hash_set.h>
 #include <absl/container/node_hash_map.h>
-#include "graph_node.hpp"
-#include "token_details.hpp"
-#include "bhash.hpp"
-#include "gs_tx.hpp"
+#include <gs++/transaction.hpp>
+#include <gs++/graph_node.hpp>
+#include <gs++/token_details.hpp>
+#include <gs++/bhash.hpp>
 
 namespace gs {
 
@@ -29,14 +29,14 @@ struct txgraph
     txgraph()
     {}
 
-    std::pair<graph_search_status, std::vector<std::string>>
+    std::pair<graph_search_status, std::vector<std::vector<std::uint8_t>>>
     graph_search__ptr(const gs::txid lookup_txid);
 
     // void clear_token_data (const gs::tokenid tokenid);
 
     unsigned insert_token_data (
         const gs::tokenid & tokenid,
-        const std::vector<gs_tx> & txs
+        const std::vector<gs::transaction> & txs
     );
 
 };

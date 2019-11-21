@@ -6,6 +6,7 @@
 #include <httplib/httplib.h>
 #include <nlohmann/json.hpp>
 #include <gs++/util.hpp>
+#include <gs++/bhash.hpp>
 #include <gs++/rpc.hpp>
 
 namespace gs {
@@ -136,6 +137,67 @@ std::pair<bool, nlohmann::json> rpc::get_decode_raw_transaction(const std::strin
     }
 
     return { true, jbody[0]["result"] };
+}
+
+std::pair<bool, std::vector<gs::txid>> rpc::get_raw_mempool()
+{
+    std::shared_ptr<httplib::Response> res = query("getrawmempool", nlohmann::json::array({ }));
+    if (! res) {
+        return { false, {} };
+    }
+
+    if (res->status != 200) {
+        return { false, {} };
+    }
+
+    // std::cout << res->body << std::endl;
+    auto jbody = nlohmann::json::parse(res->body);
+
+    if (jbody.size() == 0) {
+        return { false, {} };
+    }
+
+    if (! jbody[0]["error"].is_null()) {
+        std::cerr << jbody[0]["error"] << "\n";
+        return { false, {} };
+    }
+
+    std::vector<gs::txid> ret;
+    for (auto & jtxid : jbody[0]["result"]) {
+        gs::txid txid(jtxid.get<std::string>());
+        std::reverse(txid.v.begin(), txid.v.end());
+        ret.push_back(txid);
+
+    }
+    return { true, ret };
+}
+
+std::pair<bool, std::vector<std::uint8_t>> rpc::get_raw_transaction(const gs::txid& txid)
+{
+    std::shared_ptr<httplib::Response> res = query("getrawtransaction", nlohmann::json::array({ txid.decompress(true), 0 }));
+    if (! res) {
+        return { false, {} };
+    }
+
+    if (res->status != 200) {
+        return { false, {} };
+    }
+
+    // std::cout << res->body << std::endl;
+    auto jbody = nlohmann::json::parse(res->body);
+
+    if (jbody.size() == 0) {
+        return { false, {} };
+    }
+
+    if (! jbody[0]["error"].is_null()) {
+        std::cerr << jbody[0]["error"] << "\n";
+        return { false, {} };
+    }
+
+    std::vector<std::uint8_t> ret = gs::util::compress_hex(jbody[0]["result"].get<std::string>());
+
+    return { true, ret };
 }
 
 }

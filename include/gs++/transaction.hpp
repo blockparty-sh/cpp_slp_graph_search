@@ -47,9 +47,10 @@ struct transaction
         EndIterator&& end_it
     ) {
         constexpr std::uint64_t MAX_TX_SIZE = 1000000;
-        constexpr std::uint64_t MAX_INPUTS  = MAX_TX_SIZE / 64; // TODO set better max
-        constexpr std::uint64_t MAX_OUTPUTS = MAX_TX_SIZE; // TODO set better max
-        constexpr std::uint64_t MAX_SCRIPT_SIZE = 1000; // TODO set better max
+        constexpr std::uint64_t MAX_INPUTS  = MAX_TX_SIZE; // its ok if these are bigger than need be
+        constexpr std::uint64_t MAX_OUTPUTS = MAX_TX_SIZE; // they are for limiting sizes for memory purposes
+        constexpr std::uint64_t MAX_SCRIPT_SIZE = MAX_TX_SIZE; // such as for fuzzing
+// #define ENABLE_BCH_PARSE_PRINTING
 
 #ifdef ENABLE_BCH_PARSE_PRINTING
         #define CHECK_END(n) {    \

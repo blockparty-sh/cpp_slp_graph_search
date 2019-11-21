@@ -49,7 +49,6 @@ struct block
             const bool hydration_success = tx.hydrate(it, end_it);
 
             if (! hydration_success) {
-                assert(! hydration_success);
                 std::cerr << "wtf\n";
                 return false;
             }

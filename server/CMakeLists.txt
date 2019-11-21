@@ -2,7 +2,6 @@ include(${CMAKE_SOURCE_DIR}/cmake/ProtobufGRPCGenerateCpp.cmake)
 
 add_executable(gs++
     ${CMAKE_CURRENT_SOURCE_DIR}/gs++.cpp
-    ${CMAKE_SOURCE_DIR}/src/mdatabase.cpp
     ${CMAKE_SOURCE_DIR}/src/txgraph.cpp
     ${CMAKE_SOURCE_DIR}/src/bch.cpp
     ${CMAKE_SOURCE_DIR}/src/utxodb.cpp
