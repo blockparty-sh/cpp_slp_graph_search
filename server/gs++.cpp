@@ -272,7 +272,6 @@ int main(int argc, char * argv[])
 
     spdlog::info("hello");
 
-    // setup utxodb stuff
     gs::rpc rpc(
         toml::find<std::string>  (config, "bitcoind", "host"),
         toml::find<std::uint16_t>(config, "bitcoind", "port"),
