@@ -213,6 +213,10 @@ bool slpsync_bitcoind_process_block(const gs::block& block)
 
     absl::flat_hash_map<gs::tokenid, std::vector<gs::transaction>> valid_txs;
     for (auto & tx : slp_txs) {
+        if (validator.transaction_map.count(tx.txid)) {
+            // skip over ones we've already added from mempool
+            continue;
+        }
         if (! validator.add_tx(tx)) {
             std::cerr << "invalid tx: " << tx.txid.decompress(true) << std::endl;
             continue;
@@ -238,7 +242,7 @@ bool slpsync_bitcoind_process_tx(const std::vector<std::uint8_t>& txdata)
         std::cerr << "failed to parse tx\n";
         return false; // TODO better handling
     }
-    spdlog::info("zmq-tx {}", tx.txid.decompress(true));
+    // spdlog::info("zmq-tx {}", tx.txid.decompress(true));
 
     if (tx.slp.type == gs::slp_transaction_type::invalid) {
         return true;
