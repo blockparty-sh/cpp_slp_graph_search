@@ -32,8 +32,6 @@ struct txgraph
     std::pair<graph_search_status, std::vector<std::vector<std::uint8_t>>>
     graph_search__ptr(const gs::txid lookup_txid);
 
-    // void clear_token_data (const gs::tokenid tokenid);
-
     unsigned insert_token_data (
         const gs::tokenid & tokenid,
         const std::vector<gs::transaction> & txs

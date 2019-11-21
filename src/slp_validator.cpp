@@ -152,8 +152,7 @@ bool slp_validator::check_genesis(
             if (txi.slp.token_type == 0x81) {
                 VALIDATE_CONTINUE (txi.output_slp_amount(i_outpoint.vout) < 1);
 
-                absl::flat_hash_set<gs::txid> seen;
-                if (check_outputs_valid(seen, txi)) {
+                if (validate(txi)) {
                     return true;
                 }
             }

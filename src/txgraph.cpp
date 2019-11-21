@@ -52,15 +52,6 @@ txgraph::graph_search__ptr(const gs::txid lookup_txid)
     return { graph_search_status::OK, ret };
 }
 
-/* TODO
-void txgraph::clear_token_data (const gs::tokenid tokenid)
-{
-    if (tokens.count(tokenid)) {
-        tokens.erase(tokenid);
-    }
-}
-*/
-
 unsigned txgraph::insert_token_data (
     const gs::tokenid & tokenid,
     const std::vector<gs::transaction> & txs
@@ -82,12 +73,17 @@ unsigned txgraph::insert_token_data (
     latest.reserve(txs.size());
 
     for (auto & tx : txs) {
+        spdlog::info("insert_token_data: txid {}", tx.txid.decompress(true));
         if (txid_to_token.count(tx.txid)) {
+            spdlog::warn("insert_token_data: already in set {}", tx.txid.decompress(true));
             continue;
         }
 
-        token.graph.insert({ tx.txid, graph_node(tx.txid, tx.serialized) });
-        txid_to_token.insert({ tx.txid, &token });
+        token.graph.emplace(std::piecewise_construct,
+            std::forward_as_tuple(tx.txid),
+            std::forward_as_tuple(tx.txid, tx.serialized)
+        );
+        txid_to_token.emplace(tx.txid, &token);
 
         std::vector<gs::txid> inputs;
         inputs.reserve(tx.inputs.size());
@@ -100,7 +96,7 @@ unsigned txgraph::insert_token_data (
             }
         );
 
-        input_map.insert({ tx.txid, inputs });
+        input_map.emplace(tx.txid, inputs);
         latest.push_back(&token.graph[tx.txid]);
         ++ret;
 
@@ -116,7 +112,6 @@ unsigned txgraph::insert_token_data (
             }
 
             node->inputs.push_back(&token.graph[input_txid]);
-            spdlog::info("insert_token_data: input_txid {}", input_txid.decompress(true));
         }
     }
 
