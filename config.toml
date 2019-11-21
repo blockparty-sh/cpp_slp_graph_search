@@ -6,7 +6,8 @@ port = 50051
 host = "0.0.0.0"
 port = 8332
 user = "user"
-pass = "password919191828282777wq"
+pass = "password"
+zmq  = "tcp://127.0.0.1:28332"
 
 [utxo]
 checkpoint = "./utxo-checkpoints/QmXkBQJrMKkCKNbwv4m5xtnqwU9Sq7kucPigvZW8mWxcrv"

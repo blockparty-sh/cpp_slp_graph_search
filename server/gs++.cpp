@@ -264,7 +264,8 @@ int main(int argc, char * argv[])
     // std::signal(SIGINT, signal_handler);
     // std::signal(SIGTERM, signal_handler);
     if (argc < 2) {
-        std::cerr << "must pass config.toml as argument\n";
+        std::cerr << "usage: gs++ config.toml\n";
+        return EXIT_FAILURE;
     }
 
     const auto config = toml::parse(argv[1]);
@@ -278,8 +279,6 @@ int main(int argc, char * argv[])
         toml::find<std::string>  (config, "bitcoind", "user"),
         toml::find<std::string>  (config, "bitcoind", "pass")
     );
-
-
 
     if (toml::find<bool>(config, "services", "utxosync")) {
         if (toml::find<bool>(config, "utxo", "checkpoint_load")) {
@@ -392,58 +391,59 @@ int main(int argc, char * argv[])
         }
     }
 
-    if (toml::find<bool>(config, "services", "zmq")) {
-        std::thread zmq_listener([&] {
-            zmq::context_t context(1);
-            zmq::socket_t sock(context, ZMQ_SUB);
-            sock.connect("tcp://127.0.0.1:28332");
-            sock.setsockopt(ZMQ_SUBSCRIBE, "rawtx", strlen("rawtx"));
+    std::thread zmq_listener([&] {
+        if (! toml::find<bool>(config, "services", "zmq")) {
+            return;
+        }
+        zmq::context_t context(1);
+        zmq::socket_t sock(context, ZMQ_SUB);
+        sock.connect(toml::find<std::string>(config, "bitcoind", "zmq"));
+        sock.setsockopt(ZMQ_SUBSCRIBE, "", 0);
 
-            while (true) {
-                try {
-                    zmq::message_t env;
-                    sock.recv(&env);
-                    std::string env_str = std::string(static_cast<char*>(env.data()), env.size());
+        while (true) {
+            try {
+                zmq::message_t env;
+                sock.recv(&env);
+                std::string env_str = std::string(static_cast<char*>(env.data()), env.size());
 
-                    if (env_str == "rawtx" || env_str == "rawblock") {
-                        // std::cout << "Received envelope '" << env_str << "'" << std::endl;
+                if (env_str == "rawtx" || env_str == "rawblock") {
+                    // std::cout << "Received envelope '" << env_str << "'" << std::endl;
 
-                        zmq::message_t msg;
-                        sock.recv(&msg);
+                    zmq::message_t msg;
+                    sock.recv(&msg);
 
-                        std::vector<std::uint8_t> msg_data;
-                        msg_data.reserve(msg.size());
+                    std::vector<std::uint8_t> msg_data;
+                    msg_data.reserve(msg.size());
 
-                        std::copy(
-                            static_cast<std::uint8_t*>(msg.data()),
-                            static_cast<std::uint8_t*>(msg.data())+msg.size(),
-                            std::back_inserter(msg_data)
-                        );
+                    std::copy(
+                        static_cast<std::uint8_t*>(msg.data()),
+                        static_cast<std::uint8_t*>(msg.data())+msg.size(),
+                        std::back_inserter(msg_data)
+                    );
 
-                        if (env_str == "rawtx") {
-                            slpsync_bitcoind_process_tx(msg_data);
-                            // bch.process_mempool_tx(msg_data);
-                        }
-                        if (env_str == "rawblock") {
-                            gs::block block;
-                            if (! block.hydrate(msg_data.begin(), msg_data.end())) {
-                                std::cerr << "failed to parse block\n";
-                                continue;
-                            }
-                            if (! slpsync_bitcoind_process_block(block)) {
-                                std::cerr << "failed to process block\n";
-                                continue;
-                            }
-                            // bch.process_block(msg_data, true);
-                            ++current_block_height;
-                        }
+                    if (env_str == "rawtx") {
+                        slpsync_bitcoind_process_tx(msg_data);
+                        // bch.process_mempool_tx(msg_data);
                     }
-                } catch (const zmq::error_t& e) {
-                    spdlog::error(e.what());
+                    if (env_str == "rawblock") {
+                        gs::block block;
+                        if (! block.hydrate(msg_data.begin(), msg_data.end())) {
+                            std::cerr << "failed to parse block\n";
+                            continue;
+                        }
+                        if (! slpsync_bitcoind_process_block(block)) {
+                            std::cerr << "failed to process block\n";
+                            continue;
+                        }
+                        // bch.process_block(msg_data, true);
+                        ++current_block_height;
+                    }
                 }
+            } catch (const zmq::error_t& e) {
+                spdlog::error(e.what());
             }
-        });
-    }
+        }
+    });
 
     if (toml::find<bool>(config, "services", "grpc")) {
         const std::string server_address(
