@@ -1,19 +1,30 @@
-project(gs++)
-
-add_definitions(-DGS_VERSION=0.1)
-
 cmake_minimum_required(VERSION 3.9)
+project(gs++ VERSION 1 LANGUAGES CXX)
+
+configure_file(include/config.h.in include/config.h ESCAPE_QUOTES)
+
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+SET(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
+
+option(${PROJECT_NAME}_BUILD_SERVER "Build ${PROJECT_NAME} tests" ON)
+option(${PROJECT_NAME}_BUILD_CLI "Build ${PROJECT_NAME} tests" ON)
+option(${PROJECT_NAME}_BUILD_TXDECODER "Build ${PROJECT_NAME} tests" ON)
+option(${PROJECT_NAME}_BUILD_TESTS "Build ${PROJECT_NAME} tests" ON)
+option(${PROJECT_NAME}_BUILD_CSLP "Build ${PROJECT_NAME} cslp library" OFF)
+option(${PROJECT_NAME}_BUILD_FUZZ "Build ${PROJECT_NAME} fuzzing programs" OFF)
+option(${PROJECT_NAME}_SUPERBUILD "Build ${PROJECT_NAME} and the projects it depends on." ON)
 
 # TODO should these be here
 set(JSON_BuildTests OFF CACHE INTERNAL "")
 set(BUILD_TESTING OFF)
 set(CPPZMQ_BUILD_TESTS OFF)
 set(toml11_BUILD_TEST OFF)
+set(BASE64_BUILD_TESTS OFF)
+set(JSON_BuildTests OFF)
 
 # TODO does this actually work
 include(CheckCXXCompilerFlag)
@@ -29,13 +40,8 @@ find_package(Boost COMPONENTS system filesystem thread REQUIRED)
 find_package(Protobuf REQUIRED)
 find_package(GRPC REQUIRED)
 find_package(Threads REQUIRED)
-find_package(SWIG REQUIRED)
-find_package(PythonLibs)
-include(${SWIG_USE_FILE})
 
 
-# TODO could this be done in a nicer way
-option(${PROJECT_NAME}_SUPERBUILD "Build ${PROJECT_NAME} and the projects it depends on." ON)
 
 if(${PROJECT_NAME}_SUPERBUILD)
 
@@ -113,16 +119,6 @@ if(${PROJECT_NAME}_SUPERBUILD)
     )
     set(spdlog_DIR "${CMAKE_CURRENT_BINARY_DIR}/spdlog/src/spdlog")
 
-    ExternalProject_Add(mio
-        PREFIX mio
-        GIT_REPOSITORY "https://github.com/mandreyel/mio"
-        GIT_TAG "76251b8dde16bdac44acf2547be2470fd75703e1"
-        INSTALL_DIR     "${CMAKE_BINARY_DIR}/mio"
-        CMAKE_CACHE_ARGS
-            -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/mio
-    )
-    set(mio_DIR "${CMAKE_CURRENT_BINARY_DIR}/mio/src/mio")
-
     ExternalProject_Add(cpp-httplib
         PREFIX cpp-httplib
         GIT_REPOSITORY "https://github.com/yhirose/cpp-httplib.git"
@@ -149,7 +145,7 @@ if(${PROJECT_NAME}_SUPERBUILD)
         PREFIX nlohmann-json
         GIT_REPOSITORY "https://github.com/nlohmann/json.git"
         GIT_TAG "v3.7.0"
-        INSTALL_DIR     "${CMAKE_BINARY_DIR}/nlohmann-json.git"
+        INSTALL_DIR     "${CMAKE_BINARY_DIR}/nlohmann-json"
         CMAKE_CACHE_ARGS
             -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/nlohmann-json
     )
@@ -158,54 +154,13 @@ if(${PROJECT_NAME}_SUPERBUILD)
     ExternalProject_Add(toml11
         PREFIX toml11
         GIT_REPOSITORY "https://github.com/ToruNiina/toml11.git"
-        GIT_TAG "v3.1.0"
+        GIT_TAG "26a09b2f65a3ee814abfab4db1c3f831a9282c5b"
         INSTALL_DIR     "${CMAKE_BINARY_DIR}/toml11"
         CMAKE_CACHE_ARGS
             -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/toml11
             -Dtoml11_BUILD_TEST:BOOL=OFF
     )
     set(toml11_DIR "${CMAKE_CURRENT_BINARY_DIR}/toml11/src/toml11")
-
-    ExternalProject_Add(libmongoc
-        GIT_REPOSITORY  "https://github.com/mongodb/mongo-c-driver.git"
-        GIT_TAG         "1.12.0"
-        SOURCE_DIR      "${CMAKE_BINARY_DIR}/libmongoc"
-        BINARY_DIR      "${CMAKE_BINARY_DIR}/libmongoc-build"
-        INSTALL_DIR     "${CMAKE_BINARY_DIR}/libmongoc-install"
-        CMAKE_CACHE_ARGS
-            ${common_cmake_cache_args}
-            -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_BINARY_DIR}/libmongoc-install
-            -DENABLE_TESTS:BOOL=OFF
-            -DENABLE_STATIC:BOOL=OFF
-            -DENABLE_EXAMPLES:BOOL=OFF
-            -DENABLE_EXTRA_ALIGNMENT:BOOL=OFF
-        #INSTALL_COMMAND ""
-    )
-    set(libmongoc-1.0_DIR "${CMAKE_BINARY_DIR}/libmongoc-install/lib/cmake/libmongoc-1.0/")
-    set(libbson-1.0_DIR "${CMAKE_BINARY_DIR}/libmongoc-install/lib/cmake/libbson-1.0/")
-
-    ExternalProject_Add(libmongocxx
-        GIT_REPOSITORY  "https://github.com/mongodb/mongo-cxx-driver.git"
-        GIT_TAG         "r3.3.1"
-        SOURCE_DIR      "${CMAKE_BINARY_DIR}/libmongocxx"
-        BINARY_DIR      "${CMAKE_BINARY_DIR}/libmongocxx-build"
-        INSTALL_DIR     "${CMAKE_BINARY_DIR}/libmongocxx-install"
-        CMAKE_CACHE_ARGS
-            ${common_cmake_cache_args}
-            -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_BINARY_DIR}/libmongocxx-install
-            -DBUILD_SHARED_LIBS:BOOL=ON
-            -DENABLE_TESTS:BOOL=OFF
-            -DENABLE_EXAMPLES:BOOL=OFF
-            -DBSONCXX_POLY_USE_BOOST:BOOL=OFF
-            -DBSONCXX_POLY_USE_MNMLSTC:BOOL=ON
-            -DBSONCXX_POLY_USE_STD:BOOL=OFF
-            -Dlibmongoc-1.0_DIR:PATH=${libmongoc-1.0_DIR}
-            -Dlibbson-1.0_DIR:PATH=${libbson-1.0_DIR}
-        DEPENDS
-            libmongoc
-    )
-    set(libmongocxx_DIR "${CMAKE_BINARY_DIR}/libmongocxx-install/lib/cmake/libmongocxx-3.3.1/")
-    set(libbsoncxx_DIR "${CMAKE_BINARY_DIR}/libmongocxx-install//lib/cmake/libbsoncxx-3.3.1/")
 
 
     function(ExternalProject_AlwaysConfigure proj)
@@ -227,27 +182,30 @@ if(${PROJECT_NAME}_SUPERBUILD)
             ${common_cmake_cache_args}
             -D${PROJECT_NAME}_SUPERBUILD:BOOL=OFF
             -Dslp-unit-test-data_DIR:PATH=${slp-unit-test-data_DIR}
-            -Dlibbsoncxx_DIR:PATH=${libbsoncxx_DIR}
-            -Dlibmongocxx_DIR:PATH=${libmongocxx_DIR}
             -Dabsl_DIR:PATH=${absl_DIR}
             -Dbase64_DIR:PATH=${base64_DIR}
             -Dcatch_DIR:PATH=${catch_DIR}
             -DCATCH_INCLUDE_DIR:PATH=${CATCH_INCLUDE_DIR}
             -Dspdlog_DIR:PATH=${spdlog_DIR}
-            -Dmio_DIR:PATH=${mio_DIR}
             -Dcpp-httplib_DIR:PATH=${cpp-httplib_DIR}
             -Dcppzmq_DIR:PATH=${cppzmq_DIR}
             -Dnlohmann-json_DIR:PATH=${nlohmann-json_DIR}
             -Dtoml11_DIR:PATH=${toml11_DIR}
+            -Dtoml11_BUILD_TEST:BOOL=OFF
+            -DJSON_BuildTests:BOOL=OFF
+            -DBUILD_TESTING:BOOL=OFF
+            -DCPPZMQ_BUILD_TESTS:BOOL=OFF
+            -Dtoml11_BUILD_TEST:BOOL=OFF
+            -DBASE64_BUILD_TESTS:BOOL=OFF
+            -DJSON_BuildTests:BOOL=OFF
+
         INSTALL_COMMAND ""
         DEPENDS
             slp-unit-test-data
-            libmongocxx
             absl
             base64
             catch
             spdlog
-            mio
             cpp-httplib
             cppzmq
             nlohmann-json
@@ -259,13 +217,9 @@ endif()
 
 message(STATUS "Configuring inner-build")
 
-# TODO why can we find_package for libmongocxx but not other packages
-find_package(libmongocxx REQUIRED)
 add_subdirectory(${absl_DIR})
 add_subdirectory(${base64_DIR})
-add_subdirectory(${catch_DIR})
 add_subdirectory(${spdlog_DIR})
-add_subdirectory(${mio_DIR})
 add_subdirectory(${cpp-httplib_DIR})
 add_subdirectory(${cppzmq_DIR})
 add_subdirectory(${nlohmann-json_DIR})
@@ -281,17 +235,32 @@ set(PROTO_SRC_DIR ${CMAKE_CURRENT_BINARY_DIR}/proto-src)
 file(MAKE_DIRECTORY ${PROTO_SRC_DIR})
 include_directories(${PROTO_SRC_DIR})
 
-# TODO why do we need to add this to all subdirectories
-include(${CMAKE_SOURCE_DIR}/cmake/ProtobufGRPCGenerateCpp.cmake)
 
-# TODO why do we need to run these manually
-# someting is wrong here, these should be automatic
+if (${PROJECT_NAME}_BUILD_SERVER)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/server)
+endif()
 
-# TODO add options for building different programs
+if (${PROJECT_NAME}_BUILD_CLI)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/cli)
+endif()
 
-# TODO why do we need to comment these out during first run?
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/server)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/cli)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/cslp)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/test)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/txdecoder)
+if (${PROJECT_NAME}_BUILD_TXDECODER)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/txdecoder)
+endif()
+
+if (${PROJECT_NAME}_BUILD_TESTS)
+    add_subdirectory(${catch_DIR})
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/test)
+endif()
+
+if (${PROJECT_NAME}_BUILD_FUZZ)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/fuzz)
+endif()
+
+if (${PROJECT_NAME}_BUILD_CSLP)
+    find_package(SWIG REQUIRED)
+    find_package(PythonLibs)
+    include(${SWIG_USE_FILE})
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/cslp)
+endif()
+

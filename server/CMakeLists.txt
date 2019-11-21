@@ -19,7 +19,6 @@ add_executable(gs++
 target_include_directories(gs++ PUBLIC
     ${CMAKE_SOURCE_DIR}/include
     ${PROTO_SRC_DIR}
-    ${LIBMONGOCXX_INCLUDE_DIRS}
     ${CMAKE_BINARY_DIR}/cpp-httplib/include
     ${CMAKE_BINARY_DIR}/nlohmann-json/include
     ${CMAKE_BINARY_DIR}/toml11/include
@@ -32,21 +31,12 @@ target_link_libraries(gs++
     base64
     gRPC::grpc++_reflection
     protobuf::libprotobuf
-    ${LIBMONGOCXX_LIBRARIES}
-    ${CMAKE_THREAD_LIBS_INIT}
     spdlog
-    mio
     httplib
     cppzmq
+    ${CMAKE_THREAD_LIBS_INIT}
     ${Boost_FILESYSTEM_LIBRARY}
     ${Boost_SYSTEM_LIBRARY}
     ${Boost_THREAD_LIBRARY}
     ${Boost_OPTIONAL_LIBRARY}
 )
-
-
-target_compile_definitions(gs++ PUBLIC
-    ${LIBMONGOCXX_DEFINITIONS}
-)
-
-target_compile_options(gs++ PRIVATE -Wall)

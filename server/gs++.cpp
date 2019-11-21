@@ -283,11 +283,6 @@ int main(int argc, char * argv[])
 
     if (toml::find<bool>(config, "services", "utxosync")) {
         if (toml::find<bool>(config, "utxo", "checkpoint_load")) {
-            bch.utxodb.load_from_bchd_checkpoint(
-                toml::find<std::string>  (config, "utxo", "checkpoint"),
-                toml::find<std::uint32_t>(config, "utxo", "block_height"),
-                toml::find<std::string>  (config, "utxo", "block_hash")
-            );
         }
 
         const std::pair<bool, std::uint32_t> best_block_height = rpc.get_best_block_height();
@@ -311,7 +306,6 @@ int main(int argc, char * argv[])
         }
 
         if (toml::find<bool>(config, "utxo", "checkpoint_save")) {
-            bch.utxodb.save_bchd_checkpoint("../utxo-checkpoints/test");
         }
     }
 

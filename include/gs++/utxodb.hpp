@@ -43,16 +43,6 @@ struct utxodb
 
     utxodb();
 
-    bool load_from_bchd_checkpoint(
-        const std::string & path,
-        const std::uint32_t block_height,
-        const std::string & block_hash
-    );
-
-    bool save_bchd_checkpoint(
-        const std::string & path
-    );
-
     void rollback();
 
     std::vector<gs::output> get_outputs_by_outpoints(

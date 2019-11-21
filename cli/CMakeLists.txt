@@ -13,6 +13,7 @@ add_executable(gs++-cli
 
 target_include_directories(gs++-cli PRIVATE
     ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_BINARY_DIR}/include
     ${PROTO_SRC_DIR}
 )
 

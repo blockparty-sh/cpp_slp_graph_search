@@ -18,6 +18,7 @@
 #include <gs++/bhash.hpp>
 #include <gs++/scriptpubkey.hpp>
 #include <gs++/slp_validator.hpp>
+#include <config.h>
 
 #define TIMER(title, code) {\
     auto start = std::chrono::high_resolution_clock::now();\
@@ -90,6 +91,8 @@ public:
                     std::cerr << "ERROR: could not hydrate from txdata\n";
                     continue;
                 }
+
+                // std::cout << "token_type:" << tx.slp.token_type << std::endl;
 
                 validator.add_tx(tx);
             }
@@ -259,7 +262,7 @@ int main(int argc, char* argv[])
                 return EXIT_SUCCESS;
             case 'v':
                 std::cout <<
-                    "gs++-cli v" << GS_VERSION << std::endl;
+                    "gs++-cli v" << PROJECT_VERSION << std::endl;
                 return EXIT_SUCCESS;
             case 'b': ss >> grpc_host; break;
             case 'p': ss >> grpc_port; break;

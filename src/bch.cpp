@@ -14,6 +14,8 @@
 #include <gs++/slp_transaction.hpp>
 #include <gs++/block.hpp>
 
+// TODO merge this into gs++ server eventually when working
+
 namespace gs {
 
 // TODO we need to check for memory leaks/bugs
