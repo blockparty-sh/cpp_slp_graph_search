@@ -18,7 +18,6 @@
 #include <libbase64.h>
 #include <toml.hpp>
 
-#include "gs++.hpp"
 #include "graphsearch.grpc.pb.h"
 
 #include <gs++/bhash.hpp>
@@ -396,7 +395,12 @@ int main(int argc, char * argv[])
         }
         zmq::context_t context(1);
         zmq::socket_t sock(context, ZMQ_SUB);
-        sock.connect(toml::find<std::string>(config, "bitcoind", "zmq"));
+        sock.connect(
+            "tcp://"+
+            toml::find<std::string>(config, "bitcoind", "host")+
+            ":"+
+            std::to_string(toml::find<std::uint16_t>(config, "bitcoind", "zmq_port"))
+        );
         sock.setsockopt(ZMQ_SUBSCRIBE, "", 0);
 
         while (true) {
