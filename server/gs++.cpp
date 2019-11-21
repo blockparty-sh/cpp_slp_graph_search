@@ -16,6 +16,7 @@
 #include <spdlog/spdlog.h>
 #include <zmq.hpp>
 #include <libbase64.h>
+#include <toml.hpp>
 
 #include "gs++.hpp"
 #include "graphsearch.grpc.pb.h"
@@ -262,126 +263,33 @@ int main(int argc, char * argv[])
 {
     // std::signal(SIGINT, signal_handler);
     // std::signal(SIGTERM, signal_handler);
-
-    std::string grpc_host = "0.0.0.0";
-    std::string grpc_port = "50051";
-
-    std::string   rpc_host = "0.0.0.0";
-    std::uint16_t rpc_port = 8332;
-    std::string   rpc_user = "user";
-    std::string   rpc_pass = "password";
-
-    bool disable_slpsync          = false;
-    bool disable_utxo_chkpnt_load = false;
-    bool disable_utxo_chkpnt_save = false;
-    bool disable_utxosync         = false;
-    bool disable_zmq              = false;
-    bool disable_grpc             = false;
-    bool disable_slpbitcoindsync  = false;
-
-    std::string   utxo_chkpnt_file         = "../utxo-checkpoints/latest";
-    std::uint32_t utxo_chkpnt_block_height = 0;
-    std::string   utxo_chkpnt_block_hash   = "";
-
-    while (true) {
-        static struct option long_options[] = {
-            { "help",      no_argument,       nullptr, 'h' },
-            { "version",   no_argument,       nullptr, 'v' },
-            { "host",      required_argument, nullptr, 100 },
-            { "port",      required_argument, nullptr, 101 },
-            { "rpc_host",  required_argument, nullptr, 1000 },
-            { "rpc_port",  required_argument, nullptr, 1001 },
-            { "rpc_user",  required_argument, nullptr, 1002 },
-            { "rpc_pass",  required_argument, nullptr, 1003 },
-            { "disable_slpsync",             no_argument, nullptr, 2000 },
-            { "disable_utxo_chkpnt_load",    no_argument, nullptr, 2001 },
-            { "disable_utxo_chkpnt_save",    no_argument, nullptr, 2002 },
-            { "disable_utxosync",            no_argument, nullptr, 2003 },
-            { "disable_zmq",                 no_argument, nullptr, 2004 },
-            { "disable_grpc",                no_argument, nullptr, 2006 },
-            { "disable_slpbitcoindsync",     no_argument, nullptr, 2007 },
-            { "utxo_chkpnt_file",         required_argument, nullptr, 3000 },
-            { "utxo_chkpnt_block_height", required_argument, nullptr, 3001 },
-            { "utxo_chkpnt_block_hash",   required_argument, nullptr, 3002 },
-        };
-
-        int option_index = 0;
-        int c = getopt_long(argc, argv, "hvd:b:p:", long_options, &option_index);
-
-        if (c == -1) {
-            break;
-        }
-
-        std::stringstream ss(optarg != nullptr ? optarg : "");
-        switch (c) {
-            case 0:
-                if (long_options[option_index].flag != 0) {
-                    break;
-                }
-
-                break;
-            case 'h':
-                std::cout <<
-                    "usage: gs++ [--version] [--help] [--db db_name]\n"
-                    "            [--host host_address] [--port port]\n";
-                return EXIT_SUCCESS;
-            case 'v':
-                std::cout <<
-                    "gs++ v" << GS_VERSION << std::endl;
-                return EXIT_SUCCESS;
-
-
-            case 100: ss >> grpc_host; break;
-            case 101: ss >> grpc_port; break;
-
-            case 1000: ss >> rpc_host; break;
-            case 1001: ss >> rpc_port; break;
-            case 1002: ss >> rpc_user; break;
-            case 1003: ss >> rpc_pass; break;
-
-            case 2000: disable_slpsync          = true; break;
-            case 2001: disable_utxo_chkpnt_load = true; break;
-            case 2002: disable_utxo_chkpnt_save = true; break;
-            case 2003: disable_utxosync         = true; break;
-            case 2004: disable_zmq              = true; break;
-            case 2006: disable_grpc             = true; break;
-            case 2007: disable_slpbitcoindsync  = true; break;
-
-            case 3000: ss >> utxo_chkpnt_file;         break;
-            case 3001: ss >> utxo_chkpnt_block_height; break;
-            case 3002: ss >> utxo_chkpnt_block_hash;   break;
-
-            case '?':
-                return EXIT_FAILURE;
-            default:
-                return EXIT_FAILURE;
-        }
+    if (argc < 2) {
+        std::cerr << "must pass config.toml as argument\n";
     }
+
+    const auto config = toml::parse(argv[1]);
 
     spdlog::info("hello");
 
-    if (disable_slpsync)          std::cout << "disable_slpsync\n";
-    if (disable_utxo_chkpnt_load) std::cout << "disable_utxo_chkpnt_load\n";
-    if (disable_utxo_chkpnt_save) std::cout << "disable_utxo_chkpnt_save\n";
-    if (disable_utxosync)         std::cout << "disable_utxosync\n";
-    if (disable_zmq)              std::cout << "disable_zmq\n";
-    if (disable_grpc)             std::cout << "disable_grpc\n";
-    if (disable_slpbitcoindsync)  std::cout << "disable_slpbitcoindsync\n";
-
-
     // setup utxodb stuff
-    gs::rpc rpc(rpc_host, rpc_port, rpc_user, rpc_pass);
+    gs::rpc rpc(
+        toml::find<std::string>  (config, "bitcoind", "host"),
+        toml::find<std::uint16_t>(config, "bitcoind", "port"),
+        toml::find<std::string>  (config, "bitcoind", "user"),
+        toml::find<std::string>  (config, "bitcoind", "pass")
+    );
 
 
-    if (! disable_utxo_chkpnt_load) {
-        bch.utxodb.load_from_bchd_checkpoint(
-            utxo_chkpnt_file,
-            utxo_chkpnt_block_height,
-            utxo_chkpnt_block_hash
-        );
-    }
 
-    if (! disable_utxosync) {
+    if (toml::find<bool>(config, "services", "utxosync")) {
+        if (toml::find<bool>(config, "utxo", "checkpoint_load")) {
+            bch.utxodb.load_from_bchd_checkpoint(
+                toml::find<std::string>  (config, "utxo", "checkpoint"),
+                toml::find<std::uint32_t>(config, "utxo", "block_height"),
+                toml::find<std::string>  (config, "utxo", "block_hash")
+            );
+        }
+
         const std::pair<bool, std::uint32_t> best_block_height = rpc.get_best_block_height();
         if (! best_block_height.first) {
             spdlog::error("could not connect to rpc");
@@ -389,7 +297,7 @@ int main(int argc, char * argv[])
         }
 
         spdlog::info("best block height: {}", best_block_height.second);
-        for (std::uint32_t h=utxo_chkpnt_block_height; h<=best_block_height.second; ++h) {
+        for (std::uint32_t h=toml::find<std::uint32_t>(config, "utxo", "block_height"); h<=best_block_height.second; ++h) {
             const std::pair<bool, std::vector<std::uint8_t>> block_data = rpc.get_raw_block(h);
             if (! block_data.first) {
                 spdlog::warn("rpc request failed, trying again...");
@@ -401,13 +309,13 @@ int main(int argc, char * argv[])
             spdlog::info("processing block {}", h);
             bch.process_block(block_data.second, true);
         }
+
+        if (toml::find<bool>(config, "utxo", "checkpoint_save")) {
+            bch.utxodb.save_bchd_checkpoint("../utxo-checkpoints/test");
+        }
     }
 
-    if (! disable_utxo_chkpnt_save) {
-        bch.utxodb.save_bchd_checkpoint("../utxo-checkpoints/test");
-    }
-
-    if (! disable_slpbitcoindsync) {
+    if (toml::find<bool>(config, "services", "graphsearch")) {
         while (true) {
             const std::pair<bool, std::uint32_t> best_block_height = rpc.get_best_block_height();
             if (! best_block_height.first) {
@@ -451,12 +359,10 @@ int main(int argc, char * argv[])
             current_block_height = best_block_height.second;
         }
 
-    }
 
-    // TODO we should start zmq prior to this and have some extensive handling
-    // so we dont miss any txs on boot, right now with bad timing this is 
-    // possible. 
-    if (! disable_slpbitcoindsync) {
+        // TODO we should start zmq prior to this and have some extensive handling
+        // so we dont miss any txs on boot, right now with bad timing this is 
+        // possible. 
         std::pair<bool, std::vector<gs::txid>> txids = rpc.get_raw_mempool();
         if (! txids.first) {
             std::cerr << "canot get mempool\n";
@@ -492,63 +398,66 @@ int main(int argc, char * argv[])
         }
     }
 
-    std::thread zmq_listener([&] {
-        if (disable_zmq) {
-            return;
-        }
-        zmq::context_t context(1);
-        zmq::socket_t sock(context, ZMQ_SUB);
-        sock.connect("tcp://127.0.0.1:28332");
-        sock.setsockopt(ZMQ_SUBSCRIBE, "rawtx", strlen("rawtx"));
+    if (toml::find<bool>(config, "services", "zmq")) {
+        std::thread zmq_listener([&] {
+            zmq::context_t context(1);
+            zmq::socket_t sock(context, ZMQ_SUB);
+            sock.connect("tcp://127.0.0.1:28332");
+            sock.setsockopt(ZMQ_SUBSCRIBE, "rawtx", strlen("rawtx"));
 
-        while (true) {
-            try {
-                zmq::message_t env;
-                sock.recv(&env);
-                std::string env_str = std::string(static_cast<char*>(env.data()), env.size());
+            while (true) {
+                try {
+                    zmq::message_t env;
+                    sock.recv(&env);
+                    std::string env_str = std::string(static_cast<char*>(env.data()), env.size());
 
-                if (env_str == "rawtx" || env_str == "rawblock") {
-                    // std::cout << "Received envelope '" << env_str << "'" << std::endl;
+                    if (env_str == "rawtx" || env_str == "rawblock") {
+                        // std::cout << "Received envelope '" << env_str << "'" << std::endl;
 
-                    zmq::message_t msg;
-                    sock.recv(&msg);
+                        zmq::message_t msg;
+                        sock.recv(&msg);
 
-                    std::vector<std::uint8_t> msg_data;
-                    msg_data.reserve(msg.size());
+                        std::vector<std::uint8_t> msg_data;
+                        msg_data.reserve(msg.size());
 
-                    std::copy(
-                        static_cast<std::uint8_t*>(msg.data()),
-                        static_cast<std::uint8_t*>(msg.data())+msg.size(),
-                        std::back_inserter(msg_data)
-                    );
+                        std::copy(
+                            static_cast<std::uint8_t*>(msg.data()),
+                            static_cast<std::uint8_t*>(msg.data())+msg.size(),
+                            std::back_inserter(msg_data)
+                        );
 
-                    if (env_str == "rawtx") {
-                        slpsync_bitcoind_process_tx(msg_data);
-                        // bch.process_mempool_tx(msg_data);
-                    }
-                    if (env_str == "rawblock") {
-                        gs::block block;
-                        if (! block.hydrate(msg_data.begin(), msg_data.end())) {
-                            std::cerr << "failed to parse block\n";
-                            continue;
+                        if (env_str == "rawtx") {
+                            slpsync_bitcoind_process_tx(msg_data);
+                            // bch.process_mempool_tx(msg_data);
                         }
-                        if (! slpsync_bitcoind_process_block(block)) {
-                            std::cerr << "failed to process block\n";
-                            continue;
+                        if (env_str == "rawblock") {
+                            gs::block block;
+                            if (! block.hydrate(msg_data.begin(), msg_data.end())) {
+                                std::cerr << "failed to parse block\n";
+                                continue;
+                            }
+                            if (! slpsync_bitcoind_process_block(block)) {
+                                std::cerr << "failed to process block\n";
+                                continue;
+                            }
+                            // bch.process_block(msg_data, true);
+                            ++current_block_height;
                         }
-                        // bch.process_block(msg_data, true);
-                        ++current_block_height;
                     }
+                } catch (const zmq::error_t& e) {
+                    spdlog::error(e.what());
                 }
-            } catch (const zmq::error_t& e) {
-                spdlog::error(e.what());
             }
-        }
-    });
+        });
+    }
 
+    if (toml::find<bool>(config, "services", "grpc")) {
+        const std::string server_address(
+            toml::find<std::string>(config, "grpc", "host")+
+            ":"+
+            std::to_string(toml::find<std::uint16_t>(config, "grpc", "port"))
+        );
 
-    if (! disable_grpc) {
-        const std::string server_address(grpc_host+":"+grpc_port);
 
         GraphSearchServiceImpl graphsearch_service;
         grpc::ServerBuilder builder;

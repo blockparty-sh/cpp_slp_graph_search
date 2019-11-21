@@ -1,0 +1,22 @@
+[grpc]
+host = "0.0.0.0"
+port = 50051
+
+[bitcoind]
+host = "0.0.0.0"
+port = 8332
+user = "user"
+pass = "password"
+
+[utxo]
+checkpoint = "./utxo-checkpoints/QmXkBQJrMKkCKNbwv4m5xtnqwU9Sq7kucPigvZW8mWxcrv"
+block_height = 543375
+block_hash = "0000000000000000000000000000000000000000000000000000000000000000"
+checkpoint_load = false
+checkpoint_save = false
+
+[services]
+graphsearch=true
+zmq=true
+grpc=true
+utxosync=false

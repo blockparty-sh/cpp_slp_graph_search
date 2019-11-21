@@ -10,6 +10,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # TODO should these be here
 set(JSON_BuildTests OFF CACHE INTERNAL "")
 set(BUILD_TESTING OFF)
+set(CPPZMQ_BUILD_TESTS OFF)
+set(toml11_BUILD_TEST OFF)
 
 # TODO does this actually work
 include(CheckCXXCompilerFlag)
@@ -151,6 +153,17 @@ if(${PROJECT_NAME}_SUPERBUILD)
     )
     set(nlohmann-json_DIR "${CMAKE_CURRENT_BINARY_DIR}/nlohmann-json/src/nlohmann-json")
 
+    ExternalProject_Add(toml11
+        PREFIX toml11
+        GIT_REPOSITORY "https://github.com/ToruNiina/toml11.git"
+        GIT_TAG "v3.1.0"
+        INSTALL_DIR     "${CMAKE_BINARY_DIR}/toml11"
+        CMAKE_CACHE_ARGS
+            -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/toml11
+            -Dtoml11_BUILD_TEST:BOOL=OFF
+    )
+    set(toml11_DIR "${CMAKE_CURRENT_BINARY_DIR}/toml11/src/toml11")
+
     ExternalProject_Add(libmongoc
         GIT_REPOSITORY  "https://github.com/mongodb/mongo-c-driver.git"
         GIT_TAG         "1.12.0"
@@ -223,6 +236,7 @@ if(${PROJECT_NAME}_SUPERBUILD)
             -Dcpp-httplib_DIR:PATH=${cpp-httplib_DIR}
             -Dcppzmq_DIR:PATH=${cppzmq_DIR}
             -Dnlohmann-json_DIR:PATH=${nlohmann-json_DIR}
+            -Dtoml11_DIR:PATH=${toml11_DIR}
         INSTALL_COMMAND ""
         DEPENDS
             slp-unit-test-data
@@ -235,6 +249,7 @@ if(${PROJECT_NAME}_SUPERBUILD)
             cpp-httplib
             cppzmq
             nlohmann-json
+            toml11
     )
     ExternalProject_AlwaysConfigure(${PROJECT_NAME})
     return()
@@ -250,9 +265,9 @@ add_subdirectory(${catch_DIR})
 add_subdirectory(${spdlog_DIR})
 add_subdirectory(${mio_DIR})
 add_subdirectory(${cpp-httplib_DIR})
-set(CPPZMQ_BUILD_TESTS OFF)
 add_subdirectory(${cppzmq_DIR})
 add_subdirectory(${nlohmann-json_DIR})
+add_subdirectory(${toml11_DIR})
 
 
 # TODO this code should be in pb directory probably

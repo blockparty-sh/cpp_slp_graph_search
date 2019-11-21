@@ -22,6 +22,7 @@ target_include_directories(gs++ PUBLIC
     ${LIBMONGOCXX_INCLUDE_DIRS}
     ${CMAKE_BINARY_DIR}/cpp-httplib/include
     ${CMAKE_BINARY_DIR}/nlohmann-json/include
+    ${CMAKE_BINARY_DIR}/toml11/include
 )
 
 target_link_libraries(gs++
