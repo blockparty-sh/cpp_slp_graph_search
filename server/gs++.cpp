@@ -38,6 +38,9 @@ std::unique_ptr<grpc::Server> gserver;
 std::atomic<int>  current_block_height    = { 543375 };
 std::atomic<bool> exit_early = { false };
 
+std::atomic<bool> startup_processing_mempool = { true };
+std::vector<gs::transaction> startup_mempool_transactions;
+
 bool cache_enabled = false;
 boost::filesystem::path cache_dir;
 
@@ -206,10 +209,8 @@ class GraphSearchServiceImpl final
     }
 };
 
-bool slpsync_bitcoind_process_block(const gs::block& block)
+bool slpsync_bitcoind_process_block(const gs::block& block, const bool mempool)
 {
-    spdlog::info("processing block {} ({})", current_block_height, validator.transaction_map.size());
-
     absl::flat_hash_map<gs::tokenid, std::vector<gs::transaction>> valid_txs;
     for (auto & tx : block.txs) {
         if (validator.transaction_map.count(tx.txid)) {
@@ -231,6 +232,13 @@ bool slpsync_bitcoind_process_block(const gs::block& block)
     for (auto & m : valid_txs) {
         g.insert_token_data(m.first, m.second);
     }
+
+    if (! mempool) {
+        spdlog::info("processed block {} ({})", current_block_height, validator.transaction_map.size());
+    } else {
+        spdlog::info("processed mempool ({})", validator.transaction_map.size());
+    }
+
     return true;
 }
 
@@ -358,7 +366,7 @@ int main(int argc, char * argv[])
 
                 gs::block block;
                 block.hydrate(blk_data.begin(), blk_data.end());
-                if (! slpsync_bitcoind_process_block(block)) {
+                if (! slpsync_bitcoind_process_block(block, false)) {
                     std::cerr << "could not hydrate block\n";
                     --current_block_height;
                     break;
@@ -399,7 +407,7 @@ int main(int argc, char * argv[])
                     continue;
                 }
                 block.topological_sort();
-                if (! slpsync_bitcoind_process_block(block)) {
+                if (! slpsync_bitcoind_process_block(block, false)) {
                     std::cerr << "failed to process block\n";
                     --current_block_height;
                     continue;
@@ -410,42 +418,6 @@ int main(int argc, char * argv[])
                 }
             }
             current_block_height = best_block_height.second;
-        }
-
-
-        // TODO we should start zmq prior to this and have some extensive handling
-        // so we dont miss any txs on boot, right now with bad timing this is 
-        // possible. 
-        std::pair<bool, std::vector<gs::txid>> txids = rpc.get_raw_mempool();
-        if (! txids.first) {
-            std::cerr << "canot get mempool\n";
-        } else {
-            std::vector<gs::transaction> slp_txs;
-
-            for (const gs::txid & txid : txids.second) {
-                const std::pair<bool, std::vector<std::uint8_t>> txdata = rpc.get_raw_transaction(txid);
-
-                if (! txdata.first) {
-                    std::cerr << "cannot decode tx\n";
-                    continue;
-                }
-                gs::transaction tx;
-                const bool hydration_success = tx.hydrate(txdata.second.begin(), txdata.second.end());
-
-                std::cout << "hydrated mempool: " << hydration_success << " " << tx.txid.decompress(true) << "\n";
-
-                if (hydration_success) {
-                    if (tx.slp.type != gs::slp_transaction_type::invalid) {
-                        slp_txs.push_back(tx);
-                    }
-                }
-            }
-
-            // repurposing to use as mempool container
-            gs::block block;
-            block.txs = slp_txs;
-            block.topological_sort();
-            slpsync_bitcoind_process_block(block);
         }
     }
 
@@ -484,22 +456,34 @@ int main(int argc, char * argv[])
                         std::back_inserter(msg_data)
                     );
 
-                    if (env_str == "rawtx") {
-                        slpsync_bitcoind_process_tx(msg_data);
-                        // bch.process_mempool_tx(msg_data);
-                    }
-                    if (env_str == "rawblock") {
-                        gs::block block;
-                        if (! block.hydrate(msg_data.begin(), msg_data.end(), true)) {
-                            std::cerr << "failed to parse block\n";
-                            continue;
+
+                    if (startup_processing_mempool) {
+                        if (env_str == "rawtx") {
+                            gs::transaction tx;
+                            if (tx.hydrate(msg_data.begin(), msg_data.end())) {
+                                if (tx.slp.type != gs::slp_transaction_type::invalid) {
+                                    startup_mempool_transactions.push_back(tx);
+                                }
+                            }
                         }
-                        if (! slpsync_bitcoind_process_block(block)) {
-                            std::cerr << "failed to process block\n";
-                            continue;
+                    } else {
+                        if (env_str == "rawtx") {
+                            slpsync_bitcoind_process_tx(msg_data);
+                            // bch.process_mempool_tx(msg_data);
                         }
-                        // bch.process_block(msg_data, true);
-                        ++current_block_height;
+                        if (env_str == "rawblock") {
+                            gs::block block;
+                            if (! block.hydrate(msg_data.begin(), msg_data.end(), true)) {
+                                std::cerr << "failed to parse block\n";
+                                continue;
+                            }
+                            if (! slpsync_bitcoind_process_block(block, false)) {
+                                std::cerr << "failed to process block\n";
+                                continue;
+                            }
+                            // bch.process_block(msg_data, true);
+                            ++current_block_height;
+                        }
                     }
                 }
             } catch (const zmq::error_t& e) {
@@ -507,6 +491,44 @@ int main(int argc, char * argv[])
             }
         }
     });
+
+    if (toml::find<bool>(config, "services", "graphsearch")) {
+        // TODO we should start zmq prior to this and have some extensive handling
+        // so we dont miss any txs on boot, right now with bad timing this is
+        // possible.
+        std::pair<bool, std::vector<gs::txid>> txids = rpc.get_raw_mempool();
+        if (! txids.first) {
+            std::cerr << "canot get mempool\n";
+        } else {
+            for (const gs::txid & txid : txids.second) {
+                const std::pair<bool, std::vector<std::uint8_t>> txdata = rpc.get_raw_transaction(txid);
+
+                if (! txdata.first) {
+                    std::cerr << "cannot decode tx\n";
+                    continue;
+                }
+                gs::transaction tx;
+                const bool hydration_success = tx.hydrate(txdata.second.begin(), txdata.second.end());
+
+                // std::cout << "hydrated mempool: " << hydration_success << " " << tx.txid.decompress(true) << "\n";
+
+                if (hydration_success) {
+                    if (tx.slp.type != gs::slp_transaction_type::invalid) {
+                        startup_mempool_transactions.push_back(tx);
+                    }
+                }
+            }
+        }
+    }
+
+
+    // repurposing to use as mempool container
+    gs::block block;
+    block.txs = startup_mempool_transactions;
+    block.topological_sort();
+    slpsync_bitcoind_process_block(block, true);
+    startup_processing_mempool = false;
+
 
     if (toml::find<bool>(config, "services", "grpc")) {
         const std::string server_address(
