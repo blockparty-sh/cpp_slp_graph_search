@@ -300,8 +300,9 @@ bool cache_slp_block(const gs::block& block, const std::uint32_t height)
 
 int main(int argc, char * argv[])
 {
-    // std::signal(SIGINT, signal_handler);
-    // std::signal(SIGTERM, signal_handler);
+    std::signal(SIGINT, signal_handler);
+    std::signal(SIGTERM, signal_handler);
+
     if (argc < 2) {
         std::cerr << "usage: gs++ config.toml\n";
         return EXIT_FAILURE;
@@ -436,6 +437,9 @@ int main(int argc, char * argv[])
         sock.setsockopt(ZMQ_SUBSCRIBE, "", 0);
 
         while (true) {
+            if (exit_early) {
+                return;
+            }
             try {
                 zmq::message_t env;
                 sock.recv(&env);
@@ -549,6 +553,8 @@ int main(int argc, char * argv[])
             gserver->Wait();
         }
     }
+
+    zmq_listener.join();
 
     spdlog::info("goodbye");
 
