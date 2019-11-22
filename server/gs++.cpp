@@ -69,7 +69,7 @@ void signal_handler(int signal)
 {
     spdlog::info("received signal {} requesting to shut down", signal);
 
-    exit_early              = true;
+    exit_early = true;
 
     if (gserver) {
         const auto deadline = std::chrono::system_clock::now() +
@@ -354,7 +354,7 @@ int main(int argc, char * argv[])
 
     if (toml::find<bool>(config, "services", "graphsearch")) {
         if (cache_enabled) {
-            for (;;++current_block_height) {
+            for (; ! exit_early; ++current_block_height) {
                 boost::filesystem::path blk_path = block_height_to_path(current_block_height) / std::to_string(current_block_height);
                 if (! boost::filesystem::exists(blk_path)) {
                     --current_block_height;
@@ -374,7 +374,7 @@ int main(int argc, char * argv[])
                 }
             }
         }
-        while (true) {
+        while (! exit_early) {
             const std::pair<bool, std::uint32_t> best_block_height = rpc.get_best_block_height();
             if (! best_block_height.first) {
                 spdlog::error("could not connect to rpc");
@@ -387,9 +387,8 @@ int main(int argc, char * argv[])
                 break;
             }
 
-            for (
-                ;
-                current_block_height<=best_block_height.second;
+            for (;
+                ! exit_early && current_block_height <= best_block_height.second;
                 ++current_block_height
             ) {
                 const std::pair<bool, std::vector<std::uint8_t>> block_data = rpc.get_raw_block(current_block_height);
@@ -436,10 +435,7 @@ int main(int argc, char * argv[])
         );
         sock.setsockopt(ZMQ_SUBSCRIBE, "", 0);
 
-        while (true) {
-            if (exit_early) {
-                return;
-            }
+        while (! exit_early) {
             try {
                 zmq::message_t env;
                 sock.recv(&env);
@@ -505,6 +501,7 @@ int main(int argc, char * argv[])
             std::cerr << "canot get mempool\n";
         } else {
             for (const gs::txid & txid : txids.second) {
+                if (exit_early) break;
                 const std::pair<bool, std::vector<std::uint8_t>> txdata = rpc.get_raw_transaction(txid);
 
                 if (! txdata.first) {
@@ -534,7 +531,7 @@ int main(int argc, char * argv[])
     startup_processing_mempool = false;
 
 
-    if (toml::find<bool>(config, "services", "grpc")) {
+    if (! exit_early && toml::find<bool>(config, "services", "grpc")) {
         const std::string server_address(
             toml::find<std::string>(config, "grpc", "host")+
             ":"+

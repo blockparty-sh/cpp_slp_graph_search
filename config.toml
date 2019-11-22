@@ -1,5 +1,5 @@
 [cache]
-dir = "/home/pizzapi/code/fountainhead/cpp-slp-graph-server/cache"
+dir = "/tmp/gs++/cache"
 
 [grpc]
 host = "0.0.0.0"
