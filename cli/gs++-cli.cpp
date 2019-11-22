@@ -37,10 +37,14 @@ public:
     : stub_(graphsearch::GraphSearchService::NewStub(channel))
     {}
 
-    bool GraphSearch(const std::string& txid)
+    bool GraphSearch(const std::string& txid_str)
     {
         graphsearch::GraphSearchRequest request;
-        request.set_txid(txid);
+
+        gs::txid txid(txid_str);
+        std::reverse(txid.v.begin(), txid.v.end());
+        
+        request.set_txid(txid.decompress());
 
         graphsearch::GraphSearchReply reply;
 
