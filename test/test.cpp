@@ -304,3 +304,58 @@ TEST_CASE( "topological_sorting", "[single-file]" ) {
         }
     }
 }
+
+TEST_CASE( "varint_encode", "[single-file]" ) {
+    SECTION ("\ttest equality <= 0xFC") {
+        std::vector<std::uint8_t> data; auto it = data.begin();
+
+        data = {0x00}; it = data.begin();
+        REQUIRE (data == gs::util::num_to_var_int(gs::util::extract_var_int(it)));
+
+        data = {0xFB}; it = data.begin();
+        REQUIRE (data == gs::util::num_to_var_int(gs::util::extract_var_int(it)));
+
+        data = {0xFB}; it = data.begin();
+        REQUIRE (data == gs::util::num_to_var_int(gs::util::extract_var_int(it)));
+
+    }
+
+    SECTION ("\ttest equality <= 0xFD") {
+        std::vector<std::uint8_t> data; auto it = data.begin();
+
+        data = {0xFD, 0xFE, 0xFE}; it = data.begin();
+        REQUIRE (data == gs::util::num_to_var_int(gs::util::extract_var_int(it)));
+
+        data = {0xFD, 0x01, 0x02}; it = data.begin();
+        REQUIRE (data == gs::util::num_to_var_int(gs::util::extract_var_int(it)));
+
+        data = {0xFD, 0xFF, 0xFF}; it = data.begin();
+        REQUIRE (data == gs::util::num_to_var_int(gs::util::extract_var_int(it)));
+    }
+
+    SECTION ("\ttest equality <= 0xFE") {
+        std::vector<std::uint8_t> data; auto it = data.begin();
+
+        data = {0xFE, 0xFE, 0xFE, 0xFE, 0xFE}; it = data.begin();
+        REQUIRE (data == gs::util::num_to_var_int(gs::util::extract_var_int(it)));
+
+        data = {0xFE, 0x01, 0x02, 0x03, 0x04}; it = data.begin();
+        REQUIRE (data == gs::util::num_to_var_int(gs::util::extract_var_int(it)));
+
+        data = {0xFE, 0xFF, 0xFF, 0xFF, 0xFF}; it = data.begin();
+        REQUIRE (data == gs::util::num_to_var_int(gs::util::extract_var_int(it)));
+    }
+
+    SECTION ("\ttest equality <= 0xFF") {
+        std::vector<std::uint8_t> data; auto it = data.begin();
+
+        data = {0xFF, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE}; it = data.begin();
+        REQUIRE (data == gs::util::num_to_var_int(gs::util::extract_var_int(it)));
+
+        data = {0xFF, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}; it = data.begin();
+        REQUIRE (data == gs::util::num_to_var_int(gs::util::extract_var_int(it)));
+
+        data = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}; it = data.begin();
+        REQUIRE (data == gs::util::num_to_var_int(gs::util::extract_var_int(it)));
+    }
+}
