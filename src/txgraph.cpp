@@ -66,7 +66,7 @@ unsigned txgraph::insert_token_data (
 
     token_details& token = tokens[tokenid];
 
-    absl::flat_hash_map<gs::txid, std::vector<gs::txid>> input_map;
+    absl::flat_hash_map<std::vector<std::uint8_t>, std::vector<gs::txid>> input_map;
 
     unsigned ret = 0;
 
@@ -74,7 +74,7 @@ unsigned txgraph::insert_token_data (
     std::vector<graph_node*> latest;
     latest.reserve(txs.size());
 
-    for (auto & tx : txs) {
+    for (const auto & tx : txs) {
         // spdlog::info("insert_token_data: txid {}", tx.txid.decompress(true));
         if (txid_to_token.count(tx.txid)) {
             spdlog::warn("insert_token_data: already in set {}", tx.txid.decompress(true));
@@ -83,7 +83,7 @@ unsigned txgraph::insert_token_data (
 
         token.graph.emplace(std::piecewise_construct,
             std::forward_as_tuple(tx.txid),
-            std::forward_as_tuple(tx.txid, tx.serialized)
+            std::forward_as_tuple(tx.serialized)
         );
         txid_to_token.emplace(tx.txid, &token);
 
@@ -98,7 +98,7 @@ unsigned txgraph::insert_token_data (
             }
         );
 
-        input_map.emplace(tx.txid, inputs);
+        input_map.emplace(tx.serialized, inputs);
         latest.push_back(&token.graph[tx.txid]);
         ++ret;
 
@@ -107,7 +107,7 @@ unsigned txgraph::insert_token_data (
 
     // second pass to add inputs
     for (graph_node * node : latest) {
-        for (const gs::txid & input_txid : input_map[node->txid]) {
+        for (const gs::txid & input_txid : input_map[node->txdata]) {
             if (! token.graph.count(input_txid)) {
                 // spdlog::warn("insert_token_data: input_txid not found in tokengraph {}", input_txid.decompress(true));
                 continue;

@@ -2,8 +2,8 @@
 #define GS_TOKEN_DETAILS_HPP
 
 #include <absl/container/node_hash_map.h>
-#include "graph_node.hpp"
-#include "bhash.hpp"
+#include <gs++/graph_node.hpp>
+#include <gs++/bhash.hpp>
 
 namespace gs {
 
@@ -14,7 +14,7 @@ struct token_details
 
     token_details () {}
 
-    token_details (gs::tokenid tokenid)
+    token_details (const gs::tokenid& tokenid)
     : tokenid(tokenid)
     {}
 };
