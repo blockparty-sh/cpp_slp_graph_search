@@ -333,7 +333,6 @@ int main(int argc, char * argv[])
                     --current_block_height;
                     continue;
                 }
-                spdlog::info("processing block {}", current_block_height);
 
                 gs::block block;
                 if (! block.hydrate(block_data.second.begin(), block_data.second.end())) {
