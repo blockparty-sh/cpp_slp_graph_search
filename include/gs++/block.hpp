@@ -27,7 +27,8 @@ struct block
     template <typename BeginIterator, typename EndIterator>
     bool hydrate(
         BeginIterator&& begin_it,
-        EndIterator&& end_it
+        EndIterator&& end_it,
+        bool slp_only=false
     ) {
         // TODO we need to check that block data isnt malformed here
         // ie CHECK_END or something
@@ -54,12 +55,19 @@ struct block
                 return false;
             }
 
-            txs.push_back(tx);
+            if (! slp_only || tx.slp.type != gs::slp_transaction_type::invalid) {
+                txs.push_back(tx);
+            }
 
             it += tx.serialized.size();
         }
 
         return true;
+    }
+
+    void topological_sort()
+    {
+        txs = gs::util::topological_sort(txs);
     }
 };
 

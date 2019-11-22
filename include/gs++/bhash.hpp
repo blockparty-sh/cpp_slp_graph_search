@@ -44,7 +44,10 @@ struct bhash
     constexpr auto size() const -> decltype(v.size()) const
     { return v.size(); }
 
-    auto data() -> decltype(v.data()) const
+    auto data() -> decltype(v.data())
+    { return v.data(); }
+
+    auto data() const -> decltype(v.data()) const
     { return v.data(); }
 
     auto begin() -> decltype(v.begin()) const

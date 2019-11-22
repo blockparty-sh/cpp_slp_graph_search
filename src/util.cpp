@@ -59,6 +59,19 @@ std::vector<gs::transaction> topological_sort(
     return stack;
 }
 
+std::vector<std::uint8_t> num_to_var_int(const std::uint64_t n)
+{
+    // TODO test this its probably broken
+    auto B = [&n](const std::size_t m) -> std::uint8_t {
+        return (n >> (8*m)) & 0xFF;
+    };
+
+    if (n < 0xFD)       return { static_cast<std::uint8_t>(n) };
+    if (n < 0xFFFF)     return { 0xFD, B(0), B(1) };
+    if (n < 0xFFFFFFFF) return { 0xFE, B(0), B(1), B(2), B(3) };
+    return { 0xFF, B(0), B(1), B(2), B(3), B(4), B(5), B(6), B(7) };
+}
+
 }
 
 }

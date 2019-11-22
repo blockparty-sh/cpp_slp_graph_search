@@ -5,6 +5,8 @@
 #include <regex>
 #include <atomic>
 #include <chrono>
+#include <fstream>
+#include <iterator>
 #include <cstdlib>
 #include <cstdint>
 #include <csignal>
@@ -12,6 +14,7 @@
 #include <getopt.h>
 
 #include <boost/thread.hpp>
+#include <boost/filesystem.hpp>
 #include <grpc++/grpc++.h>
 #include <spdlog/spdlog.h>
 #include <zmq.hpp>
@@ -34,6 +37,10 @@
 std::unique_ptr<grpc::Server> gserver;
 std::atomic<int>  current_block_height    = { 543375 };
 std::atomic<bool> exit_early = { false };
+
+bool cache_enabled = false;
+boost::filesystem::path cache_dir;
+
 
 gs::slp_validator validator;
 gs::txgraph g;
@@ -201,24 +208,16 @@ class GraphSearchServiceImpl final
 
 bool slpsync_bitcoind_process_block(const gs::block& block)
 {
-    spdlog::info("processing block {}", current_block_height);
-
-    std::vector<gs::transaction> slp_txs;
-    for (auto & tx : block.txs) {
-        if (tx.slp.type != gs::slp_transaction_type::invalid) {
-            slp_txs.push_back(tx);
-        }
-    }
-    slp_txs = gs::util::topological_sort(slp_txs);
+    spdlog::info("processing block {} ({})", current_block_height, validator.transaction_map.size());
 
     absl::flat_hash_map<gs::tokenid, std::vector<gs::transaction>> valid_txs;
-    for (auto & tx : slp_txs) {
+    for (auto & tx : block.txs) {
         if (validator.transaction_map.count(tx.txid)) {
             // skip over ones we've already added from mempool
             continue;
         }
         if (! validator.add_tx(tx)) {
-            std::cerr << "invalid tx: " << tx.txid.decompress(true) << std::endl;
+            // std::cerr << "invalid tx: " << tx.txid.decompress(true) << std::endl;
             continue;
         }
 
@@ -249,11 +248,44 @@ bool slpsync_bitcoind_process_tx(const std::vector<std::uint8_t>& txdata)
     }
 
     if (! validator.add_tx(tx)) {
-        std::cerr << "invalid tx: " << tx.txid.decompress(true) << std::endl;
+        // std::cerr << "invalid tx: " << tx.txid.decompress(true) << std::endl;
         return false;
     }
 
     g.insert_token_data(tx.slp.tokenid, { tx });
+
+    return true;
+}
+
+boost::filesystem::path block_height_to_path(const std::uint32_t height)
+{
+    return cache_dir / "slp" / std::to_string(height / 1000);
+}
+
+bool cache_slp_block(const gs::block& block, const std::uint32_t height)
+{
+    boost::filesystem::path dir = block_height_to_path(height);
+
+    if (! boost::filesystem::exists(dir)) {
+        boost::filesystem::create_directories(dir);
+    }
+
+    boost::filesystem::path blk_path = dir / std::to_string(height);
+    boost::filesystem::ofstream outf(blk_path, boost::filesystem::ofstream::binary);
+
+    outf.write(reinterpret_cast<const char *>(&block.version), sizeof(std::uint32_t));
+    outf.write(reinterpret_cast<const char *>(block.prev_block.data()), block.prev_block.size());
+    outf.write(reinterpret_cast<const char *>(block.merkle_root.data()), block.merkle_root.size());
+    outf.write(reinterpret_cast<const char *>(&block.timestamp), sizeof(std::uint32_t));
+    outf.write(reinterpret_cast<const char *>(&block.bits), sizeof(std::uint32_t));
+    outf.write(reinterpret_cast<const char *>(&block.nonce), sizeof(std::uint32_t));
+
+    const std::vector<std::uint8_t> varint_tx_length = gs::util::num_to_var_int(block.txs.size());
+    outf.write(reinterpret_cast<const char *>(varint_tx_length.data()), varint_tx_length.size());
+
+    for (auto & tx : block.txs) {
+        outf.write(reinterpret_cast<const char *>(tx.serialized.data()), tx.serialized.size());
+    }
 
     return true;
 }
@@ -268,6 +300,11 @@ int main(int argc, char * argv[])
     }
 
     const auto config = toml::parse(argv[1]);
+    const bool cache_enabled = toml::find<bool>(config, "services", "cache");
+    if (cache_enabled) {
+        cache_dir = boost::filesystem::path(toml::find<std::string>(config, "cache", "dir"));
+    }
+
 
     spdlog::info("hello");
 
@@ -307,6 +344,27 @@ int main(int argc, char * argv[])
     }
 
     if (toml::find<bool>(config, "services", "graphsearch")) {
+        if (cache_enabled) {
+            for (;;++current_block_height) {
+                boost::filesystem::path blk_path = block_height_to_path(current_block_height) / std::to_string(current_block_height);
+                if (! boost::filesystem::exists(blk_path)) {
+                    --current_block_height;
+                    break;
+                }
+
+                std::ifstream ifs(blk_path.string(), std::ios::in | std::ios::binary);
+                const std::vector<std::uint8_t> blk_data((std::istreambuf_iterator<char>(ifs)),
+                                                          std::istreambuf_iterator<char>());
+
+                gs::block block;
+                block.hydrate(blk_data.begin(), blk_data.end());
+                if (! slpsync_bitcoind_process_block(block)) {
+                    std::cerr << "could not hydrate block\n";
+                    --current_block_height;
+                    break;
+                }
+            }
+        }
         while (true) {
             const std::pair<bool, std::uint32_t> best_block_height = rpc.get_best_block_height();
             if (! best_block_height.first) {
@@ -335,15 +393,20 @@ int main(int argc, char * argv[])
                 }
 
                 gs::block block;
-                if (! block.hydrate(block_data.second.begin(), block_data.second.end())) {
+                if (! block.hydrate(block_data.second.begin(), block_data.second.end(), true)) {
                     std::cerr << "failed to parse block\n";
                     --current_block_height;
                     continue;
                 }
+                block.topological_sort();
                 if (! slpsync_bitcoind_process_block(block)) {
                     std::cerr << "failed to process block\n";
                     --current_block_height;
                     continue;
+                }
+
+                if (cache_enabled) {
+                    cache_slp_block(block, current_block_height);
                 }
             }
             current_block_height = best_block_height.second;
@@ -378,12 +441,10 @@ int main(int argc, char * argv[])
                 }
             }
 
-            slp_txs = gs::util::topological_sort(slp_txs);
-
-            // special mempool block
+            // repurposing to use as mempool container
             gs::block block;
             block.txs = slp_txs;
-
+            block.topological_sort();
             slpsync_bitcoind_process_block(block);
         }
     }
@@ -429,7 +490,7 @@ int main(int argc, char * argv[])
                     }
                     if (env_str == "rawblock") {
                         gs::block block;
-                        if (! block.hydrate(msg_data.begin(), msg_data.end())) {
+                        if (! block.hydrate(msg_data.begin(), msg_data.end(), true)) {
                             std::cerr << "failed to parse block\n";
                             continue;
                         }

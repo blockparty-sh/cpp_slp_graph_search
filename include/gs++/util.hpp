@@ -106,6 +106,7 @@ std::uint64_t extract_var_int (Iterator & it)
     else                  return extract_u64(it);
 }
 
+std::vector<std::uint8_t> num_to_var_int(const std::uint64_t n);
 
 template <typename Container>
 std::string decompress_hex(const Container& v)

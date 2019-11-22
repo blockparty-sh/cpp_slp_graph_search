@@ -4,10 +4,12 @@
 #include <fstream>
 #include <iterator>
 #include <algorithm>
+
 #include <boost/thread.hpp>
 #include <absl/container/flat_hash_set.h>
 #include <absl/container/flat_hash_map.h>
 #include <spdlog/spdlog.h>
+
 #include <gs++/transaction.hpp>
 #include <gs++/graph_node.hpp>
 #include <gs++/token_details.hpp>
@@ -73,7 +75,7 @@ unsigned txgraph::insert_token_data (
     latest.reserve(txs.size());
 
     for (auto & tx : txs) {
-        spdlog::info("insert_token_data: txid {}", tx.txid.decompress(true));
+        // spdlog::info("insert_token_data: txid {}", tx.txid.decompress(true));
         if (txid_to_token.count(tx.txid)) {
             spdlog::warn("insert_token_data: already in set {}", tx.txid.decompress(true));
             continue;
