@@ -60,7 +60,7 @@ if(${PROJECT_NAME}_SUPERBUILD)
     ExternalProject_Add(slp-unit-test-data
         PREFIX slp-unit-test-data
         GIT_REPOSITORY "https://github.com/simpleledger/slp-unit-test-data.git"
-        GIT_TAG "e1d2c638de1c2f50ac559b316faf27d88d982977"
+        GIT_TAG "b8f55f7d0c93ce2a51eea1eab3f8f201ca0f6187"
         INSTALL_DIR     "${CMAKE_BINARY_DIR}/slp-unit-test-data"
         CONFIGURE_COMMAND ""
         BUILD_COMMAND ""
