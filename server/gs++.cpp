@@ -44,10 +44,11 @@ std::vector<gs::transaction> startup_mempool_transactions;
 bool cache_enabled = false;
 boost::filesystem::path cache_dir;
 
-
 gs::slp_validator validator;
 gs::txgraph g;
 gs::bch bch;
+
+const std::chrono::milliseconds await_time { 1000 };
 
 
 std::string scriptpubkey_to_base64(const gs::scriptpubkey& pubkey)
@@ -218,7 +219,7 @@ bool slpsync_bitcoind_process_block(const gs::block& block, const bool mempool)
             continue;
         }
         if (! validator.add_tx(tx)) {
-            // std::cerr << "invalid tx: " << tx.txid.decompress(true) << std::endl;
+            std::cerr << "invalid tx: " << tx.txid.decompress(true) << std::endl;
             continue;
         }
 
@@ -234,9 +235,9 @@ bool slpsync_bitcoind_process_block(const gs::block& block, const bool mempool)
     }
 
     if (! mempool) {
-        spdlog::info("processed block {} ({})", current_block_height, validator.transaction_map.size());
+        spdlog::info("processed block {} ({}) [{}]", current_block_height, validator.transaction_map.size(), block.txs.size());
     } else {
-        spdlog::info("processed mempool ({})", validator.transaction_map.size());
+        spdlog::info("processed mempool ({}) [{}]", validator.transaction_map.size(), block.txs.size());
     }
 
     return true;
@@ -246,8 +247,7 @@ bool slpsync_bitcoind_process_tx(const std::vector<std::uint8_t>& txdata)
 {
     gs::transaction tx;
     if (! tx.hydrate(txdata.begin(), txdata.end())) {
-        std::cerr << "failed to parse tx\n";
-        return false; // TODO better handling
+        return false;
     }
     // spdlog::info("zmq-tx {}", tx.txid.decompress(true));
 
@@ -255,9 +255,14 @@ bool slpsync_bitcoind_process_tx(const std::vector<std::uint8_t>& txdata)
         return true;
     }
 
+    if (validator.transaction_map.count(tx.txid)) {
+        // skip over ones we've already added from mempool
+        return true;
+    }
+
     if (! validator.add_tx(tx)) {
-        // std::cerr << "invalid tx: " << tx.txid.decompress(true) << std::endl;
-        return false;
+        spdlog::warn("invalid tx: {}", tx.txid.decompress(true));
+        return true;
     }
 
     g.insert_token_data(tx.slp.tokenid, { tx });
@@ -302,6 +307,7 @@ int main(int argc, char * argv[])
 {
     std::signal(SIGINT, signal_handler);
     std::signal(SIGTERM, signal_handler);
+    startup_mempool_transactions.reserve(100000);
 
     if (argc < 2) {
         std::cerr << "usage: gs++ config.toml\n";
@@ -339,7 +345,6 @@ int main(int argc, char * argv[])
             const std::pair<bool, std::vector<std::uint8_t>> block_data = rpc.get_raw_block(h);
             if (! block_data.first) {
                 spdlog::warn("rpc request failed, trying again...");
-                const std::chrono::milliseconds await_time { 1000 };
                 std::this_thread::sleep_for(await_time);
                 --h;
                 continue;
@@ -375,6 +380,7 @@ int main(int argc, char * argv[])
             }
         }
         while (! exit_early) {
+retry_loop2:
             const std::pair<bool, std::uint32_t> best_block_height = rpc.get_best_block_height();
             if (! best_block_height.first) {
                 spdlog::error("could not connect to rpc");
@@ -394,30 +400,32 @@ int main(int argc, char * argv[])
                 const std::pair<bool, std::vector<std::uint8_t>> block_data = rpc.get_raw_block(current_block_height);
                 if (! block_data.first) {
                     spdlog::warn("rpc request failed, trying again...");
-                    const std::chrono::milliseconds await_time { 1000 };
                     std::this_thread::sleep_for(await_time);
                     --current_block_height;
-                    continue;
+                    goto retry_loop2;
                 }
 
                 gs::block block;
                 if (! block.hydrate(block_data.second.begin(), block_data.second.end(), true)) {
-                    std::cerr << "failed to parse block\n";
+                    spdlog::error("failed to hydrate rpc block");
+                    std::this_thread::sleep_for(await_time);
                     --current_block_height;
-                    continue;
+                    goto retry_loop2;
                 }
                 block.topological_sort();
                 if (! slpsync_bitcoind_process_block(block, false)) {
-                    std::cerr << "failed to process block\n";
+                    spdlog::error("failed to process rpc block");
+                    std::this_thread::sleep_for(await_time);
                     --current_block_height;
-                    continue;
+                    goto retry_loop2;
                 }
 
                 if (cache_enabled) {
                     cache_slp_block(block, current_block_height);
                 }
             }
-            current_block_height = best_block_height.second;
+
+            break;
         }
     }
 
@@ -468,21 +476,22 @@ int main(int argc, char * argv[])
                         }
                     } else {
                         if (env_str == "rawtx") {
-                            slpsync_bitcoind_process_tx(msg_data);
-                            // bch.process_mempool_tx(msg_data);
+                            if (! slpsync_bitcoind_process_tx(msg_data)) {
+                                spdlog::error("failed to process zmq tx");
+                            }
                         }
                         if (env_str == "rawblock") {
                             gs::block block;
                             if (! block.hydrate(msg_data.begin(), msg_data.end(), true)) {
-                                std::cerr << "failed to parse block\n";
+                                spdlog::error("failed to hydrate zmq block");
                                 continue;
                             }
-                            if (! slpsync_bitcoind_process_block(block, false)) {
-                                std::cerr << "failed to process block\n";
-                                continue;
-                            }
-                            // bch.process_block(msg_data, true);
                             ++current_block_height;
+                            if (! slpsync_bitcoind_process_block(block, false)) {
+                                spdlog::error("failed to process zmq block");
+                                --current_block_height;
+                                continue;
+                            }
                         }
                     }
                 }
@@ -493,32 +502,41 @@ int main(int argc, char * argv[])
     });
 
     if (toml::find<bool>(config, "services", "graphsearch")) {
-        // TODO we should start zmq prior to this and have some extensive handling
-        // so we dont miss any txs on boot, right now with bad timing this is
-        // possible.
-        std::pair<bool, std::vector<gs::txid>> txids = rpc.get_raw_mempool();
-        if (! txids.first) {
-            std::cerr << "canot get mempool\n";
-        } else {
+        while (true) {
+retry_loop1:
+            if (exit_early) break;
+
+            const std::pair<bool, std::vector<gs::txid>> txids = rpc.get_raw_mempool();
+            if (! txids.first) {
+                spdlog::warn("get_raw_mempool failed");
+                std::this_thread::sleep_for(await_time);
+                continue;
+            }
+
             for (const gs::txid & txid : txids.second) {
-                if (exit_early) break;
                 const std::pair<bool, std::vector<std::uint8_t>> txdata = rpc.get_raw_transaction(txid);
 
                 if (! txdata.first) {
-                    std::cerr << "cannot decode tx\n";
-                    continue;
+                    spdlog::warn("get_raw_transaction failed");
+                    std::this_thread::sleep_for(await_time);
+                    goto retry_loop1;
                 }
+
                 gs::transaction tx;
                 const bool hydration_success = tx.hydrate(txdata.second.begin(), txdata.second.end());
 
-                // std::cout << "hydrated mempool: " << hydration_success << " " << tx.txid.decompress(true) << "\n";
+                if (! hydration_success) {
+                    spdlog::error("failed to hydrate mempool tx");
+                    std::this_thread::sleep_for(await_time);
+                    goto retry_loop1;
+                }
 
-                if (hydration_success) {
-                    if (tx.slp.type != gs::slp_transaction_type::invalid) {
-                        startup_mempool_transactions.push_back(tx);
-                    }
+                if (tx.slp.type != gs::slp_transaction_type::invalid) {
+                    startup_mempool_transactions.push_back(tx);
                 }
             }
+
+            break;
         }
     }
 
