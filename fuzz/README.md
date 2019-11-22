@@ -9,7 +9,7 @@ These help to find issues missed by unit tests or discrepancies in implementatio
 ```
 mkdir build-afl
 cd build-afl
-cmake -DCMAKE_CXX_COMPILER=afl-clang-fast++ -DCMAKE_C_COMPILER=afl-clang-fast -Dgs++_BUILD_SERVER=OFF -Dgs++_BUILD_CLI=OFF -Dgs++_BUILD_TXDECODER=OFF -Dgs++_BUILD_TESTS=OFF -Dgs++_BUILD_FUZZING=ON ..
+cmake -DCMAKE_CXX_COMPILER=afl-clang-fast++ -DCMAKE_C_COMPILER=afl-clang-fast -Dgs++_BUILD_SERVER=OFF -Dgs++_BUILD_CLI=OFF -Dgs++_BUILD_TXDECODER=OFF -Dgs++_BUILD_TESTS=OFF -Dgs++_BUILD_FUZZ=ON ..
 make -j
 ```
 
