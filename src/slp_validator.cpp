@@ -139,30 +139,16 @@ bool slp_validator::check_mint(
 bool slp_validator::check_genesis(
     const gs::transaction & tx
 ) const {
-    std::function<bool(
-        const gs::transaction& tx
-    )> nft1_child_genesis_validity_check = [&](
-        const gs::transaction& tx
-    ) -> bool {
-        for (const auto & i_outpoint : tx.inputs) {
-            VALIDATE_CONTINUE (transaction_map.count(i_outpoint.txid) == 0);
-
-            const gs::transaction & txi = transaction_map.at(i_outpoint.txid);
-            
-            if (txi.slp.token_type == 0x81) {
-                VALIDATE_CONTINUE (txi.output_slp_amount(i_outpoint.vout) < 1);
-
-                if (validate(txi)) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    };
-
     if (tx.slp.token_type == 0x41) {
-        VALIDATE_CHECK (! nft1_child_genesis_validity_check(tx));
+        VALIDATE_CHECK (tx.inputs.size() == 0);
+        const gs::outpoint& i_outpoint = tx.inputs[0];
+        VALIDATE_CHECK (transaction_map.count(i_outpoint.txid) == 0);
+
+        const gs::transaction & txi = transaction_map.at(i_outpoint.txid);
+        VALIDATE_CHECK (txi.slp.token_type != 0x81);
+        VALIDATE_CHECK (txi.output_slp_amount(i_outpoint.vout) < 1);
+
+        return validate(txi);
     }
 
     return true;
