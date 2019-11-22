@@ -91,6 +91,9 @@ TEST_CASE( "input_tests", "[single-file]" ) {
                 // check bch parse is true, which should always be the case
                 REQUIRE( tx.hydrate(txhex.begin(), txhex.end()) );
 
+                // all should items should be parsed as valid slp transactions
+                REQUIRE (tx.slp.type != gs::slp_transaction_type::invalid );
+
                 const bool validation_result = slp_validator.validate(tx);
                 REQUIRE (valid == validation_result);
             }
