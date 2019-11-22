@@ -1,3 +1,6 @@
+[cache]
+dir = "/home/pizzapi/code/fountainhead/cpp-slp-graph-server/cache"
+
 [grpc]
 host = "0.0.0.0"
 port = 50051
@@ -21,3 +24,4 @@ graphsearch=true
 zmq=true
 grpc=true
 utxosync=false
+cache=true
