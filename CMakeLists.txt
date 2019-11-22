@@ -10,9 +10,10 @@ SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 SET(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 
-option(${PROJECT_NAME}_BUILD_SERVER "Build ${PROJECT_NAME} tests" ON)
-option(${PROJECT_NAME}_BUILD_CLI "Build ${PROJECT_NAME} tests" ON)
-option(${PROJECT_NAME}_BUILD_TXDECODER "Build ${PROJECT_NAME} tests" ON)
+option(${PROJECT_NAME}_BUILD_SERVER "Build ${PROJECT_NAME} server" ON)
+option(${PROJECT_NAME}_BUILD_CLI "Build ${PROJECT_NAME} cli" ON)
+option(${PROJECT_NAME}_BUILD_TXDECODER "Build slp transaction decoder utility" ON)
+option(${PROJECT_NAME}_BUILD_BLOCKDECODER "Build block decoder utility" ON)
 option(${PROJECT_NAME}_BUILD_TESTS "Build ${PROJECT_NAME} tests" ON)
 option(${PROJECT_NAME}_BUILD_CSLP "Build ${PROJECT_NAME} cslp library" OFF)
 option(${PROJECT_NAME}_BUILD_FUZZ "Build ${PROJECT_NAME} fuzzing programs" OFF)
@@ -246,6 +247,10 @@ endif()
 
 if (${PROJECT_NAME}_BUILD_TXDECODER)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/txdecoder)
+endif()
+
+if (${PROJECT_NAME}_BUILD_BLOCKDECODER)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/blockdecoder)
 endif()
 
 if (${PROJECT_NAME}_BUILD_TESTS)

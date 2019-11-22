@@ -9,6 +9,7 @@
 
 #include <gs++/transaction.hpp>
 #include <gs++/bhash.hpp>
+#include <gs++/util.hpp>
 
 namespace gs {
 
