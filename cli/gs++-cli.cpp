@@ -227,8 +227,9 @@ int main(int argc, char* argv[])
     std::string grpc_host = "0.0.0.0";
     std::string grpc_port = "50051";
     std::string query_type = "graphsearch";
+    bool use_tls = false;
 
-    const std::string usage_str = "usage: gs++-cli [--version] [--help] [--host host_address] [--port port]\n"
+    const std::string usage_str = "usage: gs++-cli [--version] [--help] [--host host_address] [--port port] [--use_tls]\n"
                                   "[--graphsearch TXID] [--utxo TXID:VOUT] [--utxo_scriptpubkey PK]\n"
                                   "[--balance_scriptpubkey PK] [--validate TXID]\n";
 
@@ -238,6 +239,7 @@ int main(int argc, char* argv[])
             { "version", no_argument,       nullptr, 'v' },
             { "host",    required_argument, nullptr, 'b' },
             { "port",    required_argument, nullptr, 'p' },
+            { "use_tls", no_argument,       nullptr, 's' },
 
             { "graphsearch",          no_argument, nullptr, 1000 },
             { "utxo",                 no_argument, nullptr, 1001 },
@@ -247,7 +249,7 @@ int main(int argc, char* argv[])
         };
 
         int option_index = 0;
-        int c = getopt_long(argc, argv, "hvb:p:", long_options, &option_index);
+        int c = getopt_long(argc, argv, "hvb:p:s", long_options, &option_index);
 
         if (c == -1) {
             break;
@@ -270,6 +272,7 @@ int main(int argc, char* argv[])
                 return EXIT_SUCCESS;
             case 'b': ss >> grpc_host; break;
             case 'p': ss >> grpc_port; break;
+            case 's': use_tls = true;  break;
 
             case 1000: query_type = "graphsearch";          break;
             case 1001: query_type = "utxo";                 break;
@@ -291,13 +294,13 @@ int main(int argc, char* argv[])
     grpc::ChannelArguments ch_args;
     ch_args.SetMaxReceiveMessageSize(-1);
 
-    GraphSearchServiceClient graphsearch(
-        grpc::CreateCustomChannel(
-            grpc_host+":"+grpc_port,
-            grpc::InsecureChannelCredentials(),
-            ch_args
-        )
-    );
+    const auto channel_creds = use_tls
+        ? grpc::SslCredentials(grpc::SslCredentialsOptions())
+        : grpc::InsecureChannelCredentials();
+
+    const auto channel = grpc::CreateCustomChannel(grpc_host+":"+grpc_port, channel_creds, ch_args);
+
+    GraphSearchServiceClient graphsearch(channel);
 
     if (query_type == "graphsearch") {
         graphsearch.GraphSearch(argv[argc-1]);
