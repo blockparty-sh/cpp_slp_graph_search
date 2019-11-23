@@ -253,21 +253,23 @@ bool slpsync_bitcoind_process_tx(const std::vector<std::uint8_t>& txdata)
 
     gs::transaction tx;
     if (! tx.hydrate(txdata.begin(), txdata.end())) {
+        spdlog::warn("zmq-tx unable to be hydrated");
         return false;
     }
-    // spdlog::info("zmq-tx {}", tx.txid.decompress(true));
+    spdlog::info("zmq-tx {}", tx.txid.decompress(true));
 
     if (tx.slp.type == gs::slp_transaction_type::invalid) {
+        spdlog::warn("zmq-tx invalid {}", tx.txid.decompress(true));
         return true;
     }
 
     if (validator.transaction_map.count(tx.txid)) {
-        // skip over ones we've already added from mempool
+        spdlog::warn("zmq-tx already in validator {}", tx.txid.decompress(true));
         return true;
     }
 
     if (! validator.add_tx(tx)) {
-        spdlog::warn("invalid tx: {}", tx.txid.decompress(true));
+        spdlog::warn("zmq-tx invalid tx: {}", tx.txid.decompress(true));
         return true;
     }
 
