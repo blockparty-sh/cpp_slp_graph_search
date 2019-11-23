@@ -111,27 +111,56 @@ class GraphSearchServiceImpl final
         const auto diff = end - start;
         const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
 
-        if (rmatch) {
-            spdlog::info("lookup: {} {} ({} ms)", lookup_txid.decompress(true), result.second.size(), diff_ms);
-
-            switch (result.first) {
-                case gs::graph_search_status::OK:
-                    return { grpc::Status::OK };
-                case gs::graph_search_status::NOT_FOUND:
-                    return { grpc::StatusCode::NOT_FOUND,
-                            "txid not found" };
-                case gs::graph_search_status::NOT_IN_TOKENGRAPH:
-                    spdlog::error("graph_search__ptr: txid not found in tokengraph {}", lookup_txid.decompress(true));
-                    return { grpc::StatusCode::INTERNAL, 
-                            "txid found but not in tokengraph" };
-                default:
-                    spdlog::error("unknown graph_search_status");
-                    std::exit(EXIT_FAILURE);
-            }
-        } else {
+        if (! rmatch) {
             spdlog::info("lookup: {} {} ({} ms)", std::string('*', 64), result.second.size(), diff_ms);
             return { grpc::StatusCode::INVALID_ARGUMENT, "txid did not match regex" };
         }
+
+        spdlog::info("lookup: {} {} ({} ms)", lookup_txid.decompress(true), result.second.size(), diff_ms);
+
+        switch (result.first) {
+            case gs::graph_search_status::OK:
+                return { grpc::Status::OK };
+            case gs::graph_search_status::NOT_FOUND:
+                return { grpc::StatusCode::NOT_FOUND,
+                        "txid not found" };
+            case gs::graph_search_status::NOT_IN_TOKENGRAPH:
+                spdlog::error("graph_search__ptr: txid not found in tokengraph {}", lookup_txid.decompress(true));
+                return { grpc::StatusCode::INTERNAL,
+                        "txid found but not in tokengraph" };
+            default:
+                spdlog::error("unknown graph_search_status");
+                std::exit(EXIT_FAILURE);
+        }
+    }
+
+    grpc::Status TrustedValidation (
+        grpc::ServerContext* context,
+        const graphsearch::GraphSearchRequest* request,
+        graphsearch::TrustedValidationReply* reply
+    ) override {
+        const auto start = std::chrono::steady_clock::now();
+
+        const gs::txid lookup_txid(request->txid());
+
+        // cowardly validating user provided data
+        static const std::regex txid_regex("^[0-9a-fA-F]{64}$");
+        const bool rmatch = std::regex_match(request->txid(), txid_regex);
+        if (rmatch) {
+            const bool valid = validator.has(lookup_txid);
+            reply->set_valid(valid);
+        }
+        const auto end = std::chrono::steady_clock::now();
+        const auto diff = end - start;
+        const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
+
+        if (! rmatch) {
+            spdlog::info("tvalidate: {} ({} ms)", std::string('*', 64), diff_ms);
+            return { grpc::StatusCode::INVALID_ARGUMENT, "txid did not match regex" };
+        }
+
+        spdlog::info("tvalidate: {} ({} ms)", lookup_txid.decompress(true), diff_ms);
+        return { grpc::Status::OK };
     }
 
     grpc::Status UtxoSearchByOutpoints (
@@ -218,7 +247,7 @@ bool slpsync_bitcoind_process_block(const gs::block& block, const bool mempool)
 
     absl::flat_hash_map<gs::tokenid, std::vector<gs::transaction>> valid_txs;
     for (auto & tx : block.txs) {
-        if (validator.transaction_map.count(tx.txid)) {
+        if (validator.has(tx.txid)) {
             // skip over ones we've already added from mempool
             continue;
         }
@@ -263,7 +292,7 @@ bool slpsync_bitcoind_process_tx(const std::vector<std::uint8_t>& txdata)
         return true;
     }
 
-    if (validator.transaction_map.count(tx.txid)) {
+    if (validator.has(tx.txid)) {
         spdlog::warn("zmq-tx already in validator {}", tx.txid.decompress(true));
         return true;
     }

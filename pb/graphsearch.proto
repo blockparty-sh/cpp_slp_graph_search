@@ -9,6 +9,7 @@ package graphsearch;
 
 service GraphSearchService {
   rpc GraphSearch (GraphSearchRequest) returns (GraphSearchReply) {}
+  rpc TrustedValidation (GraphSearchRequest) returns (TrustedValidationReply) {}
   rpc UtxoSearchByOutpoints (UtxoSearchByOutpointsRequest) returns (UtxoSearchReply) {}
   rpc UtxoSearchByScriptPubKey (UtxoSearchByScriptPubKeyRequest) returns (UtxoSearchReply) {}
   rpc BalanceByScriptPubKey (BalanceByScriptPubKeyRequest) returns (BalanceByScriptPubKeyReply) {}
@@ -20,6 +21,10 @@ message GraphSearchRequest {
 
 message GraphSearchReply {
     repeated bytes txdata = 1;
+}
+
+message TrustedValidationReply {
+    bool valid = 1;
 }
 
 message Outpoint {

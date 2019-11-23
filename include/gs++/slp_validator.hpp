@@ -23,6 +23,7 @@ struct slp_validator
     bool add_tx(const gs::transaction& tx);
     bool remove_tx(const gs::txid& txid);
     bool add_valid_txid(const gs::txid& txid);
+    bool has(const gs::txid& txid) const;
 
     bool check_outputs_valid(
         absl::flat_hash_set<gs::txid> & seen,

@@ -34,7 +34,12 @@ bool slp_validator::add_valid_txid(const gs::txid& txid)
     return valid.insert(txid).second;
 }
 
-// #define ENABLE_SLP_VALIDATE_DEBUG_PRINTING
+bool slp_validator::has(const gs::txid& txid) const
+{
+    return transaction_map.count(txid) == 1;
+}
+
+#define ENABLE_SLP_VALIDATE_DEBUG_PRINTING
 
 #ifdef ENABLE_SLP_VALIDATE_DEBUG_PRINTING
     #define VALIDATE_CHECK(cond) {\
@@ -79,7 +84,7 @@ bool slp_validator::check_send(
 
     absl::uint128 input_amount = 0;
     for (const auto & i_outpoint : tx.inputs) {
-        VALIDATE_CONTINUE (transaction_map.count(i_outpoint.txid) == 0);
+        VALIDATE_CONTINUE (! has(i_outpoint.txid));
 
         const gs::transaction & txi = transaction_map.at(i_outpoint.txid);
 
@@ -118,7 +123,7 @@ bool slp_validator::check_mint(
         VALIDATE_CHECK (front.slp.token_type != back.slp.token_type);
 
         for (const auto & i_outpoint : back.inputs) {
-            VALIDATE_CONTINUE (transaction_map.count(i_outpoint.txid) == 0);
+            VALIDATE_CONTINUE (! has(i_outpoint.txid));
 
             const gs::transaction & txi = transaction_map.at(i_outpoint.txid);
 
@@ -155,7 +160,7 @@ bool slp_validator::check_genesis(
     if (tx.slp.token_type == 0x41) {
         VALIDATE_CHECK (tx.inputs.size() == 0);
         const gs::outpoint& i_outpoint = tx.inputs[0];
-        VALIDATE_CHECK (transaction_map.count(i_outpoint.txid) == 0);
+        VALIDATE_CHECK (! has(i_outpoint.txid));
 
         const gs::transaction & txi = transaction_map.at(i_outpoint.txid);
         VALIDATE_CHECK (txi.slp.token_type != 0x81);
@@ -174,7 +179,7 @@ bool slp_validator::check_outputs_valid (
 #ifdef ENABLE_SLP_VALIDATE_DEBUG_PRINTING
     std::cerr << "check_outputs_valid: " << tx.txid.decompress(true) << "\n";
 #endif
-    VALIDATE_CHECK (transaction_map.count(tx.txid) == 0);
+    VALIDATE_CHECK (! has(tx.txid));
 
     // already has been validated during search
     if (! seen.insert(tx.txid).second) {
@@ -213,7 +218,7 @@ bool slp_validator::validate(const gs::txid & txid) const
 #ifdef ENABLE_SLP_VALIDATE_DEBUG_PRINTING
     std::cerr << "validate(txid): " << txid.decompress(true) << "\n";
 #endif
-    VALIDATE_CHECK (transaction_map.count(txid) == 0);
+    VALIDATE_CHECK (! has(txid));
     return validate(transaction_map.at(txid));
 }
 

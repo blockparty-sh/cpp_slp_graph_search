@@ -1,6 +1,7 @@
 #include <iostream>
 #include <memory>
 #include <chrono>
+#include <regex>
 #include <string>
 #include <sstream>
 #include <cstdlib>
@@ -39,6 +40,15 @@ public:
 
     bool GraphSearch(const std::string& txid_str)
     {
+        {
+            static const std::regex txid_regex("^[0-9a-fA-F]{64}$");
+            const bool rmatch = std::regex_match(txid_str, txid_regex);
+            if (! rmatch) {
+                std::cerr << "txid did not match regex\n";
+                return false;
+            }
+        }
+
         graphsearch::GraphSearchRequest request;
 
         gs::txid txid(txid_str);
@@ -69,6 +79,15 @@ public:
 
     bool GraphSearchValidate(const std::string& txid_str)
     {
+        {
+            static const std::regex txid_regex("^[0-9a-fA-F]{64}$");
+            const bool rmatch = std::regex_match(txid_str, txid_regex);
+            if (! rmatch) {
+                std::cerr << "txid did not match regex\n";
+                return false;
+            }
+        }
+
         graphsearch::GraphSearchRequest request;
 
         gs::txid txid(txid_str);
@@ -106,6 +125,40 @@ public:
             const bool valid = validator.validate(txid);
             std::cout << txid.decompress(true) << ": " << ((valid) ? "valid" : "invalid") << "\n";
         });
+
+        return true;
+    }
+
+    bool GraphSearchTrustedValidate(const std::string& txid_str)
+    {
+        {
+            static const std::regex txid_regex("^[0-9a-fA-F]{64}$");
+            const bool rmatch = std::regex_match(txid_str, txid_regex);
+            if (! rmatch) {
+                std::cerr << "txid did not match regex\n";
+                return false;
+            }
+        }
+
+        graphsearch::GraphSearchRequest request;
+
+        gs::txid txid(txid_str);
+        std::reverse(txid.v.begin(), txid.v.end());
+
+        request.set_txid(txid.decompress());
+
+        graphsearch::TrustedValidationReply reply;
+
+        grpc::ClientContext context;
+        grpc::Status status = stub_->TrustedValidation(&context, request, &reply);
+
+
+        if (! status.ok()) {
+            std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+            return false;
+        }
+
+        std::cout << txid.decompress(true) << ": " << ((reply.valid()) ? "valid" : "invalid") << "\n";
 
         return true;
     }
@@ -231,7 +284,7 @@ int main(int argc, char* argv[])
 
     const std::string usage_str = "usage: gs++-cli [--version] [--help] [--host host_address] [--port port] [--use_tls]\n"
                                   "[--graphsearch TXID] [--utxo TXID:VOUT] [--utxo_scriptpubkey PK]\n"
-                                  "[--balance_scriptpubkey PK] [--validate TXID]\n";
+                                  "[--balance_scriptpubkey PK] [--validate TXID] [--tvalidate TXID]\n";
 
     while (true) {
         static struct option long_options[] = {
@@ -246,6 +299,7 @@ int main(int argc, char* argv[])
             { "utxo_scriptpubkey",    no_argument, nullptr, 1002 },
             { "balance_scriptpubkey", no_argument, nullptr, 1003 },
             { "validate",             no_argument, nullptr, 1004 },
+            { "tvalidate",            no_argument, nullptr, 1005 },
         };
 
         int option_index = 0;
@@ -279,6 +333,7 @@ int main(int argc, char* argv[])
             case 1002: query_type = "utxo_scriptpubkey";    break;
             case 1003: query_type = "balance_scriptpubkey"; break;
             case 1004: query_type = "validate";             break;
+            case 1005: query_type = "tvalidate";            break;
 
             case '?':
                 return EXIT_FAILURE;
@@ -305,12 +360,9 @@ int main(int argc, char* argv[])
     if (query_type == "graphsearch") {
         graphsearch.GraphSearch(argv[argc-1]);
     } else if (query_type == "validate") {
-        /*
-        if (optind >= argc) {
-            std::cerr << "validate requires TXID argument\n";
-            return EXIT_FAILURE;
-        }*/
         graphsearch.GraphSearchValidate(argv[argc-1]);
+    } else if (query_type == "tvalidate") {
+        graphsearch.GraphSearchTrustedValidate(argv[argc-1]);
     } else if (query_type == "utxo") {
         std::vector<std::pair<std::string, std::uint32_t>> outpoints;
         for (int optidx=optind; optidx < argc; ++optidx) {
