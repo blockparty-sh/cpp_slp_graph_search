@@ -67,6 +67,9 @@ bool slp_validator::check_send(
     absl::flat_hash_set<gs::txid> & seen,
     const gs::transaction & tx
 ) const {
+#ifdef ENABLE_SLP_VALIDATE_DEBUG_PRINTING
+    std::cerr << "send: " << tx.txid.decompress(true) << "\n";
+#endif
     const auto & s = absl::get<gs::slp_transaction_send>(tx.slp.slp_tx);
 
     absl::uint128 output_amount = 0;
@@ -103,6 +106,13 @@ bool slp_validator::check_mint(
         const gs::transaction& back
     ) -> bool {
         assert(! mints.empty());
+#ifdef ENABLE_SLP_VALIDATE_DEBUG_PRINTING
+    std::cerr
+        << "mint:"
+        << " front " << front.txid.decompress(true)
+        << " back "  << back.txid.decompress(true)
+        << "\n";
+#endif
 
         VALIDATE_CHECK (front.slp.tokenid    != back.slp.tokenid);
         VALIDATE_CHECK (front.slp.token_type != back.slp.token_type);
@@ -139,6 +149,9 @@ bool slp_validator::check_mint(
 bool slp_validator::check_genesis(
     const gs::transaction & tx
 ) const {
+#ifdef ENABLE_SLP_VALIDATE_DEBUG_PRINTING
+    std::cerr << "genesis: " << tx.txid.decompress(true) << "\n";
+#endif
     if (tx.slp.token_type == 0x41) {
         VALIDATE_CHECK (tx.inputs.size() == 0);
         const gs::outpoint& i_outpoint = tx.inputs[0];
@@ -158,6 +171,9 @@ bool slp_validator::check_outputs_valid (
     absl::flat_hash_set<gs::txid> & seen,
     const gs::transaction & tx
 ) const {
+#ifdef ENABLE_SLP_VALIDATE_DEBUG_PRINTING
+    std::cerr << "check_outputs_valid: " << tx.txid.decompress(true) << "\n";
+#endif
     VALIDATE_CHECK (transaction_map.count(tx.txid) == 0);
 
     // already has been validated during search
@@ -179,6 +195,9 @@ bool slp_validator::check_outputs_valid (
 
 bool slp_validator::validate(const gs::transaction & tx) const
 {
+#ifdef ENABLE_SLP_VALIDATE_DEBUG_PRINTING
+    std::cerr << "validate(tx): " << tx.txid.decompress(true) << "\n";
+#endif
     absl::flat_hash_set<gs::txid> seen;
 
     switch (tx.slp.type) {
@@ -191,6 +210,9 @@ bool slp_validator::validate(const gs::transaction & tx) const
 
 bool slp_validator::validate(const gs::txid & txid) const
 {
+#ifdef ENABLE_SLP_VALIDATE_DEBUG_PRINTING
+    std::cerr << "validate(txid): " << txid.decompress(true) << "\n";
+#endif
     VALIDATE_CHECK (transaction_map.count(txid) == 0);
     return validate(transaction_map.at(txid));
 }
