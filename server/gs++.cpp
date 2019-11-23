@@ -38,6 +38,8 @@ std::unique_ptr<grpc::Server> gserver;
 std::atomic<int>  current_block_height    = { 543375 };
 std::atomic<bool> exit_early = { false };
 
+boost::shared_mutex processing_mutex;
+
 std::atomic<bool> startup_processing_mempool = { true };
 std::vector<gs::transaction> startup_mempool_transactions;
 
@@ -212,6 +214,8 @@ class GraphSearchServiceImpl final
 
 bool slpsync_bitcoind_process_block(const gs::block& block, const bool mempool)
 {
+    boost::lock_guard<boost::shared_mutex> lock(processing_mutex);
+
     absl::flat_hash_map<gs::tokenid, std::vector<gs::transaction>> valid_txs;
     for (auto & tx : block.txs) {
         if (validator.transaction_map.count(tx.txid)) {
@@ -245,6 +249,8 @@ bool slpsync_bitcoind_process_block(const gs::block& block, const bool mempool)
 
 bool slpsync_bitcoind_process_tx(const std::vector<std::uint8_t>& txdata)
 {
+    boost::lock_guard<boost::shared_mutex> lock(processing_mutex);
+
     gs::transaction tx;
     if (! tx.hydrate(txdata.begin(), txdata.end())) {
         return false;
