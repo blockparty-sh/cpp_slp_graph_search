@@ -473,7 +473,8 @@ retry_loop2:
         zmq::context_t pubcontext;
         zmq::socket_t pubsock(pubcontext, zmq::socket_type::pub);
 
-        if (toml::find<bool>(config, "services", "zmqpub")) {
+        const bool zmqpub = toml::find<bool>(config, "services", "zmqpub");
+        if (zmqpub) {
             pubsock.bind(toml::find<std::string>(config, "zmqpub", "bind"));
         }
 
@@ -519,7 +520,7 @@ retry_loop2:
                                 // spdlog::warn("failed to process zmq tx {}", tx.txid.decompress(true));
                                 continue;
                             }
-                            if (toml::find<bool>(config, "services", "zmqpub")) {
+                            if (zmqpub) {
                                 spdlog::info("publishing zmq tx {}", tx.txid.decompress(true));
                                 std::array<zmq::const_buffer, 2> msgs = {
                                     zmq::str_buffer("rawtx"),
@@ -540,7 +541,7 @@ retry_loop2:
                                 --current_block_height;
                                 continue;
                             }
-                            if (toml::find<bool>(config, "services", "zmqpub")) {
+                            if (zmqpub) {
                                 spdlog::info("publishing zmq block {}", block.merkle_root.decompress(true));
 
                                 const std::vector<std::uint8_t> bserial = block.serialize();
