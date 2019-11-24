@@ -93,6 +93,8 @@ struct block
         }
 
         return true;
+#undef CHECK_END
+#undef DEBUG_PRINT
     }
 
     void topological_sort();
