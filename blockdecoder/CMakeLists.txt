@@ -6,6 +6,7 @@ add_executable(blockdecoder
     ${CMAKE_SOURCE_DIR}/src/slp_transaction.cpp
     ${CMAKE_SOURCE_DIR}/src/sha2.cpp
     ${CMAKE_SOURCE_DIR}/src/block.cpp
+    ${CMAKE_SOURCE_DIR}/src/util.cpp
 )
 
 target_include_directories(blockdecoder PRIVATE
@@ -14,4 +15,5 @@ target_include_directories(blockdecoder PRIVATE
 
 target_link_libraries(blockdecoder
     absl::variant
+    absl::flat_hash_map
 )
