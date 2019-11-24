@@ -398,6 +398,7 @@ int main(int argc, char * argv[])
                     return 0; // TODO Delete me
                     break;
                 }
+
                 if (! slpsync_bitcoind_process_block(block, false)) {
                     spdlog::error("failed to process cache block {}", current_block_height);
                     --current_block_height;
@@ -535,9 +536,10 @@ retry_loop2:
                                 spdlog::error("failed to hydrate zmq block");
                                 continue;
                             }
+                            block.topological_sort();
                             ++current_block_height;
                             if (! slpsync_bitcoind_process_block(block, false)) {
-                                spdlog::error("failed to process zmq block");
+                                spdlog::error("failed to process zmq block {}", current_block_height);
                                 --current_block_height;
                                 continue;
                             }
