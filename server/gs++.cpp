@@ -17,7 +17,7 @@
 #include <boost/filesystem.hpp>
 #include <grpc++/grpc++.h>
 #include <spdlog/spdlog.h>
-#include <zmq.hpp>
+#include <zmq_addon.hpp>
 #include <libbase64.h>
 #include <toml.hpp>
 
@@ -276,30 +276,25 @@ bool slpsync_bitcoind_process_block(const gs::block& block, const bool mempool)
     return true;
 }
 
-bool slpsync_bitcoind_process_tx(const std::vector<std::uint8_t>& txdata)
+bool slpsync_bitcoind_process_tx(const gs::transaction& tx)
 {
     boost::lock_guard<boost::shared_mutex> lock(processing_mutex);
 
-    gs::transaction tx;
-    if (! tx.hydrate(txdata.begin(), txdata.end())) {
-        spdlog::warn("zmq-tx unable to be hydrated");
-        return false;
-    }
     spdlog::info("zmq-tx {}", tx.txid.decompress(true));
 
     if (tx.slp.type == gs::slp_transaction_type::invalid) {
-        spdlog::warn("zmq-tx invalid {}", tx.txid.decompress(true));
-        return true;
+        // spdlog::warn("zmq-tx invalid {}", tx.txid.decompress(true));
+        return false;
     }
 
     if (validator.has(tx.txid)) {
         spdlog::warn("zmq-tx already in validator {}", tx.txid.decompress(true));
-        return true;
+        return false;
     }
 
     if (! validator.add_tx(tx)) {
         spdlog::warn("zmq-tx invalid tx: {}", tx.txid.decompress(true));
-        return true;
+        return false;
     }
 
     g.insert_token_data(tx.slp.tokenid, { tx });
@@ -323,27 +318,16 @@ bool cache_slp_block(const gs::block& block, const std::uint32_t height)
     boost::filesystem::path blk_path = dir / std::to_string(height);
     boost::filesystem::ofstream outf(blk_path, boost::filesystem::ofstream::binary);
 
-    outf.write(reinterpret_cast<const char *>(&block.version), sizeof(std::uint32_t));
-    outf.write(reinterpret_cast<const char *>(block.prev_block.data()), block.prev_block.size());
-    outf.write(reinterpret_cast<const char *>(block.merkle_root.data()), block.merkle_root.size());
-    outf.write(reinterpret_cast<const char *>(&block.timestamp), sizeof(std::uint32_t));
-    outf.write(reinterpret_cast<const char *>(&block.bits), sizeof(std::uint32_t));
-    outf.write(reinterpret_cast<const char *>(&block.nonce), sizeof(std::uint32_t));
-
-    const std::vector<std::uint8_t> varint_tx_length = gs::util::num_to_var_int(block.txs.size());
-    outf.write(reinterpret_cast<const char *>(varint_tx_length.data()), varint_tx_length.size());
-
-    for (auto & tx : block.txs) {
-        outf.write(reinterpret_cast<const char *>(tx.serialized.data()), tx.serialized.size());
-    }
+    auto serialized = block.serialize();
+    outf.write(reinterpret_cast<const char *>(serialized.data()), serialized.size());
 
     return true;
 }
 
 int main(int argc, char * argv[])
 {
-    std::signal(SIGINT, signal_handler);
-    std::signal(SIGTERM, signal_handler);
+    // std::signal(SIGINT, signal_handler);
+    // std::signal(SIGTERM, signal_handler);
     startup_mempool_transactions.reserve(100000);
 
     if (argc < 2) {
@@ -408,9 +392,14 @@ int main(int argc, char * argv[])
                                                           std::istreambuf_iterator<char>());
 
                 gs::block block;
-                block.hydrate(blk_data.begin(), blk_data.end());
+                if (! block.hydrate(blk_data.begin(), blk_data.end())) {
+                    spdlog::error("failed to hydrate cache block {}", current_block_height);
+                    --current_block_height;
+                    return 0; // TODO Delete me
+                    break;
+                }
                 if (! slpsync_bitcoind_process_block(block, false)) {
-                    std::cerr << "could not hydrate block\n";
+                    spdlog::error("failed to process cache block {}", current_block_height);
                     --current_block_height;
                     break;
                 }
@@ -444,14 +433,14 @@ retry_loop2:
 
                 gs::block block;
                 if (! block.hydrate(block_data.second.begin(), block_data.second.end(), true)) {
-                    spdlog::error("failed to hydrate rpc block");
+                    spdlog::error("failed to hydrate rpc block {}", current_block_height);
                     std::this_thread::sleep_for(await_time);
                     --current_block_height;
                     goto retry_loop2;
                 }
                 block.topological_sort();
                 if (! slpsync_bitcoind_process_block(block, false)) {
-                    spdlog::error("failed to process rpc block");
+                    spdlog::error("failed to process rpc block {}", current_block_height);
                     std::this_thread::sleep_for(await_time);
                     --current_block_height;
                     goto retry_loop2;
@@ -470,27 +459,35 @@ retry_loop2:
         if (! toml::find<bool>(config, "services", "zmq")) {
             return;
         }
-        zmq::context_t context(1);
-        zmq::socket_t sock(context, ZMQ_SUB);
-        sock.connect(
+        zmq::context_t subcontext(1);
+        zmq::socket_t subsock(subcontext, zmq::socket_type::sub);
+        subsock.connect(
             "tcp://"+
             toml::find<std::string>(config, "bitcoind", "host")+
             ":"+
             std::to_string(toml::find<std::uint16_t>(config, "bitcoind", "zmq_port"))
         );
-        sock.setsockopt(ZMQ_SUBSCRIBE, "", 0);
+        subsock.setsockopt(ZMQ_SUBSCRIBE, "", 0);
+
+
+        zmq::context_t pubcontext;
+        zmq::socket_t pubsock(pubcontext, zmq::socket_type::pub);
+
+        if (toml::find<bool>(config, "services", "zmqpub")) {
+            pubsock.bind(toml::find<std::string>(config, "zmqpub", "bind"));
+        }
 
         while (! exit_early) {
             try {
                 zmq::message_t env;
-                sock.recv(&env);
+                subsock.recv(&env);
                 std::string env_str = std::string(static_cast<char*>(env.data()), env.size());
 
                 if (env_str == "rawtx" || env_str == "rawblock") {
                     // std::cout << "Received envelope '" << env_str << "'" << std::endl;
 
                     zmq::message_t msg;
-                    sock.recv(&msg);
+                    subsock.recv(&msg);
 
                     std::vector<std::uint8_t> msg_data;
                     msg_data.reserve(msg.size());
@@ -513,8 +510,22 @@ retry_loop2:
                         }
                     } else {
                         if (env_str == "rawtx") {
-                            if (! slpsync_bitcoind_process_tx(msg_data)) {
-                                spdlog::error("failed to process zmq tx");
+                            gs::transaction tx;
+                            if (! tx.hydrate(msg_data.begin(), msg_data.end())) {
+                                spdlog::error("zmq-tx unable to be hydrated");
+                                continue;
+                            }
+                            if (! slpsync_bitcoind_process_tx(tx)) {
+                                // spdlog::warn("failed to process zmq tx {}", tx.txid.decompress(true));
+                                continue;
+                            }
+                            if (toml::find<bool>(config, "services", "zmqpub")) {
+                                spdlog::info("publishing zmq tx {}", tx.txid.decompress(true));
+                                std::array<zmq::const_buffer, 2> msgs = {
+                                    zmq::str_buffer("rawtx"),
+                                    zmq::buffer(tx.serialized.data(), tx.serialized.size())
+                                };
+                                zmq::send_multipart(pubsock, msgs, zmq::send_flags::dontwait);
                             }
                         }
                         if (env_str == "rawblock") {
@@ -528,6 +539,16 @@ retry_loop2:
                                 spdlog::error("failed to process zmq block");
                                 --current_block_height;
                                 continue;
+                            }
+                            if (toml::find<bool>(config, "services", "zmqpub")) {
+                                spdlog::info("publishing zmq block {}", block.merkle_root.decompress(true));
+
+                                const std::vector<std::uint8_t> bserial = block.serialize();
+                                std::array<zmq::const_buffer, 2> msgs = {
+                                    zmq::str_buffer("rawblock"),
+                                    zmq::buffer(bserial.data(), bserial.size())
+                                };
+                                zmq::send_multipart(pubsock, msgs, zmq::send_flags::dontwait);
                             }
                         }
                     }

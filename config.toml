@@ -19,9 +19,13 @@ block_hash = "0000000000000000000000000000000000000000000000000000000000000000"
 checkpoint_load = false
 checkpoint_save = false
 
+[zmqpub]
+bind = "tcp://127.0.0.1:29069"
+
 [services]
-graphsearch=true
-zmq=true
-grpc=true
-utxosync=false
-cache=true
+graphsearch = true
+zmq = true
+grpc = true
+utxosync = false
+cache = true
+zmqpub = true

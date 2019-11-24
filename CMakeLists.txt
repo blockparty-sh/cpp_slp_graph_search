@@ -133,7 +133,7 @@ if(${PROJECT_NAME}_SUPERBUILD)
     ExternalProject_Add(cppzmq
         PREFIX cppzmq
         GIT_REPOSITORY "https://github.com/zeromq/cppzmq.git"
-        GIT_TAG "v4.4.1"
+        GIT_TAG "5ee82617437e3090db568e9b6309fd38a64cc589"
         INSTALL_DIR     "${CMAKE_BINARY_DIR}/cppzmq.git"
         CMAKE_CACHE_ARGS
             -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/cppzmq
