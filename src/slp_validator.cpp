@@ -1,5 +1,4 @@
 #include <vector>
-#include <cassert>
 #include <cstdint>
 #include <functional>
 
@@ -110,7 +109,6 @@ bool slp_validator::check_mint(
         const gs::transaction& front,
         const gs::transaction& back
     ) -> bool {
-        assert(! mints.empty());
 #ifdef ENABLE_SLP_VALIDATE_DEBUG_PRINTING
     std::cerr
         << "mint:"
