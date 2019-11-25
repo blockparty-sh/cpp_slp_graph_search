@@ -9,29 +9,32 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
-	gw "./pb"
+	gw "./gen"
 )
 
 var (
-	echoEndpoint = flag.String("echo_endpoint", "localhost:9090", "endpoint of YourService")
+	// command-line options:
+	// gRPC server endpoint
+	grpcServerEndpoint = flag.String("gs-grpc-endpoint", "localhost:50051", "gs++ gRPC server endpoint")
+	proxyPort          = flag.String("port", "8082", "port for the proxy server")
 )
 
 func run() error {
+	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	conn, err := dial(ctx, opts.GRPCServer.Network, opts.GRPCServer.Addr)
-	if err != nil {
-		return err
-	}
-
+	// Register gRPC server endpoint
+	// Note: Make sure the gRPC server is running properly and accessible
 	mux := runtime.NewServeMux()
-	gw, err := gw.RegisterGraphSearchServiceServer(ctx, mux, conn)
+	opts := []grpc.DialOption{grpc.WithInsecure()}
+	err := gw.RegisterGraphSearchServiceHandlerFromEndpoint(ctx, mux, *grpcServerEndpoint, opts)
 	if err != nil {
 		return err
 	}
 
-	return http.ListenAndServe(":8080", mux)
+	// Start HTTP server (and proxy calls to gRPC server endpoint)
+	return http.ListenAndServe(":"+*proxyPort, mux)
 }
 
 func main() {

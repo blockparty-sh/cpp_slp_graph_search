@@ -1,4 +1,7 @@
-all: gen/graphsearch.pb.go gen/graphsearch.pb.gw.go gen/graphsearch.swagger.json
+all: gw gen/graphsearch.swagger.json
+
+gw: gen/graphsearch.pb.go gen/graphsearch.pb.gw.go
+	go build -o gw -v
 
 gen/graphsearch.pb.go: ../../pb/graphsearch.proto ../../pb/graphsearch.yaml
 	protoc \
