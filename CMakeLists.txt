@@ -19,33 +19,38 @@ option(${PROJECT_NAME}_BUILD_TESTS "Build ${PROJECT_NAME} tests" ON)
 option(${PROJECT_NAME}_BUILD_CSLP "Build ${PROJECT_NAME} cslp library" OFF)
 option(${PROJECT_NAME}_BUILD_FUZZ "Build ${PROJECT_NAME} fuzzing programs" OFF)
 option(${PROJECT_NAME}_SUPERBUILD "Build ${PROJECT_NAME} and the projects it depends on." ON)
+option(${PROJECT_NAME}_USE_CLANG_TIDY "Enable clang tidy" OFF)
 
-find_program(CLANG_TIDY "clang-tidy")
-if(CLANG_TIDY)
-  if(CMake_SOURCE_DIR STREQUAL CMake_BINARY_DIR)
-    message(FATAL_ERROR "CMake_RUN_CLANG_TIDY requires an out-of-source build!")
-  endif()
-  find_program(CLANG_TIDY_COMMAND NAMES clang-tidy)
-  if(NOT CLANG_TIDY_COMMAND)
-    message(WARNING "CMake_RUN_CLANG_TIDY is ON but clang-tidy is not found!")
-    set(CMAKE_CXX_CLANG_TIDY "" CACHE STRING "" FORCE)
+if(${PROJECT_NAME}_USE_CLANG_TIDY)
+  find_program(CLANG_TIDY "clang-tidy")
+  if(CLANG_TIDY)
+    if(CMake_SOURCE_DIR STREQUAL CMake_BINARY_DIR)
+      message(FATAL_ERROR "CMake_RUN_CLANG_TIDY requires an out-of-source build!")
+    endif()
+    find_program(CLANG_TIDY_COMMAND NAMES clang-tidy)
+    if(NOT CLANG_TIDY_COMMAND)
+      message(WARNING "CMake_RUN_CLANG_TIDY is ON but clang-tidy is not found!")
+      set(CMAKE_CXX_CLANG_TIDY "" CACHE STRING "" FORCE)
+    else()
+      set(CLANG_TIDY_CHECKS "-*,modernize-*")
+      set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_COMMAND};-checks=${CLANG_TIDY_CHECKS};-header-filter='${CMAKE_SOURCE_DIR}/src/*'")
+    endif()
+
+    # Create a preprocessor definition that depends on .clang-tidy content so
+    # the compile command will change when .clang-tidy changes.  This ensures
+    # that a subsequent build re-runs clang-tidy on all sources even if they
+    # do not otherwise need to be recompiled.  Nothing actually uses this
+    # definition.  We add it to targets on which we run clang-tidy just to
+    # get the build dependency on the .clang-tidy file.
+    file(SHA1 ${CMAKE_CURRENT_SOURCE_DIR}/.clang-tidy clang_tidy_sha1)
+    set(CLANG_TIDY_DEFINITIONS "CLANG_TIDY_SHA1=${clang_tidy_sha1}")
+    unset(clang_tidy_sha1)
+
+    configure_file(.clang-tidy .clang-tidy COPYONLY)
   else()
-    set(CLANG_TIDY_CHECKS "-*,modernize-*")
-    set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_COMMAND};-checks=${CLANG_TIDY_CHECKS};-header-filter='${CMAKE_SOURCE_DIR}/src/*'")
+    message(FATAL_ERROR "clang-tidy not found")
   endif()
-
-  # Create a preprocessor definition that depends on .clang-tidy content so
-  # the compile command will change when .clang-tidy changes.  This ensures
-  # that a subsequent build re-runs clang-tidy on all sources even if they
-  # do not otherwise need to be recompiled.  Nothing actually uses this
-  # definition.  We add it to targets on which we run clang-tidy just to
-  # get the build dependency on the .clang-tidy file.
-  file(SHA1 ${CMAKE_CURRENT_SOURCE_DIR}/.clang-tidy clang_tidy_sha1)
-  set(CLANG_TIDY_DEFINITIONS "CLANG_TIDY_SHA1=${clang_tidy_sha1}")
-  unset(clang_tidy_sha1)
-
 endif()
-configure_file(.clang-tidy .clang-tidy COPYONLY)
 
 IF( EXISTS "${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json" )
   EXECUTE_PROCESS( COMMAND ${CMAKE_COMMAND} -E copy_if_different
