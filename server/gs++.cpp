@@ -10,8 +10,6 @@
 #include <cstdlib>
 #include <cstdint>
 #include <csignal>
-#include <unistd.h>
-#include <getopt.h>
 
 #include <boost/thread.hpp>
 #include <boost/filesystem.hpp>
