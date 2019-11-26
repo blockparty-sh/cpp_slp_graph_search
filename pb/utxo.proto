@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "io.grpc.examples.graphsearch";
+option java_outer_classname = "GraphSearchProto";
+option objc_class_prefix = "GS";
+
+package graphsearch;
+
+service UtxoService {
+  rpc UtxoSearchByOutpoints (UtxoSearchByOutpointsRequest) returns (UtxoSearchReply) {}
+  rpc UtxoSearchByScriptPubKey (UtxoSearchByScriptPubKeyRequest) returns (UtxoSearchReply) {}
+  rpc BalanceByScriptPubKey (BalanceByScriptPubKeyRequest) returns (BalanceByScriptPubKeyReply) {}
+}
+
+message Outpoint {
+    string txid = 1;
+    uint32 vout = 2;
+}
+
+message Output {
+    bytes  prev_tx_id   = 1;
+    uint32 prev_out_idx = 2;
+    uint64 value        = 3;
+    bytes  scriptpubkey = 4;
+}
+
+message UtxoSearchByOutpointsRequest {
+    repeated Outpoint outpoints = 1;
+}
+
+message UtxoSearchByScriptPubKeyRequest {
+    bytes scriptpubkey = 1;
+    uint32 limit = 2;
+}
+
+message BalanceByScriptPubKeyRequest {
+    bytes scriptpubkey = 1;
+}
+
+message UtxoSearchReply {
+    repeated Output outputs = 1;
+}
+
+message BalanceByScriptPubKeyReply {
+    uint64 balance = 1;
+}

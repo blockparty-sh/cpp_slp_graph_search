@@ -8,9 +8,11 @@
 #include <unistd.h>
 #include <getopt.h>
 
+#include "graphsearch.grpc.pb.h"
+#include "utxo.grpc.pb.h"
+
 #include <grpc++/grpc++.h>
 #include <libbase64.h>
-#include "graphsearch.grpc.pb.h"
 #include <absl/container/flat_hash_map.h>
 #include <absl/container/flat_hash_set.h>
 #include <absl/numeric/int128.h>
@@ -163,6 +165,18 @@ public:
         return true;
     }
 
+private:
+    std::unique_ptr<graphsearch::GraphSearchService::Stub> stub_;
+};
+
+
+class UtxoServiceClient
+{
+public:
+    UtxoServiceClient(std::shared_ptr<grpc::Channel> channel)
+    : stub_(graphsearch::UtxoService::NewStub(channel))
+    {}
+
     bool UtxoSearchByOutpoints(
         const std::vector<std::pair<std::string, std::uint32_t>> outpoints
     ) {
@@ -271,8 +285,9 @@ public:
         return true;
     }
 
+
 private:
-    std::unique_ptr<graphsearch::GraphSearchService::Stub> stub_;
+    std::unique_ptr<graphsearch::UtxoService::Stub> stub_;
 };
 
 int main(int argc, char* argv[])
@@ -355,14 +370,15 @@ int main(int argc, char* argv[])
 
     const auto channel = grpc::CreateCustomChannel(grpc_host+":"+grpc_port, channel_creds, ch_args);
 
-    GraphSearchServiceClient graphsearch(channel);
+    GraphSearchServiceClient graphsearch_client(channel);
+    UtxoServiceClient utxo_client(channel);
 
     if (query_type == "graphsearch") {
-        graphsearch.GraphSearch(argv[argc-1]);
+        graphsearch_client.GraphSearch(argv[argc-1]);
     } else if (query_type == "validate") {
-        graphsearch.GraphSearchValidate(argv[argc-1]);
+        graphsearch_client.GraphSearchValidate(argv[argc-1]);
     } else if (query_type == "tvalidate") {
-        graphsearch.GraphSearchTrustedValidate(argv[argc-1]);
+        graphsearch_client.GraphSearchTrustedValidate(argv[argc-1]);
     } else if (query_type == "utxo") {
         std::vector<std::pair<std::string, std::uint32_t>> outpoints;
         for (int optidx=optind; optidx < argc; ++optidx) {
@@ -392,7 +408,7 @@ int main(int argc, char* argv[])
             outpoints.push_back({ txid.decompress(), vout });
         }
 
-        graphsearch.UtxoSearchByOutpoints(outpoints);
+        utxo_client.UtxoSearchByOutpoints(outpoints);
     } else if (query_type == "utxo_scriptpubkey") {
         const std::string scriptpubkey_b64 = argv[optind];
 
@@ -407,7 +423,7 @@ int main(int argc, char* argv[])
         );
         decoded.resize(scriptpubkey_len);
 
-        graphsearch.UtxoSearchByScriptPubKey(gs::scriptpubkey(decoded));
+        utxo_client.UtxoSearchByScriptPubKey(gs::scriptpubkey(decoded));
     } else if (query_type == "balance_scriptpubkey") {
         const std::string scriptpubkey_b64 = argv[optind];
 
@@ -422,7 +438,7 @@ int main(int argc, char* argv[])
         );
         decoded.resize(scriptpubkey_len);
 
-        graphsearch.BalanceByScriptPubKey(gs::scriptpubkey(decoded));
+        utxo_client.BalanceByScriptPubKey(gs::scriptpubkey(decoded));
     }
 
     return EXIT_SUCCESS;

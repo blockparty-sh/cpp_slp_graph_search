@@ -22,6 +22,7 @@
 #include <toml.hpp>
 
 #include "graphsearch.grpc.pb.h"
+#include "utxo.grpc.pb.h"
 
 #include <gs++/bhash.hpp>
 #include <gs++/txgraph.hpp>
@@ -162,7 +163,11 @@ class GraphSearchServiceImpl final
         spdlog::info("tvalidate: {} ({} ms)", lookup_txid.decompress(true), diff_ms);
         return { grpc::Status::OK };
     }
+};
 
+class UtxoServiceImpl final
+ : public graphsearch::UtxoService::Service
+{
     grpc::Status UtxoSearchByOutpoints (
         grpc::ServerContext* context,
         const graphsearch::UtxoSearchByOutpointsRequest* request,
@@ -619,9 +624,11 @@ retry_loop1:
 
 
         GraphSearchServiceImpl graphsearch_service;
+        UtxoServiceImpl utxo_service;
         grpc::ServerBuilder builder;
         builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
         builder.RegisterService(&graphsearch_service);
+        builder.RegisterService(&utxo_service);
         gserver = builder.BuildAndStart();
         spdlog::info("gs++ listening on {}", server_address);
 
