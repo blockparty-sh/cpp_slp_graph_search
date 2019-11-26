@@ -6,3 +6,6 @@
    - selector: graphsearch.GraphSearchService.GraphSearch
      post: /v1/graphsearch/graphsearch
      body: "*"
+   - selector: graphsearch.GraphSearchService.TrustedValidation
+     post: /v1/graphsearch/trustedvalidation
+     body: "*"
