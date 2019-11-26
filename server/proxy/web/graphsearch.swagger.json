@@ -1,0 +1,102 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "graphsearch.proto",
+    "version": "version not set"
+  },
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/v1/graphsearch/graphsearch": {
+      "post": {
+        "operationId": "GraphSearch",
+        "summary": "Perform a graph search",
+        "description": "Performs a crawl of the DAG towards genesis. Takes a txid string in little endian format. Try using a txid such as `f9d832db893a70fa9ad4ce590ac876acf0b2d22f6671f318210177c74314049e` ",
+        "responses": {
+          "200": {
+            "description": "base64 encoded unordered transaction data.",
+            "schema": {
+              "$ref": "#/definitions/graphsearchGraphSearchReply"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/graphsearchGraphSearchRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GraphSearchService"
+        ]
+      }
+    },
+    "/v1/graphsearch/trustedvalidation": {
+      "post": {
+        "operationId": "TrustedValidation",
+        "summary": "Request validation of txid",
+        "description": "Performs SLP validation of a transaction. Do not use unless you trust the server. Takes a txid string in little endian format. Try using a txid such as `f9d832db893a70fa9ad4ce590ac876acf0b2d22f6671f318210177c74314049e` ",
+        "responses": {
+          "200": {
+            "description": "valid: true or false",
+            "schema": {
+              "$ref": "#/definitions/graphsearchTrustedValidationReply"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/graphsearchGraphSearchRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GraphSearchService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "graphsearchGraphSearchReply": {
+      "type": "object",
+      "properties": {
+        "txdata": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "byte"
+          }
+        }
+      }
+    },
+    "graphsearchGraphSearchRequest": {
+      "type": "object",
+      "properties": {
+        "txid": {
+          "type": "string"
+        }
+      }
+    },
+    "graphsearchTrustedValidationReply": {
+      "type": "object",
+      "properties": {
+        "valid": {
+          "type": "boolean",
+          "format": "boolean"
+        }
+      }
+    }
+  }
+}
