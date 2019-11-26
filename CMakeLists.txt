@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 SET(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON )
 
 
 option(${PROJECT_NAME}_BUILD_SERVER "Build ${PROJECT_NAME} server" ON)
@@ -45,6 +46,13 @@ if(CLANG_TIDY)
 
 endif()
 configure_file(.clang-tidy .clang-tidy COPYONLY)
+
+IF( EXISTS "${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json" )
+  EXECUTE_PROCESS( COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    ${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json
+    ${CMAKE_CURRENT_SOURCE_DIR}/compile_commands.json
+  )
+ENDIF()
 
 # TODO should these be here
 set(JSON_BuildTests OFF CACHE INTERNAL "")
