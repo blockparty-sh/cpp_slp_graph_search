@@ -138,8 +138,8 @@ std::vector<std::uint8_t> compress_hex(const Container& v_)
         assert((p1 >= '0' && p1 <= '9') || (p1 >= 'a' && p1 <= 'f'));
         assert((p2 >= '0' && p2 <= '9') || (p2 >= 'a' && p2 <= 'f'));
 
-        ret[i] = ((p1 >= '0' && p1 <= '9' ? p1 - '0' : p1 - 'a' + 10) << 4)
-               +  (p2 >= '0' && p2 <= '9' ? p2 - '0' : p2 - 'a' + 10);
+        ret[i] = ((p1 <= '9' ? p1 - '0' : p1 - 'a' + 10) << 4)
+               +  (p2 <= '9' ? p2 - '0' : p2 - 'a' + 10);
     }
 
     return ret;
