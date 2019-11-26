@@ -50,7 +50,6 @@ struct transaction
         constexpr std::uint64_t MAX_INPUTS  = MAX_TX_SIZE; // its ok if these are bigger than need be
         constexpr std::uint64_t MAX_OUTPUTS = MAX_TX_SIZE; // they are for limiting sizes for memory purposes
         constexpr std::uint64_t MAX_SCRIPT_SIZE = MAX_TX_SIZE; // such as for fuzzing
-// #define ENABLE_BCH_PARSE_PRINTING
 
 #ifdef ENABLE_BCH_PARSE_PRINTING
         #define CHECK_END(n) {    \
