@@ -90,13 +90,17 @@ class GraphSearchServiceImpl final
     ) override {
         const auto start = std::chrono::steady_clock::now();
 
-        const gs::txid lookup_txid(request->txid());
-
         std::pair<gs::graph_search_status, std::vector<std::vector<std::uint8_t>>> result;
+
+        std::string lookup_txid_str = "";
+
         // cowardly validating user provided data
         static const std::regex txid_regex("^[0-9a-fA-F]{64}$");
         const bool rmatch = std::regex_match(request->txid(), txid_regex);
         if (rmatch) {
+            const gs::txid lookup_txid(request->txid());
+            lookup_txid_str = lookup_txid.decompress(true);
+
             result = g.graph_search__ptr(lookup_txid);
 
             if (result.first == gs::graph_search_status::OK) {
@@ -104,18 +108,19 @@ class GraphSearchServiceImpl final
                     reply->add_txdata(m.data(), m.size());
                 }
             }
+        } else {
+            lookup_txid_str = std::string('*', 64);
         }
 
         const auto end = std::chrono::steady_clock::now();
         const auto diff = end - start;
         const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
 
+        spdlog::info("lookup: {} {} ({} ms)", lookup_txid_str, result.second.size(), diff_ms);
+
         if (! rmatch) {
-            spdlog::info("lookup: {} {} ({} ms)", std::string('*', 64), result.second.size(), diff_ms);
             return { grpc::StatusCode::INVALID_ARGUMENT, "txid did not match regex" };
         }
-
-        spdlog::info("lookup: {} {} ({} ms)", lookup_txid.decompress(true), result.second.size(), diff_ms);
 
         switch (result.first) {
             case gs::graph_search_status::OK:
@@ -124,7 +129,7 @@ class GraphSearchServiceImpl final
                 return { grpc::StatusCode::NOT_FOUND,
                         "txid not found" };
             case gs::graph_search_status::NOT_IN_TOKENGRAPH:
-                spdlog::error("graph_search__ptr: txid not found in tokengraph {}", lookup_txid.decompress(true));
+                spdlog::error("graph_search__ptr: txid not found in tokengraph {}", lookup_txid_str);
                 return { grpc::StatusCode::INTERNAL,
                         "txid found but not in tokengraph" };
             default:
@@ -140,12 +145,14 @@ class GraphSearchServiceImpl final
     ) override {
         const auto start = std::chrono::steady_clock::now();
 
-        const gs::txid lookup_txid(request->txid());
+        std::string lookup_txid_str = "";
 
         // cowardly validating user provided data
         static const std::regex txid_regex("^[0-9a-fA-F]{64}$");
         const bool rmatch = std::regex_match(request->txid(), txid_regex);
         if (rmatch) {
+            const gs::txid lookup_txid(request->txid());
+            lookup_txid_str = lookup_txid.decompress(true);
             const bool valid = validator.has(lookup_txid);
             reply->set_valid(valid);
         }
@@ -153,12 +160,12 @@ class GraphSearchServiceImpl final
         const auto diff = end - start;
         const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
 
+        spdlog::info("tvalidate: {} ({} ms)", lookup_txid_str, diff_ms);
+
         if (! rmatch) {
-            spdlog::info("tvalidate: {} ({} ms)", std::string('*', 64), diff_ms);
             return { grpc::StatusCode::INVALID_ARGUMENT, "txid did not match regex" };
         }
 
-        spdlog::info("tvalidate: {} ({} ms)", lookup_txid.decompress(true), diff_ms);
         return { grpc::Status::OK };
     }
 };
