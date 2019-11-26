@@ -7,6 +7,7 @@
 #include <cassert>
 #include <array>
 #include <string>
+#include <iostream>
 
 // You must include gs++/transaction.hpp before including this file
 
@@ -135,8 +136,14 @@ std::vector<std::uint8_t> compress_hex(const Container& v_)
         const char p1 = v_[(i<<1)+0];
         const char p2 = v_[(i<<1)+1];
 
-        assert((p1 >= '0' && p1 <= '9') || (p1 >= 'a' && p1 <= 'f'));
-        assert((p2 >= '0' && p2 <= '9') || (p2 >= 'a' && p2 <= 'f'));
+#ifndef NDEBUG
+        if ((p1 >= '0' && p1 <= '9') || (p1 >= 'a' && p1 <= 'f')) {
+            std::cerr << "compress_hex p1 out of range (DEBUG MODE IS ON)\n";
+        }
+        if ((p2 >= '0' && p2 <= '9') || (p2 >= 'a' && p2 <= 'f')) {
+            std::cerr << "compress_hex p2 out of range (DEBUG MODE IS ON)\n";
+        }
+#endif
 
         ret[i] = ((p1 <= '9' ? p1 - '0' : p1 - 'a' + 10) << 4)
                +  (p2 <= '9' ? p2 - '0' : p2 - 'a' + 10);
