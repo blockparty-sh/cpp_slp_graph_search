@@ -177,6 +177,8 @@ struct transaction
         }
 
         return true;
+#undef CHECK_END
+#undef DEBUG_PRINT
     }
 
     template <typename BeginIterator, typename EndIterator>
