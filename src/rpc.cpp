@@ -26,7 +26,7 @@ std::shared_ptr<httplib::Response> rpc::query(
             httplib::make_basic_authentication_header(rpc_user, rpc_pass)
         },
         robj.dump(),
-        "application/json"
+        "application/json-rpc"
     );
 }
 
