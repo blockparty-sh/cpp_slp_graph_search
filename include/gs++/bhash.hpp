@@ -50,7 +50,7 @@ struct bhash
     auto data() const -> decltype(v.data()) const
     { return v.data(); }
 
-    auto begin() -> decltype(v.begin()) const
+    auto begin() -> decltype(v.begin())
     { return v.begin(); }
 
     auto end() -> decltype(v.end()) const
