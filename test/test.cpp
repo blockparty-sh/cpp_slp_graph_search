@@ -43,7 +43,7 @@ TEST_CASE( "script_tests", "[single-file]" ) {
             const bool valid = m["code"].is_null();
             const std::string script_str = m["script"].get<std::string>();
 
-            const std::vector<std::uint8_t> script = gs::util::compress_hex(script_str);
+            const std::vector<std::uint8_t> script = gs::util::unhex(script_str);
 
             gs::slp_transaction tx = gs::slp_transaction(gs::scriptpubkey(script));
 
@@ -67,7 +67,7 @@ TEST_CASE( "input_tests", "[single-file]" ) {
             for (auto o : m["when"]) {
                 const bool valid = o["valid"].get<bool>();
 
-                const std::vector<std::uint8_t> txhex = gs::util::compress_hex(o["tx"].get<std::string>());
+                const std::vector<std::uint8_t> txhex = gs::util::unhex(o["tx"].get<std::string>());
                 gs::transaction tx;
                 // check bch parse is true, which should always be the case
                 REQUIRE( tx.hydrate(txhex.begin(), txhex.end()) );
@@ -86,7 +86,7 @@ TEST_CASE( "input_tests", "[single-file]" ) {
             for (auto o : m["should"]) {
                 const bool valid = o["valid"].get<bool>();
 
-                const std::vector<std::uint8_t> txhex = gs::util::compress_hex(o["tx"].get<std::string>());
+                const std::vector<std::uint8_t> txhex = gs::util::unhex(o["tx"].get<std::string>());
                 gs::transaction tx;
                 // check bch parse is true, which should always be the case
                 REQUIRE( tx.hydrate(txhex.begin(), txhex.end()) );
@@ -113,7 +113,7 @@ TEST_CASE( "slp_decoding_tx_tests", "[single-file]" ) {
             const std::string script_str = m["script"].get<std::string>();
             const std::string test_tx_type = m["type"].get<std::string>();
 
-            const std::vector<std::uint8_t> script = gs::util::compress_hex(script_str);
+            const std::vector<std::uint8_t> script = gs::util::unhex(script_str);
 
             gs::slp_transaction tx = gs::slp_transaction(gs::scriptpubkey(script));
 
@@ -142,7 +142,7 @@ TEST_CASE( "slp_decoding_tx_tests", "[single-file]" ) {
 
                 const auto slp = absl::get<gs::slp_transaction_mint>(tx.slp_tx);
 
-                std::vector<std::uint8_t> tokenid_bytes = gs::util::compress_hex(m["data"]["tokenid"].get<std::string>());
+                std::vector<std::uint8_t> tokenid_bytes = gs::util::unhex(m["data"]["tokenid"].get<std::string>());
                 std::reverse(tokenid_bytes.begin(), tokenid_bytes.end());
                 gs::tokenid  tokenid(tokenid_bytes);
 
@@ -160,7 +160,7 @@ TEST_CASE( "slp_decoding_tx_tests", "[single-file]" ) {
 
                 const auto slp = absl::get<gs::slp_transaction_send>(tx.slp_tx);
 
-                std::vector<std::uint8_t> tokenid_bytes = gs::util::compress_hex(m["data"]["tokenid"].get<std::string>());
+                std::vector<std::uint8_t> tokenid_bytes = gs::util::unhex(m["data"]["tokenid"].get<std::string>());
                 std::reverse(tokenid_bytes.begin(), tokenid_bytes.end());
                 gs::tokenid  tokenid(tokenid_bytes);
 
@@ -189,14 +189,14 @@ TEST_CASE( "bch_decoding_tx_to_slp_tests", "[single-file]" ) {
             gs::slpdb slpdb;
 
             for (auto& j_tx : m["transactions"]) {
-                const std::vector<std::uint8_t> txhex = gs::util::compress_hex(j_tx.get<std::string>());
+                const std::vector<std::uint8_t> txhex = gs::util::unhex(j_tx.get<std::string>());
                 gs::transaction tx;
                 REQUIRE( tx.hydrate(txhex.begin(), txhex.end()) );
                 slpdb.add_transaction(tx);
             }
 
             for (auto rit : m["result"].items()) {
-                std::vector<std::uint8_t> tokenid_bytes = gs::util::compress_hex(rit.key());
+                std::vector<std::uint8_t> tokenid_bytes = gs::util::unhex(rit.key());
                 std::reverse(tokenid_bytes.begin(), tokenid_bytes.end());
                 gs::tokenid  tokenid(tokenid_bytes);
                 auto token_search = slpdb.tokens.find(tokenid);
@@ -211,7 +211,7 @@ TEST_CASE( "bch_decoding_tx_to_slp_tests", "[single-file]" ) {
                 if (rit.value()["mint_baton_outpoint"].is_null()) {
                     REQUIRE( ! token.mint_baton_outpoint.has_value() );
                 } else {
-                    std::vector<std::uint8_t> txid_bytes = gs::util::compress_hex(
+                    std::vector<std::uint8_t> txid_bytes = gs::util::unhex(
                         rit.value()["mint_baton_outpoint"]["txid"].get<std::string>()
                     );
                     std::reverse(txid_bytes.begin(), txid_bytes.end());
@@ -229,7 +229,7 @@ TEST_CASE( "bch_decoding_tx_to_slp_tests", "[single-file]" ) {
                 }
 
                 for (auto utxo : rit.value()["utxos"]) {
-                    std::vector<std::uint8_t> txid_bytes = gs::util::compress_hex(
+                    std::vector<std::uint8_t> txid_bytes = gs::util::unhex(
                         utxo["txid"].get<std::string>()
                     );
                     std::reverse(txid_bytes.begin(), txid_bytes.end());
@@ -273,7 +273,7 @@ TEST_CASE( "topological_sorting", "[single-file]" ) {
 
             std::vector<gs::txid> ordered;
             for (auto j_txid : m["result"]) {
-                std::vector<std::uint8_t> txid_bytes = gs::util::compress_hex(j_txid.get<std::string>());
+                std::vector<std::uint8_t> txid_bytes = gs::util::unhex(j_txid.get<std::string>());
                 std::reverse(txid_bytes.begin(), txid_bytes.end());
                 gs::txid txid(txid_bytes);
                 ordered.push_back(txid);
@@ -287,7 +287,7 @@ TEST_CASE( "topological_sorting", "[single-file]" ) {
                 SECTION ("\tpermutation: "+std::to_string(permutation_idx)) {
                     std::vector<gs::transaction> transactions;
                     for (const std::string & tx_str : txdata_strs) {
-                        const std::vector<std::uint8_t> txhex = gs::util::compress_hex(tx_str);
+                        const std::vector<std::uint8_t> txhex = gs::util::unhex(tx_str);
                         gs::transaction tx;
                         REQUIRE( tx.hydrate(txhex.begin(), txhex.end()) );
                         transactions.push_back(tx);

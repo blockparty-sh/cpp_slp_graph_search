@@ -73,10 +73,10 @@ struct bhash
         if (reverse) {
             auto w = v;
             std::reverse(w.begin(), w.end());
-            return gs::util::decompress_hex(w);
+            return gs::util::hex(w);
         }
 
-        return gs::util::decompress_hex(v);
+        return gs::util::hex(v);
     }
 };
 

@@ -110,7 +110,7 @@ std::ostream & operator<<(std::ostream &os, const gs::transaction & tx)
         os
             << "#" << on << "\n"
             << "    value:        " << m.value                                    << "\n"
-            << "    scriptpubkey: " << gs::util::decompress_hex(m.scriptpubkey.v) << "\n";
+            << "    scriptpubkey: " << gs::util::hex(m.scriptpubkey.v) << "\n";
 
         if (tx.slp.type == gs::slp_transaction_type::genesis) {
             const auto & slp = absl::get<gs::slp_transaction_genesis>(tx.slp.slp_tx);

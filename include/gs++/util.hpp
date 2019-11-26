@@ -110,7 +110,7 @@ std::uint64_t extract_var_int (Iterator & it)
 std::vector<std::uint8_t> num_to_var_int(const std::uint64_t n);
 
 template <typename Container>
-std::string decompress_hex(const Container& v)
+std::string hex(const Container& v)
 {
     constexpr std::array<std::uint8_t, 16> chars = {
         '0', '1', '2', '3', '4', '5', '6', '7',
@@ -128,7 +128,7 @@ std::string decompress_hex(const Container& v)
 
 
 template <typename Container>
-std::vector<std::uint8_t> compress_hex(const Container& v_)
+std::vector<std::uint8_t> unhex(const Container& v_)
 {
     std::vector<std::uint8_t> ret(v_.size() / 2);
 
@@ -138,10 +138,10 @@ std::vector<std::uint8_t> compress_hex(const Container& v_)
 
 #ifndef NDEBUG
         if ((p1 >= '0' && p1 <= '9') || (p1 >= 'a' && p1 <= 'f')) {
-            std::cerr << "compress_hex p1 out of range (DEBUG MODE IS ON)\n";
+            std::cerr << "unhex p1 out of range (DEBUG MODE IS ON)\n";
         }
         if ((p2 >= '0' && p2 <= '9') || (p2 >= 'a' && p2 <= 'f')) {
-            std::cerr << "compress_hex p2 out of range (DEBUG MODE IS ON)\n";
+            std::cerr << "unhex p2 out of range (DEBUG MODE IS ON)\n";
         }
 #endif
 

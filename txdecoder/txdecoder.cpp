@@ -12,7 +12,7 @@ int main(int argc, char * argv[])
         return 1;
     }
 
-    const std::vector<std::uint8_t> txhex = gs::util::compress_hex(std::string(argv[1]));
+    const std::vector<std::uint8_t> txhex = gs::util::unhex(std::string(argv[1]));
     gs::transaction tx;
     if (! tx.hydrate(txhex.begin(), txhex.end()) ) {
         std::cerr << "tx hydration failed" << std::endl;

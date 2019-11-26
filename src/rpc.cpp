@@ -84,7 +84,7 @@ std::pair<bool, std::vector<std::uint8_t>> rpc::get_raw_block(
         block_data_str = jbody[0]["result"].get<std::string>();
     }
 
-    return { true, gs::util::compress_hex(block_data_str) };
+    return { true, gs::util::unhex(block_data_str) };
 }
 
 std::pair<bool, std::uint32_t> rpc::get_best_block_height()
@@ -195,7 +195,7 @@ std::pair<bool, std::vector<std::uint8_t>> rpc::get_raw_transaction(const gs::tx
         return { false, {} };
     }
 
-    std::vector<std::uint8_t> ret = gs::util::compress_hex(jbody[0]["result"].get<std::string>());
+    std::vector<std::uint8_t> ret = gs::util::unhex(jbody[0]["result"].get<std::string>());
 
     return { true, ret };
 }

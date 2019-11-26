@@ -199,7 +199,7 @@ slp_transaction::slp_transaction(const gs::scriptpubkey& scriptpubkey)
         }
 
         // for debugging
-        // const std::string decompressed = gs::util::decompress_hex(data.second);
+        // const std::string decompressed = gs::util::hex(data.second);
         // std::cout << "chunk: (" << decompressed.size() << ") " << decompressed << std::endl;
     }
 
