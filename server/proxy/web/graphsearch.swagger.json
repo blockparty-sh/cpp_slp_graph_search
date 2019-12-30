@@ -15,7 +15,7 @@
       "post": {
         "operationId": "GraphSearch",
         "summary": "Perform a graph search",
-        "description": "Performs a crawl of the DAG towards genesis. Takes a txid string in little endian format. Try using a txid such as `f9d832db893a70fa9ad4ce590ac876acf0b2d22f6671f318210177c74314049e` ",
+        "description": "Performs a crawl of the DAG towards genesis. Takes a txid string in little endian format. Try using a txid such as `f9d832db893a70fa9ad4ce590ac876acf0b2d22f6671f318210177c74314049e`. You may also add txids whose DAGs will be excluded from the response, use this for txids you have already validated. The server will set a maximum number to choose from (default of 5) and others will be ignored. It is recommended you use txids with high block number as the likelihood of maximally overlapping DAG is higher.",
         "responses": {
           "200": {
             "description": "base64 encoded unordered transaction data.",
@@ -58,7 +58,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/graphsearchGraphSearchRequest"
+              "$ref": "#/definitions/graphsearchTrustedValidationRequest"
             }
           }
         ],
@@ -86,6 +86,12 @@
       "properties": {
         "txid": {
           "type": "string"
+        },
+        "exclude_txids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
@@ -95,6 +101,14 @@
         "valid": {
           "type": "boolean",
           "format": "boolean"
+        }
+      }
+    },
+    "graphsearchTrustedValidationRequest": {
+      "type": "object",
+      "properties": {
+        "txid": {
+          "type": "string"
         }
       }
     }

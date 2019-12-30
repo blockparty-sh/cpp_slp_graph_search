@@ -150,7 +150,7 @@ public:
             }
         }
 
-        graphsearch::GraphSearchRequest request;
+        graphsearch::TrustedValidationRequest request;
 
         gs::txid txid(txid_str);
         std::reverse(txid.v.begin(), txid.v.end());

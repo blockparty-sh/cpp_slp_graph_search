@@ -9,7 +9,7 @@ package graphsearch;
 
 service GraphSearchService {
   rpc GraphSearch (GraphSearchRequest) returns (GraphSearchReply) {}
-  rpc TrustedValidation (GraphSearchRequest) returns (TrustedValidationReply) {}
+  rpc TrustedValidation (TrustedValidationRequest) returns (TrustedValidationReply) {}
 }
 
 message GraphSearchRequest {
@@ -19,6 +19,10 @@ message GraphSearchRequest {
 
 message GraphSearchReply {
     repeated bytes txdata = 1;
+}
+
+message TrustedValidationRequest {
+    string txid = 1;
 }
 
 message TrustedValidationReply {

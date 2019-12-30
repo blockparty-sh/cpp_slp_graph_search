@@ -160,7 +160,7 @@ class GraphSearchServiceImpl final
 
     grpc::Status TrustedValidation (
         grpc::ServerContext* context,
-        const graphsearch::GraphSearchRequest* request,
+        const graphsearch::TrustedValidationRequest* request,
         graphsearch::TrustedValidationReply* reply
     ) override {
         const auto start = std::chrono::steady_clock::now();
