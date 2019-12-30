@@ -105,7 +105,9 @@ class GraphSearchServiceImpl final
             std::vector<gs::txid> exclude_txids;
             for (auto & txid_str : request->exclude_txids()) {
                 const bool rmatch = std::regex_match(txid_str, txid_regex);
-                exclude_txids.emplace_back(txid_str);
+                if (rmatch) {
+                    exclude_txids.emplace_back(txid_str);
+                }
             }
 
             absl::flat_hash_set<const gs::graph_node*> exclusion_set;
