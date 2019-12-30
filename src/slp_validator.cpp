@@ -201,6 +201,10 @@ bool slp_validator::validate(const gs::transaction & tx) const
 #ifdef ENABLE_SLP_VALIDATE_DEBUG_PRINTING
     std::cerr << "validate(tx): " << tx.txid.decompress(true) << "\n";
 #endif
+    if (tx.slp.type == gs::slp_transaction_type::invalid) {
+        return false;
+    }
+
     absl::flat_hash_set<gs::txid> seen;
 
     switch (tx.slp.type) {
