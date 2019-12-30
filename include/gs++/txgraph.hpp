@@ -29,8 +29,17 @@ struct txgraph
     txgraph()
     {}
 
+    bool build_exclusion_set(
+        const gs::txid lookup_txid,
+        absl::flat_hash_set<const graph_node*>& seen
+    );
+
+    // this will modify the exclusion set so keep in mind
     std::pair<graph_search_status, std::vector<std::vector<std::uint8_t>>>
-    graph_search__ptr(const gs::txid lookup_txid);
+    graph_search__ptr(
+        const gs::txid lookup_txid,
+        absl::flat_hash_set<const graph_node*>& seen
+    );
 
     unsigned insert_token_data (
         const gs::tokenid & tokenid,

@@ -18,9 +18,45 @@
 
 namespace gs {
 
+bool txgraph::build_exclusion_set(
+    const gs::txid lookup_txid,
+    absl::flat_hash_set<const graph_node*>& seen
+) {
+    boost::shared_lock<boost::shared_mutex> lock(lookup_mtx);
+
+    if (txid_to_token.count(lookup_txid) == 0) {
+        return false;
+    }
+
+    token_details* token = txid_to_token[lookup_txid];
+    if (token->graph.count(lookup_txid) == 0) {
+        return false;
+    }
+
+    seen.insert(&token->graph[lookup_txid]);
+    std::stack<const graph_node*> stack;
+    stack.push(&token->graph[lookup_txid]);
+
+    do {
+        const graph_node* node = stack.top();
+        stack.pop();
+
+        for (const graph_node* n : node->inputs) {
+            if (! seen.count(n)) {
+                seen.insert(n);
+                stack.push(n);
+            }
+        }
+    } while(! stack.empty());
+
+    return true;
+}
+
 std::pair<graph_search_status, std::vector<std::vector<std::uint8_t>>>
-txgraph::graph_search__ptr(const gs::txid lookup_txid)
-{
+txgraph::graph_search__ptr(
+    const gs::txid lookup_txid,
+    absl::flat_hash_set<const graph_node*>& seen
+) {
     boost::shared_lock<boost::shared_mutex> lock(lookup_mtx);
 
     if (txid_to_token.count(lookup_txid) == 0) {
@@ -33,7 +69,7 @@ txgraph::graph_search__ptr(const gs::txid lookup_txid)
         return { graph_search_status::NOT_IN_TOKENGRAPH, {} };
     }
 
-    absl::flat_hash_set<const graph_node*> seen = { &token->graph[lookup_txid] };
+    seen.insert(&token->graph[lookup_txid]);
     std::stack<const graph_node*> stack;
     stack.push(&token->graph[lookup_txid]);
     std::vector<std::vector<std::uint8_t>> ret = { token->graph[lookup_txid].txdata };

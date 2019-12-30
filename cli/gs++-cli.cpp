@@ -41,8 +41,10 @@ public:
     : stub_(graphsearch::GraphSearchService::NewStub(channel))
     {}
 
-    bool GraphSearch(const std::string& txid_str)
-    {
+    bool GraphSearch(
+        const std::string& txid_str,
+        const std::vector<std::string> exclude_txids
+    ) {
         {
             static const std::regex txid_regex("^[0-9a-fA-F]{64}$");
             const bool rmatch = std::regex_match(txid_str, txid_regex);
@@ -56,8 +58,13 @@ public:
 
         gs::txid txid(txid_str);
         std::reverse(txid.v.begin(), txid.v.end());
-        
         request.set_txid(txid.decompress());
+
+        for (const std::string exclude_txid_str : exclude_txids) {
+            gs::txid txid(exclude_txid_str);
+            std::reverse(txid.v.begin(), txid.v.end());
+            request.add_exclude_txids(txid.decompress());
+        }
 
         graphsearch::GraphSearchReply reply;
 
@@ -338,6 +345,7 @@ int main(int argc, char* argv[])
     std::string grpc_port = "50051";
     std::string query_type = "graphsearch";
     bool use_tls = false;
+    std::vector<std::string> exclude_txids;
 
     const std::string usage_str = "usage: gs++-cli [--version] [--help] [--host host_address] [--port port] [--use_tls]\n"
                                   "[--graphsearch TXID] [--utxo TXID:VOUT] [--utxo_scriptpubkey PK]\n"
@@ -358,6 +366,7 @@ int main(int argc, char* argv[])
             { "validate",             no_argument, nullptr, 1004 },
             { "tvalidate",            no_argument, nullptr, 1005 },
             { "validatefile",         required_argument, nullptr, 1006 },
+            { "exclude",              required_argument, nullptr, 2000 },
             { 0, 0, nullptr, 0 },
         };
 
@@ -368,7 +377,9 @@ int main(int argc, char* argv[])
             break;
         }
 
+
         std::stringstream ss(optarg != nullptr ? optarg : "");
+        std::string tmp; // used for anonymous parse
         switch (c) {
             case 0:
                 if (long_options[option_index].flag != 0) {
@@ -394,6 +405,10 @@ int main(int argc, char* argv[])
             case 1004: query_type = "validate";             break;
             case 1005: query_type = "tvalidate";            break;
             case 1006: query_type = "validatefile";         break;
+            case 2000:
+                ss >> tmp;
+                exclude_txids.push_back(tmp);
+                break;
 
             case '?':
                 return EXIT_FAILURE;
@@ -419,7 +434,7 @@ int main(int argc, char* argv[])
     UtxoServiceClient utxo_client(channel);
 
     if (query_type == "graphsearch") {
-        graphsearch_client.GraphSearch(argv[argc-1]);
+        graphsearch_client.GraphSearch(argv[argc-1], exclude_txids);
     } else if (query_type == "validate") {
         graphsearch_client.GraphSearchValidate(argv[argc-1]);
     } else if (query_type == "tvalidate") {

@@ -42,7 +42,7 @@ boost::shared_mutex processing_mutex;
 std::atomic<bool> startup_processing_mempool = { true };
 std::vector<gs::transaction> startup_mempool_transactions;
 
-bool cache_enabled = false;
+std::size_t max_exclusion_set_size = 5;
 boost::filesystem::path cache_dir;
 
 gs::slp_validator validator;
@@ -101,7 +101,25 @@ class GraphSearchServiceImpl final
             const gs::txid lookup_txid(request->txid());
             lookup_txid_str = lookup_txid.decompress(true);
 
-            result = g.graph_search__ptr(lookup_txid);
+
+            std::vector<gs::txid> exclude_txids;
+            for (auto & txid_str : request->exclude_txids()) {
+                const bool rmatch = std::regex_match(txid_str, txid_regex);
+                exclude_txids.emplace_back(txid_str);
+            }
+
+            absl::flat_hash_set<const gs::graph_node*> exclusion_set;
+
+            for (const gs::txid & exclusion_txid : exclude_txids) {
+                if (! g.build_exclusion_set(exclusion_txid, exclusion_set)) {
+                    spdlog::info("build_exclusion_set missing {}", exclusion_txid.decompress(true));
+                }
+
+                if (exclude_txids.size() >= max_exclusion_set_size) {
+                    break;
+                }
+            }
+            result = g.graph_search__ptr(lookup_txid, exclusion_set);
 
             if (result.first == gs::graph_search_status::OK) {
                 for (auto & m : result.second) {
@@ -350,6 +368,7 @@ int main(int argc, char * argv[])
     if (cache_enabled) {
         cache_dir = boost::filesystem::path(toml::find<std::string>(config, "cache", "dir"));
     }
+    max_exclusion_set_size = toml::find<std::size_t>(config, "graphsearch", "max_exclusion_set_size");
 
 
     spdlog::info("hello");
