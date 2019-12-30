@@ -20,6 +20,7 @@ option(${PROJECT_NAME}_BUILD_CSLP "Build ${PROJECT_NAME} cslp library" OFF)
 option(${PROJECT_NAME}_BUILD_FUZZ "Build ${PROJECT_NAME} fuzzing programs" OFF)
 option(${PROJECT_NAME}_SUPERBUILD "Build ${PROJECT_NAME} and the projects it depends on." ON)
 option(${PROJECT_NAME}_USE_CLANG_TIDY "Enable clang tidy" OFF)
+option(${PROJECT_NAME}_MARCH_NATIVE "Enable compiler optimizations for specific machine" ON)
 
 if(${PROJECT_NAME}_USE_CLANG_TIDY)
   find_program(CLANG_TIDY "clang-tidy")
@@ -67,11 +68,14 @@ set(toml11_BUILD_TEST OFF)
 set(BASE64_BUILD_TESTS OFF)
 set(JSON_BuildTests OFF)
 
-# TODO does this actually work
-include(CheckCXXCompilerFlag)
-CHECK_CXX_COMPILER_FLAG("-march=native" COMPILER_SUPPORTS_MARCH_NATIVE)
-if(COMPILER_SUPPORTS_MARCH_NATIVE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -mno-tbm")
+if(${PROJECT_NAME}_MARCH_NATIVE)
+  include(CheckCXXCompilerFlag)
+  CHECK_CXX_COMPILER_FLAG("-march=native" COMPILER_SUPPORTS_MARCH_NATIVE)
+  if(COMPILER_SUPPORTS_MARCH_NATIVE)
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -mno-tbm")
+  else()
+      message(FATAL_ERROR "not able to build with march native")
+  endif()
 endif()
 
 
