@@ -416,53 +416,55 @@ int main(int argc, char * argv[])
                 }
             }
         }
-        while (! exit_early) {
-retry_loop2:
-            const std::pair<bool, std::uint32_t> best_block_height = rpc.get_best_block_height();
-            if (! best_block_height.first) {
-                spdlog::error("could not connect to rpc");
-                return EXIT_FAILURE;
-            }
+        if (toml::find<bool>(config, "services", "graphsearch_rpc")) {
+            while (! exit_early) {
+    retry_loop2:
+                const std::pair<bool, std::uint32_t> best_block_height = rpc.get_best_block_height();
+                if (! best_block_height.first) {
+                    spdlog::error("could not connect to rpc");
+                    return EXIT_FAILURE;
+                }
 
-            spdlog::info("best block height: {}", best_block_height.second);
+                spdlog::info("best block height: {}", best_block_height.second);
 
-            if (current_block_height == best_block_height.second) {
+                if (current_block_height == best_block_height.second) {
+                    break;
+                }
+
+                for (;
+                    ! exit_early && current_block_height <= best_block_height.second;
+                    ++current_block_height
+                ) {
+                    const std::pair<bool, std::vector<std::uint8_t>> block_data = rpc.get_raw_block(current_block_height);
+                    if (! block_data.first) {
+                        spdlog::warn("rpc request failed, trying again...");
+                        std::this_thread::sleep_for(await_time);
+                        --current_block_height;
+                        goto retry_loop2;
+                    }
+
+                    gs::block block;
+                    if (! block.hydrate(block_data.second.begin(), block_data.second.end(), true)) {
+                        spdlog::error("failed to hydrate rpc block {}", current_block_height);
+                        std::this_thread::sleep_for(await_time);
+                        --current_block_height;
+                        goto retry_loop2;
+                    }
+                    block.topological_sort();
+                    if (! slpsync_bitcoind_process_block(block, false)) {
+                        spdlog::error("failed to process rpc block {}", current_block_height);
+                        std::this_thread::sleep_for(await_time);
+                        --current_block_height;
+                        goto retry_loop2;
+                    }
+
+                    if (cache_enabled) {
+                        cache_slp_block(block, current_block_height);
+                    }
+                }
+
                 break;
             }
-
-            for (;
-                ! exit_early && current_block_height <= best_block_height.second;
-                ++current_block_height
-            ) {
-                const std::pair<bool, std::vector<std::uint8_t>> block_data = rpc.get_raw_block(current_block_height);
-                if (! block_data.first) {
-                    spdlog::warn("rpc request failed, trying again...");
-                    std::this_thread::sleep_for(await_time);
-                    --current_block_height;
-                    goto retry_loop2;
-                }
-
-                gs::block block;
-                if (! block.hydrate(block_data.second.begin(), block_data.second.end(), true)) {
-                    spdlog::error("failed to hydrate rpc block {}", current_block_height);
-                    std::this_thread::sleep_for(await_time);
-                    --current_block_height;
-                    goto retry_loop2;
-                }
-                block.topological_sort();
-                if (! slpsync_bitcoind_process_block(block, false)) {
-                    spdlog::error("failed to process rpc block {}", current_block_height);
-                    std::this_thread::sleep_for(await_time);
-                    --current_block_height;
-                    goto retry_loop2;
-                }
-
-                if (cache_enabled) {
-                    cache_slp_block(block, current_block_height);
-                }
-            }
-
-            break;
         }
     }
 
@@ -572,7 +574,9 @@ retry_loop2:
         }
     });
 
-    if (toml::find<bool>(config, "services", "graphsearch")) {
+    if (toml::find<bool>(config, "services", "graphsearch")
+     && toml::find<bool>(config, "services", "graphsearch_rpc"))
+    {
         while (true) {
 retry_loop1:
             if (exit_early) break;

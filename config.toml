@@ -24,6 +24,7 @@ bind = "tcp://127.0.0.1:29069"
 
 [services]
 graphsearch = true
+graphsearch_rpc = true
 zmq = true
 grpc = true
 utxosync = false
