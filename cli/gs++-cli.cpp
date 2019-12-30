@@ -4,6 +4,7 @@
 #include <regex>
 #include <string>
 #include <sstream>
+#include <fstream>
 #include <cstdlib>
 #include <unistd.h>
 #include <getopt.h>
@@ -290,6 +291,47 @@ private:
     std::unique_ptr<graphsearch::UtxoService::Stub> stub_;
 };
 
+void validatefile(std::string src)
+{
+    std::ifstream infile(src);
+
+    std::vector<gs::transaction> txs;
+
+	std::string line;
+	while (std::getline(infile, line)) {
+		std::string decoded(line.size(), '\0');
+        std::size_t len = 0;
+		base64_decode(
+			line.data(),
+			line.size(),
+			const_cast<char*>(decoded.data()),
+			&len,
+			0
+		);
+		decoded.resize(len);
+
+        gs::transaction tx;
+        if (! tx.hydrate(decoded.begin(), decoded.end())) {
+            std::cerr << "ERROR: could not hydrate from txdata\n";
+            continue;
+        }
+
+        txs.push_back(tx);
+	}
+
+    txs = gs::util::topological_sort(txs);
+
+    gs::slp_validator validator;
+    for (auto & tx : txs) {
+        std::cout << tx.txid.decompress(true) << "\n";
+        validator.add_tx(tx);
+    }
+
+    gs::txid txid = txs.back().txid;
+    const bool valid = validator.validate(txid);
+    std::cout << txid.decompress(true) << ": " << ((valid) ? "valid" : "invalid") << "\n";
+}
+
 int main(int argc, char* argv[])
 {
     std::string grpc_host = "0.0.0.0";
@@ -315,6 +357,8 @@ int main(int argc, char* argv[])
             { "balance_scriptpubkey", no_argument, nullptr, 1003 },
             { "validate",             no_argument, nullptr, 1004 },
             { "tvalidate",            no_argument, nullptr, 1005 },
+            { "validatefile",         required_argument, nullptr, 1006 },
+            { 0, 0, nullptr, 0 },
         };
 
         int option_index = 0;
@@ -349,6 +393,7 @@ int main(int argc, char* argv[])
             case 1003: query_type = "balance_scriptpubkey"; break;
             case 1004: query_type = "validate";             break;
             case 1005: query_type = "tvalidate";            break;
+            case 1006: query_type = "validatefile";         break;
 
             case '?':
                 return EXIT_FAILURE;
@@ -379,6 +424,8 @@ int main(int argc, char* argv[])
         graphsearch_client.GraphSearchValidate(argv[argc-1]);
     } else if (query_type == "tvalidate") {
         graphsearch_client.GraphSearchTrustedValidate(argv[argc-1]);
+    } else if (query_type == "validatefile") {
+        validatefile(argv[argc-1]);
     } else if (query_type == "utxo") {
         std::vector<std::pair<std::string, std::uint32_t>> outpoints;
         for (int optidx=optind; optidx < argc; ++optidx) {
