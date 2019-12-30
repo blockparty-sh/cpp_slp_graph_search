@@ -14,6 +14,7 @@ service GraphSearchService {
 
 message GraphSearchRequest {
     string txid = 1;
+    repeated string exclude_txids = 2;
 }
 
 message GraphSearchReply {
