@@ -60,6 +60,14 @@ IF( EXISTS "${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json" )
   )
 ENDIF()
 
+# Needed until CMP0067 is set to NEW
+# g++ 4.8 needs -std=gnu+11 set to enable atomic features, but CMake < 3.8 does not add that
+# flag to TRY_COMPILE targets even when set for the project
+if (CMAKE_COMPILER_IS_GNUCXX)
+    list (APPEND CMAKE_REQUIRED_FLAGS "-std=gnu++11")
+endif()
+
+
 # TODO should these be here
 set(JSON_BuildTests OFF CACHE INTERNAL "")
 set(BUILD_TESTING OFF)

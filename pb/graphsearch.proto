@@ -10,6 +10,7 @@ package graphsearch;
 service GraphSearchService {
   rpc GraphSearch (GraphSearchRequest) returns (GraphSearchReply) {}
   rpc TrustedValidation (TrustedValidationRequest) returns (TrustedValidationReply) {}
+  rpc Status (StatusRequest) returns (StatusReply) {}
 }
 
 message GraphSearchRequest {
@@ -27,4 +28,22 @@ message TrustedValidationRequest {
 
 message TrustedValidationReply {
     bool valid = 1;
+}
+
+message StatusRequest {
+}
+
+message StatusReply {
+    uint32 block_height = 1;
+    string best_block_hash = 2;
+
+    uint64 last_incoming_zmq_tx_unix  = 3;
+    uint64 last_outgoing_zmq_tx_unix  = 4;
+    string last_incoming_zmq_tx       = 5;
+    string last_outgoing_zmq_tx       = 6;
+
+    uint64 last_incoming_zmq_blk_unix = 7;
+    uint64 last_outgoing_zmq_blk_unix = 8;
+    uint64 last_incoming_zmq_blk_size = 9;
+    uint64 last_outgoing_zmq_blk_size = 10;
 }

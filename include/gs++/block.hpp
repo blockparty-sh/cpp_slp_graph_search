@@ -15,6 +15,7 @@ namespace gs {
 
 struct block
 {
+    gs::blockhash block_hash;
     std::uint32_t version;
     gs::txid prev_block; // TODO detect re-org
     gs::txid merkle_root;
@@ -72,6 +73,31 @@ struct block
         this->bits      = gs::util::extract_u32(it);
         CHECK_END(4);
         this->nonce     = gs::util::extract_u32(it);
+
+        {
+            std::vector<std::uint8_t> block_header;
+
+            // TODO refactor this in future, we could use lambda in c++17
+            #define ADD_TO_HEADER(VAR) {\
+                std::copy(\
+                    reinterpret_cast<const std::uint8_t *>(&VAR),\
+                    reinterpret_cast<const std::uint8_t *>(&VAR)+sizeof(VAR),\
+                    std::back_inserter(block_header)\
+                );\
+            }
+
+            ADD_TO_HEADER(version);
+            ADD_TO_HEADER(prev_block.v);
+            ADD_TO_HEADER(merkle_root.v);
+            ADD_TO_HEADER(timestamp);
+            ADD_TO_HEADER(bits);
+            ADD_TO_HEADER(nonce);
+
+            #undef ADD_TO_HEADER
+
+            sha256(block_header.data(), block_header.size(), this->block_hash.v.data());
+            sha256(this->block_hash.v.data(), this->block_hash.v.size(), this->block_hash.v.data());
+        }
 
         CHECK_END(gs::util::var_int_additional_size(it));
         const std::uint64_t txn_count { gs::util::extract_var_int(it) };

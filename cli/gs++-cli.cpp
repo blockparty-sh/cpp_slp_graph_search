@@ -173,6 +173,32 @@ public:
         return true;
     }
 
+    bool Status() {
+        graphsearch::StatusRequest request;
+        graphsearch::StatusReply reply;
+
+        grpc::ClientContext context;
+        grpc::Status status = stub_->Status(&context, request, &reply);
+        if (! status.ok()) {
+            std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+            return false;
+        }
+
+        std::cout
+            << "current_block_height:       " << reply.block_height()               << "\n"
+            << "best_block_hash:            " << reply.best_block_hash()            << "\n"
+            << "last_incoming_zmq_tx_unix:  " << reply.last_incoming_zmq_tx_unix()  << "\n"
+            << "last_outgoing_zmq_tx_unix:  " << reply.last_outgoing_zmq_tx_unix()  << "\n"
+            << "last_incoming_zmq_tx:       " << reply.last_incoming_zmq_tx()       << "\n"
+            << "last_outgoing_zmq_tx:       " << reply.last_outgoing_zmq_tx()       << "\n"
+            << "last_incoming_zmq_blk_unix: " << reply.last_incoming_zmq_blk_unix() << "\n"
+            << "last_outgoing_zmq_blk_unix: " << reply.last_outgoing_zmq_blk_unix() << "\n"
+            << "last_incoming_zmq_blk_size: " << reply.last_incoming_zmq_blk_size() << "\n"
+            << "last_outgoing_zmq_blk_size: " << reply.last_outgoing_zmq_blk_size() << "\n";
+
+        return true;
+    }
+
 private:
     std::unique_ptr<graphsearch::GraphSearchService::Stub> stub_;
 };
@@ -349,7 +375,8 @@ int main(int argc, char* argv[])
 
     const std::string usage_str = "usage: gs++-cli [--version] [--help] [--host host_address] [--port port] [--use_tls]\n"
                                   "[--graphsearch TXID] [--utxo TXID:VOUT] [--utxo_scriptpubkey PK]\n"
-                                  "[--balance_scriptpubkey PK] [--validate TXID] [--tvalidate TXID]\n";
+                                  "[--balance_scriptpubkey PK] [--validate TXID] [--tvalidate TXID]\n"
+                                  "[--status]\n";
 
     while (true) {
         static struct option long_options[] = {
@@ -359,13 +386,14 @@ int main(int argc, char* argv[])
             { "port",    required_argument, nullptr, 'p' },
             { "use_tls", no_argument,       nullptr, 's' },
 
-            { "graphsearch",          no_argument, nullptr, 1000 },
-            { "utxo",                 no_argument, nullptr, 1001 },
-            { "utxo_scriptpubkey",    no_argument, nullptr, 1002 },
-            { "balance_scriptpubkey", no_argument, nullptr, 1003 },
-            { "validate",             no_argument, nullptr, 1004 },
-            { "tvalidate",            no_argument, nullptr, 1005 },
+            { "graphsearch",          no_argument,       nullptr, 1000 },
+            { "utxo",                 no_argument,       nullptr, 1001 },
+            { "utxo_scriptpubkey",    no_argument,       nullptr, 1002 },
+            { "balance_scriptpubkey", no_argument,       nullptr, 1003 },
+            { "validate",             no_argument,       nullptr, 1004 },
+            { "tvalidate",            no_argument,       nullptr, 1005 },
             { "validatefile",         required_argument, nullptr, 1006 },
+            { "status",               no_argument,       nullptr, 1007 },
             { "exclude",              required_argument, nullptr, 2000 },
             { 0, 0, nullptr, 0 },
         };
@@ -405,6 +433,7 @@ int main(int argc, char* argv[])
             case 1004: query_type = "validate";             break;
             case 1005: query_type = "tvalidate";            break;
             case 1006: query_type = "validatefile";         break;
+            case 1007: query_type = "status";               break;
             case 2000:
                 ss >> tmp;
                 exclude_txids.push_back(tmp);
@@ -435,6 +464,8 @@ int main(int argc, char* argv[])
 
     if (query_type == "graphsearch") {
         graphsearch_client.GraphSearch(argv[argc-1], exclude_txids);
+    } else if (query_type == "status") {
+        graphsearch_client.Status();
     } else if (query_type == "validate") {
         graphsearch_client.GraphSearchValidate(argv[argc-1]);
     } else if (query_type == "tvalidate") {

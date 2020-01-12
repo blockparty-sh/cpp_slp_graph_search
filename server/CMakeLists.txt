@@ -34,6 +34,7 @@ target_link_libraries(gs++
     spdlog
     httplib
     cppzmq
+    atomic
     ${CMAKE_THREAD_LIBS_INIT}
     ${Boost_FILESYSTEM_LIBRARY}
     ${Boost_SYSTEM_LIBRARY}

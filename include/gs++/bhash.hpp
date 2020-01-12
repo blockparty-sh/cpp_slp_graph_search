@@ -80,8 +80,9 @@ struct bhash
     }
 };
 
-using txid    = bhash<struct btxid>;
-using tokenid = bhash<struct btokenid>;
+using txid      = bhash<struct btxid>;
+using tokenid   = bhash<struct btokenid>;
+using blockhash = bhash<struct bblockhash>;
 
 }
 

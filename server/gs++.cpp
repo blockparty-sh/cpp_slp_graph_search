@@ -34,7 +34,25 @@
 #include <gs++/util.hpp>
 
 std::unique_ptr<grpc::Server> gserver;
-std::atomic<int>  current_block_height    = { 543375 };
+std::atomic<int>           current_block_height = { 543375 };
+std::atomic<gs::blockhash> current_block_hash(
+    std::string("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
+);
+
+std::atomic<std::uint64_t> last_incoming_zmq_tx_unix  { 0 };
+std::atomic<std::uint64_t> last_outgoing_zmq_tx_unix  { 0 };
+std::atomic<gs::txid>      last_incoming_zmq_tx(
+    std::string("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
+);
+std::atomic<gs::txid>      last_outgoing_zmq_tx(
+    std::string("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
+);
+
+std::atomic<std::uint64_t> last_incoming_zmq_blk_unix { 0 };
+std::atomic<std::uint64_t> last_outgoing_zmq_blk_unix { 0 };
+std::atomic<std::uint64_t> last_incoming_zmq_blk_size { 0 };
+std::atomic<std::uint64_t> last_outgoing_zmq_blk_size { 0 };
+
 std::atomic<bool> exit_early = { false };
 
 boost::shared_mutex processing_mutex;
@@ -50,6 +68,12 @@ gs::txgraph g;
 gs::bch bch;
 
 const std::chrono::milliseconds await_time { 1000 };
+
+std::uint64_t current_time()
+{
+    auto now = std::chrono::system_clock::now();
+    return std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
+}
 
 
 std::string scriptpubkey_to_base64(const gs::scriptpubkey& pubkey)
@@ -185,6 +209,29 @@ class GraphSearchServiceImpl final
         if (! rmatch) {
             return { grpc::StatusCode::INVALID_ARGUMENT, "txid did not match regex" };
         }
+
+        return { grpc::Status::OK };
+    }
+
+    grpc::Status Status (
+        grpc::ServerContext* context,
+        const graphsearch::StatusRequest* request,
+        graphsearch::StatusReply* reply
+    ) override {
+        reply->set_block_height(current_block_height);
+        reply->set_best_block_hash(current_block_hash.load().decompress(true));
+
+        reply->set_last_incoming_zmq_tx_unix (last_incoming_zmq_tx_unix);
+        reply->set_last_outgoing_zmq_tx_unix (last_outgoing_zmq_tx_unix);
+
+        reply->set_last_incoming_zmq_tx (last_incoming_zmq_tx.load().decompress(true));
+        reply->set_last_outgoing_zmq_tx (last_outgoing_zmq_tx.load().decompress(true));
+
+        reply->set_last_incoming_zmq_blk_unix(last_incoming_zmq_blk_unix);
+        reply->set_last_outgoing_zmq_blk_unix(last_outgoing_zmq_blk_unix);
+
+        reply->set_last_incoming_zmq_blk_size(last_incoming_zmq_blk_size);
+        reply->set_last_outgoing_zmq_blk_size(last_outgoing_zmq_blk_size);
 
         return { grpc::Status::OK };
     }
@@ -393,15 +440,28 @@ int main(int argc, char * argv[])
         }
 
         spdlog::info("best block height: {}", best_block_height.second);
-        for (std::uint32_t h=toml::find<std::uint32_t>(config, "utxo", "block_height"); h<=best_block_height.second; ++h) {
-            const std::pair<bool, std::vector<std::uint8_t>> block_data = rpc.get_raw_block(h);
+        for (
+            std::uint32_t block_height=toml::find<std::uint32_t>(config, "utxo", "block_height");
+            block_height <= best_block_height.second;
+            ++block_height
+        ) {
+            const std::pair<bool, gs::blockhash> block_hash = rpc.get_block_hash(block_height);
+            if (! block_hash.first) {
+                spdlog::warn("rpc request failed, trying again...");
+                std::this_thread::sleep_for(await_time);
+                --block_height;
+                continue;
+            }
+
+            const std::pair<bool, std::vector<std::uint8_t>> block_data = rpc.get_raw_block(block_hash.second);
             if (! block_data.first) {
                 spdlog::warn("rpc request failed, trying again...");
                 std::this_thread::sleep_for(await_time);
-                --h;
+                --block_height;
                 continue;
             }
-            spdlog::info("processing block {}", h);
+
+            spdlog::info("processing block {}", block_height);
             bch.process_block(block_data.second, true);
         }
 
@@ -430,6 +490,8 @@ int main(int argc, char * argv[])
                     break;
                 }
 
+                current_block_hash = block.block_hash;
+
                 if (! slpsync_bitcoind_process_block(block, false)) {
                     spdlog::error("failed to process cache block {}", current_block_height);
                     --current_block_height;
@@ -456,7 +518,15 @@ int main(int argc, char * argv[])
                     ! exit_early && current_block_height <= best_block_height.second;
                     ++current_block_height
                 ) {
-                    const std::pair<bool, std::vector<std::uint8_t>> block_data = rpc.get_raw_block(current_block_height);
+                    const std::pair<bool, gs::blockhash> block_hash = rpc.get_block_hash(current_block_height);
+                    if (! block_hash.first) {
+                        spdlog::warn("rpc request failed, trying again...");
+                        std::this_thread::sleep_for(await_time);
+                        --current_block_height;
+                        goto retry_loop2;
+                    }
+
+                    const std::pair<bool, std::vector<std::uint8_t>> block_data = rpc.get_raw_block(block_hash.second);
                     if (! block_data.first) {
                         spdlog::warn("rpc request failed, trying again...");
                         std::this_thread::sleep_for(await_time);
@@ -471,6 +541,9 @@ int main(int argc, char * argv[])
                         --current_block_height;
                         goto retry_loop2;
                     }
+
+                    current_block_hash = block.block_hash;
+
                     block.topological_sort();
                     if (! slpsync_bitcoind_process_block(block, false)) {
                         spdlog::error("failed to process rpc block {}", current_block_height);
@@ -479,10 +552,12 @@ int main(int argc, char * argv[])
                         goto retry_loop2;
                     }
 
+                    current_block_hash = block_hash.second;
+
                     if (cache_enabled) {
                         cache_slp_block(block, current_block_height);
                     }
-                }
+                } --current_block_height;
 
                 break;
             }
@@ -550,6 +625,9 @@ int main(int argc, char * argv[])
                                 spdlog::error("zmq-tx unable to be hydrated");
                                 continue;
                             }
+                            last_incoming_zmq_tx      = tx.txid;
+                            last_incoming_zmq_tx_unix = current_time();
+
                             if (! slpsync_bitcoind_process_tx(tx)) {
                                 // spdlog::warn("failed to process zmq tx {}", tx.txid.decompress(true));
                                 continue;
@@ -561,6 +639,9 @@ int main(int argc, char * argv[])
                                     zmq::buffer(tx.serialized.data(), tx.serialized.size())
                                 };
                                 zmq::send_multipart(pubsock, msgs, zmq::send_flags::dontwait);
+
+                                last_outgoing_zmq_tx      = tx.txid;
+                                last_outgoing_zmq_tx_unix = current_time();
                             }
                         }
                         if (env_str == "rawblock") {
@@ -569,13 +650,20 @@ int main(int argc, char * argv[])
                                 spdlog::error("failed to hydrate zmq block");
                                 continue;
                             }
+                            last_incoming_zmq_blk_size = block.txs.size();
+                            last_incoming_zmq_blk_unix = current_time();
+
                             block.topological_sort();
+
                             ++current_block_height;
                             if (! slpsync_bitcoind_process_block(block, false)) {
                                 spdlog::error("failed to process zmq block {}", current_block_height);
                                 --current_block_height;
                                 continue;
                             }
+
+                            current_block_hash = block.block_hash;
+
                             if (zmqpub) {
                                 spdlog::info("publishing zmq block {}", block.merkle_root.decompress(true));
 
@@ -585,6 +673,9 @@ int main(int argc, char * argv[])
                                     zmq::buffer(bserial.data(), bserial.size())
                                 };
                                 zmq::send_multipart(pubsock, msgs, zmq::send_flags::dontwait);
+
+                                last_outgoing_zmq_blk_size = block.txs.size();
+                                last_outgoing_zmq_blk_unix = current_time();
                             }
                         }
                     }

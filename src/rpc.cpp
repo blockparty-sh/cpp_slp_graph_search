@@ -30,59 +30,60 @@ std::shared_ptr<httplib::Response> rpc::query(
     );
 }
 
+std::pair<bool, gs::blockhash> rpc::get_block_hash(const std::size_t height)
+{
+    std::shared_ptr<httplib::Response> res = query("getblockhash", nlohmann::json::array({ height }));
+    if (! res) {
+        return { false, {} };
+    }
+
+    if (res->status != 200) {
+        return { false, {} };
+    }
+
+    auto jbody = nlohmann::json::parse(res->body);
+    // std::cout << jbody << std::endl;
+
+    if (jbody.size() == 0) {
+        return { false, {} };
+    }
+
+    if (! jbody[0]["error"].is_null()) {
+        std::cerr << jbody[0]["error"] << "\n";
+        return { false, {} };
+    }
+
+    return { true, jbody[0]["result"].get<std::string>() };
+}
+
 std::pair<bool, std::vector<std::uint8_t>> rpc::get_raw_block(
-    const std::size_t height
+    const gs::blockhash& block_hash
 ) {
-    std::string block_hash;
-    {
-        std::shared_ptr<httplib::Response> res = query("getblockhash", nlohmann::json::array({ height }));
-        if (! res) {
-            return { false, {} };
-        }
-
-        if (res->status != 200) {
-            return { false, {} };
-        }
-
-        auto jbody = nlohmann::json::parse(res->body);
-        // std::cout << jbody << std::endl;
-
-        if (jbody.size() == 0) {
-            return { false, {} };
-        }
-
-        if (! jbody[0]["error"].is_null()) {
-            std::cerr << jbody[0]["error"] << "\n";
-            return { false, {} };
-        }
-
-        block_hash = jbody[0]["result"].get<std::string>();
-    }
-
     std::string block_data_str;
-    {
-        std::shared_ptr<httplib::Response> res = query("getblock", nlohmann::json::array({ block_hash, 0 }));
-        if (! res) {
-            return { false, {} };
-        }
 
-        if (res->status != 200) {
-            return { false, {} };
-        }
-
-        auto jbody = nlohmann::json::parse(res->body);
-        // std::cout << jbody << std::endl;
-
-        if (jbody.size() == 0) {
-            return { false, {} };
-        }
-        if (! jbody[0]["error"].is_null()) {
-            std::cerr << jbody[0]["error"] << "\n";
-            return { false, {} };
-        }
-
-        block_data_str = jbody[0]["result"].get<std::string>();
+    std::shared_ptr<httplib::Response> res = query("getblock",
+        nlohmann::json::array({ block_hash.decompress(false), 0 })
+    );
+    if (! res) {
+        return { false, {} };
     }
+
+    if (res->status != 200) {
+        return { false, {} };
+    }
+
+    auto jbody = nlohmann::json::parse(res->body);
+    // std::cout << jbody << std::endl;
+
+    if (jbody.size() == 0) {
+        return { false, {} };
+    }
+    if (! jbody[0]["error"].is_null()) {
+        std::cerr << jbody[0]["error"] << "\n";
+        return { false, {} };
+    }
+
+    block_data_str = jbody[0]["result"].get<std::string>();
 
     return { true, gs::util::unhex(block_data_str) };
 }
@@ -113,8 +114,9 @@ std::pair<bool, std::uint32_t> rpc::get_best_block_height()
     return { true, jbody[0]["result"]["blocks"].get<std::uint32_t>() };
 }
 
-std::pair<bool, nlohmann::json> rpc::get_decode_raw_transaction(const std::string hex_str)
-{
+std::pair<bool, nlohmann::json> rpc::get_decode_raw_transaction(
+    const std::string& hex_str
+) {
     std::shared_ptr<httplib::Response> res = query("decoderawtransaction", nlohmann::json::array({ hex_str }));
     if (! res) {
         return { false, {} };
