@@ -136,7 +136,7 @@ int main(int argc, char * argv[])
         }
 
         ABORT_CHECK (v["scriptPubKey"]["hex"].get<std::string>()
-            != gs::util::decompress_hex(tx.outputs[outputsIdx].scriptpubkey.v));
+            != gs::util::hex(tx.outputs[outputsIdx].scriptpubkey.v));
 
     }
 
