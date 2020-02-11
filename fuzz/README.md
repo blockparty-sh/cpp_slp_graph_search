@@ -86,3 +86,15 @@ python3 server.py
 cd ..
 ./diff-nodejs.sh
 ```
+
+## slp-indexer Differential
+
+This tests SLP transaction parsing against [slp-indexer](https://github.com/Bitcoin-com/slp-indexer) parser.
+
+Use the fuzzing branch
+Start slp-indexer-service
+
+# open another terminal
+cd ..
+./diff-slpindexer.sh
+```
