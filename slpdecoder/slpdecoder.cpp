@@ -15,7 +15,10 @@ int main(int argc, char * argv[])
 
     const std::vector<std::uint8_t> slphex = gs::util::unhex(std::string(argv[1]));
     gs::slp_transaction slp;
-    slp.hydrate(gs::scriptpubkey(slphex));
+    if (! slp.hydrate(gs::scriptpubkey(slphex))) {
+        std::cerr << "slp hydration failed" << std::endl;
+        return 1;
+    }
 
     std::cout << slp;
 
