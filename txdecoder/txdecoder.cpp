@@ -4,7 +4,6 @@
 #include <vector>
 
 #define ENABLE_BCH_PARSE_PRINTING
-#define ENABLE_SLP_PARSE_ERROR_PRINTING
 #include <gs++/transaction.hpp>
 
 int main(int argc, char * argv[])
@@ -21,7 +20,7 @@ int main(int argc, char * argv[])
         return 1;
     }
 
-    std::cout << tx << std::endl;
+    std::cout << tx;
 
     return 0;
 }
