@@ -14,6 +14,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON )
 option(${PROJECT_NAME}_BUILD_SERVER "Build ${PROJECT_NAME} server" ON)
 option(${PROJECT_NAME}_BUILD_CLI "Build ${PROJECT_NAME} cli" ON)
 option(${PROJECT_NAME}_BUILD_TXDECODER "Build slp transaction decoder utility" ON)
+option(${PROJECT_NAME}_BUILD_SLPDECODER "Build slp op_return decoder utility" ON)
 option(${PROJECT_NAME}_BUILD_BLOCKDECODER "Build block decoder utility" ON)
 option(${PROJECT_NAME}_BUILD_TESTS "Build ${PROJECT_NAME} tests" ON)
 option(${PROJECT_NAME}_BUILD_CSLP "Build ${PROJECT_NAME} cslp library" OFF)
@@ -300,6 +301,10 @@ endif()
 
 if (${PROJECT_NAME}_BUILD_TXDECODER)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/txdecoder)
+endif()
+
+if (${PROJECT_NAME}_BUILD_SLPDECODER)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/slpdecoder)
 endif()
 
 if (${PROJECT_NAME}_BUILD_BLOCKDECODER)
