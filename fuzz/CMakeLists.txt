@@ -119,3 +119,25 @@ target_link_libraries(fuzz_differential_bitcoinrpc
     httplib
     ${Boost_FILESYSTEM_LIBRARY}
 )
+
+add_executable(fuzz_differential_slpparser
+    ${CMAKE_CURRENT_SOURCE_DIR}/differential_slpparser.cpp
+    ${CMAKE_SOURCE_DIR}/src/transaction.cpp
+    ${CMAKE_SOURCE_DIR}/src/slp_transaction.cpp
+    ${CMAKE_SOURCE_DIR}/src/sha2.cpp
+)
+
+target_include_directories(fuzz_differential_slpparser PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_BINARY_DIR}/nlohmann-json/include
+    ${CMAKE_BINARY_DIR}/cpp-httplib/include
+)
+
+target_link_libraries(fuzz_differential_slpparser
+    absl::variant
+    absl::flat_hash_map
+    absl::numeric
+    absl::strings
+    httplib
+    ${Boost_FILESYSTEM_LIBRARY}
+)
