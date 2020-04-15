@@ -139,6 +139,93 @@ public:
         return true;
     }
 
+    bool Dot(
+        const std::string& txid_str,
+        const std::vector<std::string> exclude_txids
+    ) {
+        {
+            static const std::regex txid_regex("^[0-9a-fA-F]{64}$");
+            const bool rmatch = std::regex_match(txid_str, txid_regex);
+            if (! rmatch) {
+                std::cerr << "txid did not match regex\n";
+                return false;
+            }
+        }
+
+        graphsearch::GraphSearchRequest request;
+
+        gs::txid txid(txid_str);
+        std::reverse(txid.v.begin(), txid.v.end());
+
+        request.set_txid(txid.decompress());
+
+        for (const std::string exclude_txid_str : exclude_txids) {
+            gs::txid txid(exclude_txid_str);
+            std::reverse(txid.v.begin(), txid.v.end());
+            request.add_exclude_txids(txid.decompress());
+        }
+
+        graphsearch::GraphSearchReply reply;
+
+        grpc::ClientContext context;
+        grpc::Status status = stub_->GraphSearch(&context, request, &reply);
+
+
+        if (! status.ok()) {
+            std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+            return false;
+        }
+
+        std::string odot = "digraph G {\n";
+
+        std::vector<gs::transaction> txs;
+
+        TIMER("hydrate", {
+            for (auto & n : reply.txdata()) {
+                gs::transaction tx;
+                if (! tx.hydrate(n.begin(), n.end())) {
+                    std::cerr << "ERROR: could not hydrate from txdata\n";
+                    continue;
+                }
+
+                txs.emplace_back(tx);
+            }
+        });
+
+        TIMER("toposort", {
+            txs = gs::util::topological_sort(txs);
+        });
+
+        std::size_t slice_begin = 0;
+        std::size_t slice_end = txs.size();
+
+        txs = decltype(txs)(txs.cbegin() + slice_begin, txs.cbegin() + slice_end);
+
+        absl::flat_hash_set<gs::txid> txids;
+        for (auto & tx : txs) {
+            txids.insert(tx.txid);
+            for (auto & m : tx.inputs) {
+                txids.insert(m.txid);
+            }
+        }
+
+        // don't draw labels
+        for (auto & txid : txids) {
+            odot += "t" + txid.decompress(true) + " [label=\"\"];\n";
+        }
+
+        for (auto & tx : txs) {
+            for (auto & m : tx.inputs) {
+                odot += "t" + m.txid.decompress(true) + " -> t" + tx.txid.decompress(true) + ";\n";
+            }
+        }
+        odot += "}\n";
+
+        std::cout << odot;
+
+        return true;
+    }
+
     bool GraphSearchTrustedValidate(const std::string& txid_str)
     {
         {
@@ -394,6 +481,7 @@ int main(int argc, char* argv[])
             { "tvalidate",            no_argument,       nullptr, 1005 },
             { "validatefile",         required_argument, nullptr, 1006 },
             { "status",               no_argument,       nullptr, 1007 },
+            { "dot",                  no_argument,       nullptr, 1008 },
             { "exclude",              required_argument, nullptr, 2000 },
             { 0, 0, nullptr, 0 },
         };
@@ -434,6 +522,7 @@ int main(int argc, char* argv[])
             case 1005: query_type = "tvalidate";            break;
             case 1006: query_type = "validatefile";         break;
             case 1007: query_type = "status";               break;
+            case 1008: query_type = "dot";                  break;
             case 2000:
                 ss >> tmp;
                 exclude_txids.push_back(tmp);
@@ -464,6 +553,8 @@ int main(int argc, char* argv[])
 
     if (query_type == "graphsearch") {
         graphsearch_client.GraphSearch(argv[argc-1], exclude_txids);
+    } else if (query_type == "dot") {
+        graphsearch_client.Dot(argv[argc-1], exclude_txids);
     } else if (query_type == "status") {
         graphsearch_client.Status();
     } else if (query_type == "validate") {
