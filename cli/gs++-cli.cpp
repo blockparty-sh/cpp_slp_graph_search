@@ -28,7 +28,7 @@
     auto start = std::chrono::high_resolution_clock::now();\
     code\
     auto end = std::chrono::high_resolution_clock::now();\
-    std::cout\
+    std::cerr\
         << title << ":\t"\
         << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";\
 }
