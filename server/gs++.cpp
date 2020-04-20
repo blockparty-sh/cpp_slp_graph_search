@@ -147,6 +147,16 @@ class GraphSearchServiceImpl final
             }
             result = g.graph_search__ptr(lookup_txid, exclusion_set);
 
+            // We want to include the "exclude_txids" set in ret for validating clients
+            // FIXME: blindly adds all regardless if was touched in the graph search
+            for (const gs::txid txid : exclude_txids) {
+                std::cout << "exc_txn: " << txid.decompress(true) << std::endl;
+                if (g.txid_to_token.count(txid) > 0) {
+                    gs::token_details* token = g.txid_to_token[txid];
+                    result.second.push_back(token->graph[txid].txdata);
+                }
+            }
+
             if (result.first == gs::graph_search_status::OK) {
                 for (auto & m : result.second) {
                     reply->add_txdata(m.data(), m.size());
