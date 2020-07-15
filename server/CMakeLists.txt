@@ -22,6 +22,7 @@ target_include_directories(gs++ PUBLIC
     ${CMAKE_BINARY_DIR}/cpp-httplib/include
     ${CMAKE_BINARY_DIR}/nlohmann-json/include
     ${CMAKE_BINARY_DIR}/toml11/include
+    ${CMAKE_BINARY_DIR}/secp256k1/include
 )
 
 target_link_libraries(gs++
@@ -35,6 +36,7 @@ target_link_libraries(gs++
     httplib
     cppzmq
     atomic
+    secp256k1
     ${CMAKE_THREAD_LIBS_INIT}
     ${Boost_FILESYSTEM_LIBRARY}
     ${Boost_SYSTEM_LIBRARY}

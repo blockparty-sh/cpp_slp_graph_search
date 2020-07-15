@@ -290,8 +290,7 @@ add_subdirectory(${cpp-httplib_DIR})
 add_subdirectory(${cppzmq_DIR})
 add_subdirectory(${nlohmann-json_DIR})
 add_subdirectory(${toml11_DIR})
-
-find_library(SECP256K1 secp256k1)
+add_subdirectory(${secp256k1_DIR})
 
 
 # TODO this code should be in pb directory probably

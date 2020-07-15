@@ -18,6 +18,7 @@
 #include <zmq_addon.hpp>
 #include <libbase64.h>
 #include <toml.hpp>
+#include <secp256k1_schnorr.h>
 
 #include "graphsearch.grpc.pb.h"
 #include "utxo.grpc.pb.h"
@@ -403,6 +404,51 @@ bool cache_slp_block(const gs::block& block, const std::uint32_t height)
 
 int main(int argc, char * argv[])
 {
+    secp256k1_context* ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN);
+    unsigned char msg[32]; // hash of txid(32) + tokenid(32) + value(8)
+    unsigned char privkey[32];
+    secp256k1_pubkey pubkey;
+    unsigned char sig[64]; // schnorr sig stored here
+
+	// generate private key
+	{
+        /*
+        secp256k1_scalar k;
+        random_scalar_order_test(&k);
+        secp256k1_scalar_get_b32(privkey, &k);
+        */
+	}
+
+	// fill msg with random value
+	{
+        // secp256k1_rand256_test(msg);
+    }
+
+	// construct and verify pubkey
+	if (secp256k1_ec_seckey_verify(ctx, privkey) != 1) {
+        spdlog::info("verify failed");
+        return 1;
+    }
+
+	if (secp256k1_ec_pubkey_create(ctx, &pubkey, privkey) != 1) {
+        spdlog::info("pubkey create failed");
+        return 1;
+    }
+
+    if (secp256k1_schnorr_sign(ctx, sig, msg, privkey, NULL, NULL) != 1) {
+        spdlog::info("schnorr sign failed");
+        return 1;
+    }
+
+    if (secp256k1_schnorr_verify(ctx, sig, msg, &pubkey) != 1) {
+        spdlog::info("verify failed");
+        return 1;
+    }
+
+    return 1;
+
+
+
     // std::signal(SIGINT, signal_handler);
     // std::signal(SIGTERM, signal_handler);
     startup_mempool_transactions.reserve(100000);
