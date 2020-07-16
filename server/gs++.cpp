@@ -19,6 +19,7 @@
 #include <libbase64.h>
 #include <toml.hpp>
 #include <secp256k1_schnorr.h>
+#include <3rdparty/sha2.h>
 
 #include "graphsearch.grpc.pb.h"
 #include "utxo.grpc.pb.h"
@@ -90,6 +91,17 @@ std::string scriptpubkey_to_base64(const gs::scriptpubkey& pubkey)
     );
     b64.resize(b64_len);
     return b64;
+}
+
+std::array<uint8_t, 64> schnorr_sign(const std::array<uint8_t, 32>& msg)
+{
+    /*
+    static secp256k1_context* ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN);
+    static unsigned char privkey[32];
+    static secp256k1_pubkey pubkey;
+    */
+    std::array<uint8_t, 64> sig = { 0 };
+    return sig;
 }
 
 void signal_handler(int signal)
@@ -209,6 +221,67 @@ class GraphSearchServiceImpl final
 
         if (! rmatch) {
             return { grpc::StatusCode::INVALID_ARGUMENT, "txid did not match regex" };
+        }
+
+        return { grpc::Status::OK };
+    }
+
+    grpc::Status SignOutput (
+        grpc::ServerContext* context,
+        const graphsearch::SignOutputRequest* request,
+        graphsearch::SignOutputReply* reply
+    ) override {
+        const auto start = std::chrono::steady_clock::now();
+
+        std::string lookup_txid_str = "";
+        uint32_t lookup_vout = 0;
+
+        // cowardly validating user provided data
+        static const std::regex txid_regex("^[0-9a-fA-F]{64}$");
+        const bool rmatch = std::regex_match(request->txid(), txid_regex);
+        bool has_tx = false;
+        if (rmatch) {
+            const gs::txid lookup_txid(request->txid());
+            lookup_txid_str = lookup_txid.decompress(true);
+            has_tx = validator.has(lookup_txid);
+            if (has_tx) {
+                gs::transaction tx = validator.get(lookup_txid);
+                lookup_vout = request->vout();
+
+                const gs::txid    txid    = lookup_txid;
+                const uint32_t    vout    = lookup_vout;
+                const gs::tokenid tokenid = tx.slp.tokenid;
+                const uint64_t    value   = tx.output_slp_amount(vout);
+
+                std::array<uint8_t, 32+4+32+8> preimage; // txid, vout, tokenid, value
+                std::memcpy(preimage.data()+0,  txid.data(),    32);
+                std::memcpy(preimage.data()+32, &vout,           4);
+                std::memcpy(preimage.data()+36, tokenid.data(), 32);
+                std::memcpy(preimage.data()+68, &value,          8);
+                // spdlog::info("{} {} {} {}", txid.decompress(true), vout, tokenid.decompress(true), value);
+
+                std::array<uint8_t, 32> msg;
+                sha256(preimage.data(), preimage.size(), msg.data());
+
+                const std::array<uint8_t, 64> sig = schnorr_sign(msg);
+
+                reply->set_tx(tx.serialized.data(), tx.serialized.size());
+                reply->set_msg(msg.data(), msg.size());
+                reply->set_sig(sig.data(), sig.size());
+			}
+        }
+        const auto end = std::chrono::steady_clock::now();
+        const auto diff = end - start;
+        const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
+
+        spdlog::info("signoutput: {}:{} ({} ms)", lookup_txid_str, lookup_vout, diff_ms);
+
+        if (! rmatch) {
+            return { grpc::StatusCode::INVALID_ARGUMENT, "txid did not match regex" };
+        }
+
+        if (! has_tx) {
+            return { grpc::StatusCode::NOT_FOUND, "transaction not found" };
         }
 
         return { grpc::Status::OK };

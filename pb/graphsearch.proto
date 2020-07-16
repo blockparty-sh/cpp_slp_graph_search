@@ -10,6 +10,7 @@ package graphsearch;
 service GraphSearchService {
   rpc GraphSearch (GraphSearchRequest) returns (GraphSearchReply) {}
   rpc TrustedValidation (TrustedValidationRequest) returns (TrustedValidationReply) {}
+  rpc SignOutput (SignOutputRequest) returns (SignOutputReply) {}
   rpc Status (StatusRequest) returns (StatusReply) {}
 }
 
@@ -28,6 +29,17 @@ message TrustedValidationRequest {
 
 message TrustedValidationReply {
     bool valid = 1;
+}
+
+message SignOutputRequest {
+    string txid = 1;
+    uint32 vout = 2;
+}
+
+message SignOutputReply {
+    bytes tx  = 1;
+    bytes msg = 2;
+    bytes sig = 3;
 }
 
 message StatusRequest {
