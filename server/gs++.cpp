@@ -63,6 +63,7 @@ std::atomic<bool> startup_processing_mempool = { true };
 std::vector<gs::transaction> startup_mempool_transactions;
 
 std::size_t max_exclusion_set_size = 5;
+std::array<uint8_t, 32> private_key;
 boost::filesystem::path cache_dir;
 
 gs::slp_validator validator;
@@ -97,10 +98,14 @@ std::array<uint8_t, 64> schnorr_sign(const std::array<uint8_t, 32>& msg)
 {
     /*
     static secp256k1_context* ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN);
-    static unsigned char privkey[32];
-    static secp256k1_pubkey pubkey;
+    std::array<uint8_t, 64> sig = { 0 };
+    if (secp256k1_schnorr_sign(ctx, sig.data(), msg.data(), private_key.data(), nullptr, nullptr) != 1) {
+        spdlog::warn("schnorr sign failed");
+        sig = { 0 };
+    }
     */
     std::array<uint8_t, 64> sig = { 0 };
+
     return sig;
 }
 
@@ -537,7 +542,18 @@ int main(int argc, char * argv[])
         cache_dir = boost::filesystem::path(toml::find<std::string>(config, "cache", "dir"));
     }
     max_exclusion_set_size = toml::find<std::size_t>(config, "graphsearch", "max_exclusion_set_size");
+    {
+        const std::vector<uint8_t> privkey = gs::util::unhex(
+            toml::find<std::string>(config, "graphsearch", "private_key")
+        );
 
+        if (privkey.size() != 32) {
+            spdlog::error("private_key has bad format");
+            return EXIT_FAILURE;
+        }
+
+        std::memcpy(private_key.data(), privkey.data(), 32);
+    }
 
     spdlog::info("hello");
 

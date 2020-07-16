@@ -613,6 +613,11 @@ int main(int argc, char* argv[])
             while(std::getline(ss, v, ':')) {
                 elems.push_back(v);
             }
+
+            if (elems.size() != 2) {
+                std::cerr << "bad format: expected TXID:VOUT\n";
+                return EXIT_FAILURE;
+            }
         }
 
         const std::string txid = elems[0];
