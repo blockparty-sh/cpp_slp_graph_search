@@ -135,7 +135,9 @@ bool slp_validator::check_mint(
             VALIDATE_CONTINUE (i_outpoint != txi.mint_baton_outpoint());
 
             if (txi.slp.type == gs::slp_transaction_type::mint) {
-                return walk_mints_home(back, txi); 
+                if (walk_mints_home(back, txi)) {
+                    return true;
+                }
             }
             else if (txi.slp.type == gs::slp_transaction_type::genesis) {
                 return true;
