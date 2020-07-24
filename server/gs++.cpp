@@ -228,10 +228,10 @@ class GraphSearchServiceImpl final
         return { grpc::Status::OK };
     }
 
-    grpc::Status SignOutput (
+    grpc::Status OutputOracle (
         grpc::ServerContext* context,
-        const graphsearch::SignOutputRequest* request,
-        graphsearch::SignOutputReply* reply
+        const graphsearch::OutputOracleRequest* request,
+        graphsearch::OutputOracleReply* reply
     ) override {
         const auto start = std::chrono::steady_clock::now();
 
@@ -285,7 +285,7 @@ class GraphSearchServiceImpl final
         const auto diff = end - start;
         const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
 
-        spdlog::info("signoutput: {}:{} ({} ms)", lookup_txid_str, lookup_vout, diff_ms);
+        spdlog::info("outputoracle: {}:{} ({} ms)", lookup_txid_str, lookup_vout, diff_ms);
 
         if (! rmatch) {
             return { grpc::StatusCode::INVALID_ARGUMENT, "txid did not match regex" };

@@ -10,7 +10,7 @@ package graphsearch;
 service GraphSearchService {
   rpc GraphSearch (GraphSearchRequest) returns (GraphSearchReply) {}
   rpc TrustedValidation (TrustedValidationRequest) returns (TrustedValidationReply) {}
-  rpc SignOutput (SignOutputRequest) returns (SignOutputReply) {}
+  rpc OutputOracle (OutputOracleRequest) returns (OutputOracleReply) {}
   rpc Status (StatusRequest) returns (StatusReply) {}
 }
 
@@ -31,12 +31,12 @@ message TrustedValidationReply {
     bool valid = 1;
 }
 
-message SignOutputRequest {
+message OutputOracleRequest {
     string txid = 1;
     uint32 vout = 2;
 }
 
-message SignOutputReply {
+message OutputOracleReply {
     bytes msg = 1;
     bytes sig = 2;
     // TODO these are for debug, maybe remove later for next release?
