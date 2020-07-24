@@ -39,6 +39,58 @@
         ]
       }
     },
+    "/v1/graphsearch/outputoracle": {
+      "post": {
+        "operationId": "OutputOracle",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/graphsearchOutputOracleReply"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/graphsearchOutputOracleRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GraphSearchService"
+        ]
+      }
+    },
+    "/v1/graphsearch/status": {
+      "post": {
+        "operationId": "Status",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/graphsearchStatusReply"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/graphsearchStatusRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GraphSearchService"
+        ]
+      }
+    },
     "/v1/graphsearch/trustedvalidation": {
       "post": {
         "operationId": "TrustedValidation",
@@ -94,6 +146,97 @@
           }
         }
       }
+    },
+    "graphsearchOutputOracleReply": {
+      "type": "object",
+      "properties": {
+        "msg": {
+          "type": "string",
+          "format": "byte"
+        },
+        "sig": {
+          "type": "string",
+          "format": "byte"
+        },
+        "tx": {
+          "type": "string",
+          "format": "byte",
+          "title": "TODO these are for debug, maybe remove later for next release?"
+        },
+        "vout": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "tokenid": {
+          "type": "string",
+          "format": "byte"
+        },
+        "tokentype": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "value": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "graphsearchOutputOracleRequest": {
+      "type": "object",
+      "properties": {
+        "txid": {
+          "type": "string"
+        },
+        "vout": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "graphsearchStatusReply": {
+      "type": "object",
+      "properties": {
+        "block_height": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "best_block_hash": {
+          "type": "string"
+        },
+        "last_incoming_zmq_tx_unix": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "last_outgoing_zmq_tx_unix": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "last_incoming_zmq_tx": {
+          "type": "string"
+        },
+        "last_outgoing_zmq_tx": {
+          "type": "string"
+        },
+        "last_incoming_zmq_blk_unix": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "last_outgoing_zmq_blk_unix": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "last_incoming_zmq_blk_size": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "last_outgoing_zmq_blk_size": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "graphsearchStatusRequest": {
+      "type": "object"
     },
     "graphsearchTrustedValidationReply": {
       "type": "object",
