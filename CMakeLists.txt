@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.9)
-project(gs++ VERSION 1 LANGUAGES CXX)
+project(gs++ VERSION 1 LANGUAGES CXX C)
 
 configure_file(include/config.h.in include/config.h ESCAPE_QUOTES)
 
@@ -216,17 +216,6 @@ if(${PROJECT_NAME}_SUPERBUILD)
     )
     set(toml11_DIR "${CMAKE_CURRENT_BINARY_DIR}/toml11/src/toml11")
 
-    ExternalProject_Add(secp256k1
-        PREFIX secp256k1
-        GIT_REPOSITORY "https://github.com/Bitcoin-ABC/secp256k1.git"
-        GIT_TAG "bc32fad8989fcb8ea8dec22a1ca49240ce350dbe"
-        INSTALL_DIR     "${CMAKE_BINARY_DIR}/secp256k1"
-        CMAKE_CACHE_ARGS
-            -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/secp256k1
-    )
-    set(secp256k1_DIR "${CMAKE_CURRENT_BINARY_DIR}/secp256k1/src/secp256k1")
-
-
     function(ExternalProject_AlwaysConfigure proj)
       _ep_get_step_stampfile(${proj} "configure" stampfile)
       ExternalProject_Add_Step(${proj} forceconfigure
@@ -256,7 +245,6 @@ if(${PROJECT_NAME}_SUPERBUILD)
             -Dnlohmann-json_DIR:PATH=${nlohmann-json_DIR}
             -Dtoml11_DIR:PATH=${toml11_DIR}
             -Dtoml11_BUILD_TEST:BOOL=OFF
-            -Dsecp256k1_DIR:PATH=${secp256k1_DIR}
             -DJSON_BuildTests:BOOL=OFF
             -DBUILD_TESTING:BOOL=OFF
             -DCPPZMQ_BUILD_TESTS:BOOL=OFF
@@ -275,7 +263,6 @@ if(${PROJECT_NAME}_SUPERBUILD)
             cppzmq
             nlohmann-json
             toml11
-            secp256k1
     )
     ExternalProject_AlwaysConfigure(${PROJECT_NAME})
     return()
@@ -290,7 +277,6 @@ add_subdirectory(${cpp-httplib_DIR})
 add_subdirectory(${cppzmq_DIR})
 add_subdirectory(${nlohmann-json_DIR})
 add_subdirectory(${toml11_DIR})
-add_subdirectory(${secp256k1_DIR})
 
 
 # TODO this code should be in pb directory probably
@@ -305,6 +291,7 @@ include_directories(${PROTO_SRC_DIR})
 
 
 if (${PROJECT_NAME}_BUILD_SERVER)
+    include(FindGMP)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/server)
 endif()
 

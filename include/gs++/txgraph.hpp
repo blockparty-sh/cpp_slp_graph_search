@@ -41,6 +41,8 @@ struct txgraph
         absl::flat_hash_set<const graph_node*>& seen
     );
 
+    bool has_tx(const gs::txid& lookup_txid);
+
     unsigned insert_token_data (
         const gs::tokenid & tokenid,
         const std::vector<gs::transaction> & txs

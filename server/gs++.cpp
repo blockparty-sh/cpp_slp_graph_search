@@ -18,7 +18,7 @@
 #include <zmq_addon.hpp>
 #include <libbase64.h>
 #include <toml.hpp>
-#include <secp256k1_schnorr.h>
+#include <3rdparty/secp256k1/include/secp256k1_schnorr.h>
 #include <3rdparty/sha2.h>
 
 #include "graphsearch.grpc.pb.h"
@@ -64,6 +64,7 @@ std::vector<gs::transaction> startup_mempool_transactions;
 
 std::size_t max_exclusion_set_size = 5;
 std::array<uint8_t, 32> private_key;
+std::atomic<secp256k1_context*> ctx;
 boost::filesystem::path cache_dir;
 
 gs::slp_validator validator;
@@ -96,15 +97,11 @@ std::string scriptpubkey_to_base64(const gs::scriptpubkey& pubkey)
 
 std::array<uint8_t, 64> schnorr_sign(const std::array<uint8_t, 32>& msg)
 {
-    /*
-    static secp256k1_context* ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN);
     std::array<uint8_t, 64> sig = { 0 };
     if (secp256k1_schnorr_sign(ctx, sig.data(), msg.data(), private_key.data(), nullptr, nullptr) != 1) {
         spdlog::warn("schnorr sign failed");
         sig = { 0 };
     }
-    */
-    std::array<uint8_t, 64> sig = { 0 };
 
     return sig;
 }
@@ -215,8 +212,8 @@ class GraphSearchServiceImpl final
         if (rmatch) {
             const gs::txid lookup_txid(request->txid());
             lookup_txid_str = lookup_txid.decompress(true);
-            const bool valid = validator.has(lookup_txid);
-            reply->set_valid(valid);
+            const bool valid_tx = validator.validate(lookup_txid);
+            reply->set_valid(valid_tx);
         }
         const auto end = std::chrono::steady_clock::now();
         const auto diff = end - start;
@@ -244,35 +241,44 @@ class GraphSearchServiceImpl final
         // cowardly validating user provided data
         static const std::regex txid_regex("^[0-9a-fA-F]{64}$");
         const bool rmatch = std::regex_match(request->txid(), txid_regex);
-        bool has_tx = false;
+        bool valid_tx = false;
+        gs::transaction tx;
         if (rmatch) {
             const gs::txid lookup_txid(request->txid());
             lookup_txid_str = lookup_txid.decompress(true);
-            has_tx = validator.has(lookup_txid);
-            if (has_tx) {
+            valid_tx = validator.validate(lookup_txid);
+            if (valid_tx) {
                 gs::transaction tx = validator.get(lookup_txid);
                 lookup_vout = request->vout();
 
-                const gs::txid    txid    = lookup_txid;
-                const uint32_t    vout    = lookup_vout;
-                const gs::tokenid tokenid = tx.slp.tokenid;
-                const uint64_t    value   = tx.output_slp_amount(vout);
+                const gs::txid    txid      = lookup_txid;
+                const uint32_t    vout      = lookup_vout;
+                const gs::tokenid tokenid   = tx.slp.tokenid;
+                const uint16_t    tokentype = tx.slp.token_type;
+                const uint64_t    value     = tx.output_slp_amount(vout);
 
-                std::array<uint8_t, 32+4+32+8> preimage; // txid, vout, tokenid, value
+                std::array<uint8_t, 32+4+32+2+8> preimage; // txid, vout, tokenid, value
                 std::memcpy(preimage.data()+0,  txid.data(),    32);
                 std::memcpy(preimage.data()+32, &vout,           4);
                 std::memcpy(preimage.data()+36, tokenid.data(), 32);
-                std::memcpy(preimage.data()+68, &value,          8);
-                // spdlog::info("{} {} {} {}", txid.decompress(true), vout, tokenid.decompress(true), value);
+                std::memcpy(preimage.data()+68, &tokentype,      2);
+                std::memcpy(preimage.data()+70, &value,          8);
+                spdlog::info("{} {} {} {}", txid.decompress(true), vout, tokenid.decompress(true), value);
+                spdlog::info("{}", gs::util::hex(preimage));
 
                 std::array<uint8_t, 32> msg;
                 sha256(preimage.data(), preimage.size(), msg.data());
 
                 const std::array<uint8_t, 64> sig = schnorr_sign(msg);
 
-                reply->set_tx(tx.serialized.data(), tx.serialized.size());
                 reply->set_msg(msg.data(), msg.size());
                 reply->set_sig(sig.data(), sig.size());
+                // TODO debug, maybe remove in later release
+                reply->set_tx(tx.serialized.data(), tx.serialized.size());
+                reply->set_vout(vout);
+                reply->set_tokenid(tokenid.data(), tokenid.size());
+                reply->set_tokentype(tokentype);
+                reply->set_value(value);
 			}
         }
         const auto end = std::chrono::steady_clock::now();
@@ -285,7 +291,7 @@ class GraphSearchServiceImpl final
             return { grpc::StatusCode::INVALID_ARGUMENT, "txid did not match regex" };
         }
 
-        if (! has_tx) {
+        if (! valid_tx) {
             return { grpc::StatusCode::NOT_FOUND, "transaction not found" };
         }
 
@@ -482,51 +488,6 @@ bool cache_slp_block(const gs::block& block, const std::uint32_t height)
 
 int main(int argc, char * argv[])
 {
-    secp256k1_context* ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN);
-    unsigned char msg[32]; // hash of txid(32) + tokenid(32) + value(8)
-    unsigned char privkey[32];
-    secp256k1_pubkey pubkey;
-    unsigned char sig[64]; // schnorr sig stored here
-
-	// generate private key
-	{
-        /*
-        secp256k1_scalar k;
-        random_scalar_order_test(&k);
-        secp256k1_scalar_get_b32(privkey, &k);
-        */
-	}
-
-	// fill msg with random value
-	{
-        // secp256k1_rand256_test(msg);
-    }
-
-	// construct and verify pubkey
-	if (secp256k1_ec_seckey_verify(ctx, privkey) != 1) {
-        spdlog::info("verify failed");
-        return 1;
-    }
-
-	if (secp256k1_ec_pubkey_create(ctx, &pubkey, privkey) != 1) {
-        spdlog::info("pubkey create failed");
-        return 1;
-    }
-
-    if (secp256k1_schnorr_sign(ctx, sig, msg, privkey, NULL, NULL) != 1) {
-        spdlog::info("schnorr sign failed");
-        return 1;
-    }
-
-    if (secp256k1_schnorr_verify(ctx, sig, msg, &pubkey) != 1) {
-        spdlog::info("verify failed");
-        return 1;
-    }
-
-    return 1;
-
-
-
     // std::signal(SIGINT, signal_handler);
     // std::signal(SIGTERM, signal_handler);
     startup_mempool_transactions.reserve(100000);
@@ -553,6 +514,8 @@ int main(int argc, char * argv[])
         }
 
         std::memcpy(private_key.data(), privkey.data(), 32);
+
+        ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN);
     }
 
     spdlog::info("hello");
@@ -726,7 +689,7 @@ int main(int argc, char * argv[])
             try {
                 zmq::message_t env;
                 subsock.recv(&env);
-                std::string env_str = std::string(static_cast<char*>(env.data()), env.size());
+                const std::string env_str(static_cast<char*>(env.data()), env.size());
 
                 if (env_str == "rawtx" || env_str == "rawblock") {
                     // std::cout << "Received envelope '" << env_str << "'" << std::endl;

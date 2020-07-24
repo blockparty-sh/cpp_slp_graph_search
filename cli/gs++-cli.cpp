@@ -292,9 +292,13 @@ public:
 
         std::cout
             << txid.decompress(true) << ":" << vout << "\n"
-            << gs::util::hex(reply.tx()) << "\n"
-            << gs::util::hex(reply.msg()) << "\n"
-            << gs::util::hex(reply.sig()) << "\n";
+            << gs::util::hex(reply.msg().begin(), reply.msg().end()) << "\n"
+            << gs::util::hex(reply.sig().begin(), reply.sig().end()) << "\n"
+            << gs::util::hex(reply.tx().begin(),  reply.tx().end())  << "\n"
+            << reply.vout() << "\n"
+            << gs::tokenid(std::vector<std::uint8_t>(reply.tokenid().begin(), reply.tokenid().end())).decompress(true) << "\n"
+            << reply.tokentype() << "\n"
+            << reply.value() << "\n";
 
         return true;
     }
