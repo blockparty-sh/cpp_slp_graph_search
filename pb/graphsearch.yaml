@@ -9,6 +9,9 @@
    - selector: graphsearch.GraphSearchService.TrustedValidation
      post: /v1/graphsearch/trustedvalidation
      body: "*"
+   - selector: graphsearch.GraphSearchService.OutputOracle
+     post: /v1/graphsearch/outputoracle
+     body: "*"
    - selector: graphsearch.GraphSearchService.Status
      post: /v1/graphsearch/status
      body: "*"
