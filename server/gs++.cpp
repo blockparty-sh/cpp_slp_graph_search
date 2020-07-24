@@ -257,12 +257,60 @@ class GraphSearchServiceImpl final
                 const uint16_t    tokentype = tx.slp.token_type;
                 const uint64_t    value     = tx.output_slp_amount(vout);
 
-                std::array<uint8_t, 32+4+32+2+8> preimage; // txid, vout, tokenid, value
-                std::memcpy(preimage.data()+0,  txid.data(),    32);
-                std::memcpy(preimage.data()+32, &vout,           4);
-                std::memcpy(preimage.data()+36, tokenid.data(), 32);
-                std::memcpy(preimage.data()+68, &tokentype,      2);
-                std::memcpy(preimage.data()+70, &value,          8);
+                std::vector<uint8_t> preimage;
+                if (tokentype == 0x01) {
+                    preimage.resize(32+4+32+2+8+1); // txid, vout, tokenid, tokentype, tokenvalue, is_baton
+                    std::memcpy(preimage.data()+0,  txid.data(),    32);
+                    std::memcpy(preimage.data()+32, &vout,           4);
+                    std::memcpy(preimage.data()+36, tokenid.data(), 32);
+                    std::memcpy(preimage.data()+68, &tokentype,      2);
+                    std::memcpy(preimage.data()+70, &value,          8);
+                    const uint8_t is_baton = tx.mint_baton_outpoint().vout == vout;
+                    std::memcpy(preimage.data()+78, &is_baton,  1);
+                    // TODO debug, maybe remove in later release
+                    reply->set_tx(tx.serialized.data(), tx.serialized.size());
+                    reply->set_vout(vout);
+                    reply->set_tokenid(tokenid.data(), tokenid.size());
+                    reply->set_tokentype(tokentype);
+                    reply->set_value(value);
+                    reply->set_is_baton(is_baton);
+                } else if (tokentype == 0x081) {
+                    preimage.resize(32+4+32+2+8+1); // txid, vout, tokenid, tokentype, tokenvalue, is_baton
+                    std::memcpy(preimage.data()+0,  txid.data(),    32);
+                    std::memcpy(preimage.data()+32, &vout,           4);
+                    std::memcpy(preimage.data()+36, tokenid.data(), 32);
+                    std::memcpy(preimage.data()+68, &tokentype,      2);
+                    std::memcpy(preimage.data()+70, &value,          8);
+                    const uint8_t is_baton = tx.mint_baton_outpoint().vout == vout;
+                    std::memcpy(preimage.data()+78, &is_baton,  1);
+                    // TODO debug, maybe remove in later release
+                    reply->set_tx(tx.serialized.data(), tx.serialized.size());
+                    reply->set_vout(vout);
+                    reply->set_tokenid(tokenid.data(), tokenid.size());
+                    reply->set_tokentype(tokentype);
+                    reply->set_value(value);
+                    reply->set_is_baton(is_baton);
+                } else if (tokentype == 0x041) {
+                    preimage.resize(32+4+32+2+32); // txid, vout, tokenid, tokentype, 
+                    std::memcpy(preimage.data()+0,  txid.data(),    32);
+                    std::memcpy(preimage.data()+32, &vout,           4);
+                    std::memcpy(preimage.data()+36, tokenid.data(), 32);
+                    std::memcpy(preimage.data()+68, &tokentype,      2);
+                    // TODO UNTESTED
+                    const gs::transaction gen_tx   = validator.get(gs::txid(tokenid.v));
+                    const gs::outpoint& i_outpoint = tx.inputs[0];
+                    const gs::transaction & txi    = validator.transaction_map.at(i_outpoint.txid);
+                    const gs::tokenid group_id     = txi.slp.tokenid;
+                    std::memcpy(preimage.data()+70, &group_id,  32);
+                    // TODO debug, maybe remove in later release
+                    reply->set_tx(tx.serialized.data(), tx.serialized.size());
+                    reply->set_vout(vout);
+                    reply->set_tokenid(tokenid.data(), tokenid.size());
+                    reply->set_tokentype(tokentype);
+                    reply->set_groupid(group_id.data(), group_id.size());
+                }
+
+
                 spdlog::info("{} {} {} {}", txid.decompress(true), vout, tokenid.decompress(true), value);
                 spdlog::info("{}", gs::util::hex(preimage));
 
@@ -273,12 +321,6 @@ class GraphSearchServiceImpl final
 
                 reply->set_msg(msg.data(), msg.size());
                 reply->set_sig(sig.data(), sig.size());
-                // TODO debug, maybe remove in later release
-                reply->set_tx(tx.serialized.data(), tx.serialized.size());
-                reply->set_vout(vout);
-                reply->set_tokenid(tokenid.data(), tokenid.size());
-                reply->set_tokentype(tokentype);
-                reply->set_value(value);
 			}
         }
         const auto end = std::chrono::steady_clock::now();

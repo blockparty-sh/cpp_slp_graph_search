@@ -298,7 +298,9 @@ public:
             << reply.vout() << "\n"
             << gs::tokenid(std::vector<std::uint8_t>(reply.tokenid().begin(), reply.tokenid().end())).decompress(true) << "\n"
             << reply.tokentype() << "\n"
-            << reply.value() << "\n";
+            << reply.value() << "\n"
+            << (reply.is_baton() ? "baton" : "not baton") << "\n"
+            << gs::tokenid(std::vector<std::uint8_t>(reply.groupid().begin(), reply.groupid().end())).decompress(true) << "\n";
 
         return true;
     }

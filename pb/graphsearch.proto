@@ -45,6 +45,8 @@ message OutputOracleReply {
     bytes tokenid = 5;
     uint32 tokentype = 6;
     uint64 value = 7;
+    bool is_baton = 8;
+    bytes groupid = 9;
 }
 
 message StatusRequest {
