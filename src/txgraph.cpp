@@ -145,7 +145,7 @@ unsigned txgraph::insert_token_data (
     for (graph_node * node : latest) {
         for (const gs::txid & input_txid : input_map[node->txdata]) {
             if (! token.graph.count(input_txid)) {
-                spdlog::warn("insert_token_data: input_txid not found in tokengraph {}", input_txid.decompress(true));
+                // spdlog::warn("insert_token_data: input_txid not found in tokengraph {}", input_txid.decompress(true));
                 continue;
             }
 

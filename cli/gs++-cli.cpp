@@ -260,6 +260,49 @@ public:
         return true;
     }
 
+    bool OutputOracle(const std::string& txid_str, const uint32_t vout)
+    {
+        {
+            static const std::regex txid_regex("^[0-9a-fA-F]{64}$");
+            const bool rmatch = std::regex_match(txid_str, txid_regex);
+            if (! rmatch) {
+                std::cerr << "txid did not match regex\n";
+                return false;
+            }
+        }
+
+        graphsearch::OutputOracleRequest request;
+
+        gs::txid txid(txid_str);
+        std::reverse(txid.v.begin(), txid.v.end());
+
+        request.set_txid(txid.decompress());
+        request.set_vout(vout);
+
+        graphsearch::OutputOracleReply reply;
+
+        grpc::ClientContext context;
+        grpc::Status status = stub_->OutputOracle(&context, request, &reply);
+
+
+        if (! status.ok()) {
+            std::cout << status.error_code() << ": " << status.error_message() << std::endl;
+            return false;
+        }
+
+        std::cout
+            << txid.decompress(true) << ":" << vout << "\n"
+            << gs::util::hex(reply.msg().begin(), reply.msg().end()) << "\n"
+            << gs::util::hex(reply.sig().begin(), reply.sig().end()) << "\n"
+            << gs::util::hex(reply.tx().begin(),  reply.tx().end())  << "\n"
+            << reply.vout() << "\n"
+            << gs::tokenid(std::vector<std::uint8_t>(reply.tokenid().begin(), reply.tokenid().end())).decompress(true) << "\n"
+            << reply.tokentype() << "\n"
+            << reply.value() << "\n";
+
+        return true;
+    }
+
     bool Status() {
         graphsearch::StatusRequest request;
         graphsearch::StatusReply reply;
@@ -417,18 +460,18 @@ void validatefile(std::string src)
 
     std::vector<gs::transaction> txs;
 
-	std::string line;
-	while (std::getline(infile, line)) {
-		std::string decoded(line.size(), '\0');
+    std::string line;
+    while (std::getline(infile, line)) {
+        std::string decoded(line.size(), '\0');
         std::size_t len = 0;
-		base64_decode(
-			line.data(),
-			line.size(),
-			const_cast<char*>(decoded.data()),
-			&len,
-			0
-		);
-		decoded.resize(len);
+        base64_decode(
+            line.data(),
+            line.size(),
+            const_cast<char*>(decoded.data()),
+            &len,
+            0
+        );
+        decoded.resize(len);
 
         gs::transaction tx;
         if (! tx.hydrate(decoded.begin(), decoded.end())) {
@@ -437,7 +480,7 @@ void validatefile(std::string src)
         }
 
         txs.push_back(tx);
-	}
+    }
 
     txs = gs::util::topological_sort(txs);
 
@@ -482,6 +525,7 @@ int main(int argc, char* argv[])
             { "validatefile",         required_argument, nullptr, 1006 },
             { "status",               no_argument,       nullptr, 1007 },
             { "dot",                  no_argument,       nullptr, 1008 },
+            { "outputoracle",         no_argument,       nullptr, 1009 },
             { "exclude",              required_argument, nullptr, 2000 },
             { 0, 0, nullptr, 0 },
         };
@@ -523,6 +567,7 @@ int main(int argc, char* argv[])
             case 1006: query_type = "validatefile";         break;
             case 1007: query_type = "status";               break;
             case 1008: query_type = "dot";                  break;
+            case 1009: query_type = "outputoracle";         break;
             case 2000:
                 ss >> tmp;
                 exclude_txids.push_back(tmp);
@@ -563,6 +608,26 @@ int main(int argc, char* argv[])
         graphsearch_client.GraphSearchTrustedValidate(argv[argc-1]);
     } else if (query_type == "validatefile") {
         validatefile(argv[argc-1]);
+    } else if (query_type == "outputoracle") {
+        std::vector<std::string> elems;
+        {
+            std::string outpoint_str(argv[argc-1]);
+            std::stringstream ss(outpoint_str);
+            std::string v;
+            while(std::getline(ss, v, ':')) {
+                elems.push_back(v);
+            }
+
+            if (elems.size() != 2) {
+                std::cerr << "bad format: expected TXID:VOUT\n";
+                return EXIT_FAILURE;
+            }
+        }
+
+        const std::string txid = elems[0];
+        const uint32_t    vout = static_cast<uint32_t>(std::stoul(elems[1]));
+
+        graphsearch_client.OutputOracle(txid, vout);
     } else if (query_type == "utxo") {
         std::vector<std::pair<std::string, std::uint32_t>> outpoints;
         for (int optidx=optind; optidx < argc; ++optidx) {

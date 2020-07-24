@@ -24,6 +24,7 @@ bind = "tcp://127.0.0.1:29069"
 
 [graphsearch]
 max_exclusion_set_size = 5
+private_key = "0000000000000000000000000000000000000000000000000000000000000000"
 
 [services]
 graphsearch = true

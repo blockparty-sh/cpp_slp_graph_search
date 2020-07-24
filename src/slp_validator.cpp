@@ -38,6 +38,11 @@ bool slp_validator::has(const gs::txid& txid) const
     return transaction_map.count(txid) == 1;
 }
 
+gs::transaction slp_validator::get(const gs::txid& txid) const
+{
+    return transaction_map.at(txid);
+}
+
 #define ENABLE_SLP_VALIDATE_DEBUG_PRINTING
 
 #ifdef ENABLE_SLP_VALIDATE_DEBUG_PRINTING

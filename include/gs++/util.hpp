@@ -126,6 +126,11 @@ std::string hex(const Container& v)
     return ret;
 }
 
+template <typename Iterator>
+std::string hex(Iterator first, Iterator last)
+{
+    return hex(std::vector<std::uint8_t>(first, last));
+}
 
 template <typename Container>
 std::vector<std::uint8_t> unhex(const Container& v_)
