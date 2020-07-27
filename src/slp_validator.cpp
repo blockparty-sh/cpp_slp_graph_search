@@ -17,7 +17,13 @@ namespace gs {
 bool slp_validator::add_tx(const gs::transaction& tx)
 {
     if (tx.slp.type != gs::slp_transaction_type::invalid) {
-        return transaction_map.insert({ tx.txid, tx }).second;
+        const auto p = transaction_map.insert({ tx.txid, tx });
+
+        if (validate(tx.txid)) {
+            return p.second;
+        } else {
+            return false;
+        }
     }
 
     return false;
@@ -38,12 +44,17 @@ bool slp_validator::has(const gs::txid& txid) const
     return transaction_map.count(txid) == 1;
 }
 
+bool slp_validator::has_valid(const gs::txid& txid) const
+{
+    return valid.count(txid) == 1;
+}
+
 gs::transaction slp_validator::get(const gs::txid& txid) const
 {
     return transaction_map.at(txid);
 }
 
-#define ENABLE_SLP_VALIDATE_DEBUG_PRINTING
+// #define ENABLE_SLP_VALIDATE_DEBUG_PRINTING
 
 #ifdef ENABLE_SLP_VALIDATE_DEBUG_PRINTING
     #define VALIDATE_CHECK(cond) {\
@@ -75,7 +86,7 @@ gs::transaction slp_validator::get(const gs::txid& txid) const
 bool slp_validator::check_send(
     absl::flat_hash_set<gs::txid> & seen,
     const gs::transaction & tx
-) const {
+) {
 #ifdef ENABLE_SLP_VALIDATE_DEBUG_PRINTING
     std::cerr << "send: " << tx.txid.decompress(true) << "\n";
 #endif
@@ -106,7 +117,7 @@ bool slp_validator::check_send(
 
 bool slp_validator::check_mint(
     const gs::transaction & tx
-) const {
+) {
     std::function<bool(
         const gs::transaction&,
         const gs::transaction&
@@ -158,7 +169,7 @@ bool slp_validator::check_mint(
 
 bool slp_validator::check_genesis(
     const gs::transaction & tx
-) const {
+) {
 #ifdef ENABLE_SLP_VALIDATE_DEBUG_PRINTING
     std::cerr << "genesis: " << tx.txid.decompress(true) << "\n";
 #endif
@@ -180,7 +191,7 @@ bool slp_validator::check_genesis(
 bool slp_validator::check_outputs_valid (
     absl::flat_hash_set<gs::txid> & seen,
     const gs::transaction & tx
-) const {
+) {
 #ifdef ENABLE_SLP_VALIDATE_DEBUG_PRINTING
     std::cerr << "check_outputs_valid: " << tx.txid.decompress(true) << "\n";
 #endif
@@ -203,13 +214,17 @@ bool slp_validator::check_outputs_valid (
     }
 }
 
-bool slp_validator::validate(const gs::transaction & tx) const
+bool slp_validator::validate(const gs::transaction & tx)
 {
 #ifdef ENABLE_SLP_VALIDATE_DEBUG_PRINTING
     std::cerr << "validate(tx): " << tx.txid.decompress(true) << "\n";
 #endif
     if (tx.slp.type == gs::slp_transaction_type::invalid) {
         return false;
+    }
+
+    if (has_valid(tx.txid)) {
+        return true;
     }
 
     absl::flat_hash_set<gs::txid> seen;
@@ -222,13 +237,18 @@ bool slp_validator::validate(const gs::transaction & tx) const
     }
 }
 
-bool slp_validator::validate(const gs::txid & txid) const
+bool slp_validator::validate(const gs::txid & txid)
 {
 #ifdef ENABLE_SLP_VALIDATE_DEBUG_PRINTING
     std::cerr << "validate(txid): " << txid.decompress(true) << "\n";
 #endif
     VALIDATE_CHECK (! has(txid));
-    return validate(transaction_map.at(txid));
+    const bool is_valid = validate(transaction_map.at(txid));
+    if (is_valid) {
+        add_valid_txid(txid);
+    }
+
+    return is_valid;
 }
 
 }

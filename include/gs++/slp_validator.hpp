@@ -24,22 +24,23 @@ struct slp_validator
     bool remove_tx(const gs::txid& txid);
     bool add_valid_txid(const gs::txid& txid);
     bool has(const gs::txid& txid) const;
+    bool has_valid(const gs::txid& txid) const;
     gs::transaction get(const gs::txid& txid) const;
 
     bool check_outputs_valid(
         absl::flat_hash_set<gs::txid> & seen,
         const gs::transaction & tx
-    ) const;
+    );
 
     bool check_send(
         absl::flat_hash_set<gs::txid> & seen,
         const gs::transaction & tx
-    ) const;
-    bool check_mint(const gs::transaction & tx) const;
-    bool check_genesis(const gs::transaction & tx) const;
+    );
+    bool check_mint(const gs::transaction & tx);
+    bool check_genesis(const gs::transaction & tx);
 
-    bool validate(const gs::transaction & tx) const;
-    bool validate(const gs::txid & txid) const;
+    bool validate(const gs::transaction & tx);
+    bool validate(const gs::txid & txid);
 };
 
 }
