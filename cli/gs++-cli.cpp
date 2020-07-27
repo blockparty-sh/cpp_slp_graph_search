@@ -290,17 +290,45 @@ public:
             return false;
         }
 
-        std::cout
-            << txid.decompress(true) << ":" << vout << "\n"
-            << gs::util::hex(reply.msg().begin(), reply.msg().end()) << "\n"
-            << gs::util::hex(reply.sig().begin(), reply.sig().end()) << "\n"
-            << gs::util::hex(reply.tx().begin(),  reply.tx().end())  << "\n"
-            << reply.vout() << "\n"
-            << gs::tokenid(std::vector<std::uint8_t>(reply.tokenid().begin(), reply.tokenid().end())).decompress(true) << "\n"
-            << reply.tokentype() << "\n"
-            << reply.value() << "\n"
-            << (reply.is_baton() ? "baton" : "not baton") << "\n"
-            << gs::tokenid(std::vector<std::uint8_t>(reply.groupid().begin(), reply.groupid().end())).decompress(true) << "\n";
+        const uint32_t tokentype = reply.tokentype();
+
+        if (tokentype == 0x01) {
+            std::cout
+                << "outpoint: " << txid.decompress(true) << ":" << reply.vout() << "\n"
+                << "msg: " << gs::util::hex(reply.msg().begin(), reply.msg().end()) << "\n"
+                << "sig: " << gs::util::hex(reply.sig().begin(), reply.sig().end()) << "\n"
+                << "tx: " << gs::util::hex(reply.tx().begin(),  reply.tx().end())  << "\n"
+                << "tokenid: " << gs::tokenid(std::vector<std::uint8_t>(reply.tokenid().begin(), reply.tokenid().end())).decompress(true) << "\n"
+                << "tokentype: " << reply.tokentype() << "\n"
+                << "value: " << reply.value() << "\n"
+                << "baton: " << (reply.is_baton() ? "true" : "false") << "\n";
+
+        }
+
+        if (tokentype == 0x81) {
+            std::cout
+                << "outpoint: " << txid.decompress(true) << ":" << reply.vout() << "\n"
+                << "msg: " << gs::util::hex(reply.msg().begin(), reply.msg().end()) << "\n"
+                << "sig: " << gs::util::hex(reply.sig().begin(), reply.sig().end()) << "\n"
+                << "tx: " << gs::util::hex(reply.tx().begin(),  reply.tx().end())  << "\n"
+                << "tokenid: " << gs::tokenid(std::vector<std::uint8_t>(reply.tokenid().begin(), reply.tokenid().end())).decompress(true) << "\n"
+                << "tokentype: " << reply.tokentype() << "\n"
+                << "value: " << reply.value() << "\n"
+                << "baton: " << (reply.is_baton() ? "true" : "false") << "\n";
+
+        }
+
+        if (tokentype == 0x41) {
+            std::cout
+                << "outpoint: " << txid.decompress(true) << ":" << reply.vout() << "\n"
+                << "msg: " << gs::util::hex(reply.msg().begin(), reply.msg().end()) << "\n"
+                << "sig: " << gs::util::hex(reply.sig().begin(), reply.sig().end()) << "\n"
+                << "tx: " << gs::util::hex(reply.tx().begin(),  reply.tx().end())  << "\n"
+                << "tokenid: " << gs::tokenid(std::vector<std::uint8_t>(reply.tokenid().begin(), reply.tokenid().end())).decompress(true) << "\n"
+                << "tokentype: " << reply.tokentype() << "\n"
+                << "groupid: " << gs::tokenid(std::vector<std::uint8_t>(reply.groupid().begin(), reply.groupid().end())).decompress(true) << "\n";
+
+        }
 
         return true;
     }
