@@ -99,7 +99,7 @@ bool slp_validator::check_send(
 
     absl::uint128 input_amount = 0;
     for (const auto & i_outpoint : tx.inputs) {
-        VALIDATE_CONTINUE (! has(i_outpoint.txid));
+        VALIDATE_CONTINUE (! has_valid(i_outpoint.txid));
 
         const gs::transaction & txi = transaction_map.at(i_outpoint.txid);
 
@@ -137,7 +137,7 @@ bool slp_validator::check_mint(
         VALIDATE_CHECK (front.slp.token_type != back.slp.token_type);
 
         for (const auto & i_outpoint : back.inputs) {
-            VALIDATE_CONTINUE (! has(i_outpoint.txid));
+            VALIDATE_CONTINUE (! has_valid(i_outpoint.txid));
 
             const gs::transaction & txi = transaction_map.at(i_outpoint.txid);
 
@@ -176,7 +176,7 @@ bool slp_validator::check_genesis(
     if (tx.slp.token_type == 0x41) {
         VALIDATE_CHECK (tx.inputs.size() == 0);
         const gs::outpoint& i_outpoint = tx.inputs[0];
-        VALIDATE_CHECK (! has(i_outpoint.txid));
+        VALIDATE_CHECK (! has_valid(i_outpoint.txid));
 
         const gs::transaction & txi = transaction_map.at(i_outpoint.txid);
         VALIDATE_CHECK (txi.slp.token_type != 0x81);

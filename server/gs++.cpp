@@ -212,7 +212,7 @@ class GraphSearchServiceImpl final
         if (rmatch) {
             const gs::txid lookup_txid(request->txid());
             lookup_txid_str = lookup_txid.decompress(true);
-            const bool valid_tx = validator.validate(lookup_txid);
+            const bool valid_tx = validator.has_valid(lookup_txid);
             reply->set_valid(valid_tx);
         }
         const auto end = std::chrono::steady_clock::now();
@@ -246,7 +246,7 @@ class GraphSearchServiceImpl final
         if (rmatch) {
             const gs::txid lookup_txid(request->txid());
             lookup_txid_str = lookup_txid.decompress(true);
-            valid_tx = validator.validate(lookup_txid);
+            valid_tx = validator.has_valid(lookup_txid);
             if (valid_tx) {
                 gs::transaction tx = validator.get(lookup_txid);
                 lookup_vout = request->vout();
@@ -266,7 +266,7 @@ class GraphSearchServiceImpl final
                     std::memcpy(preimage.data()+68, &tokentype,      2);
                     std::memcpy(preimage.data()+70, &value,          8);
                     const uint8_t is_baton = tx.mint_baton_outpoint().vout == vout;
-                    std::memcpy(preimage.data()+78, &is_baton,  1);
+                    std::memcpy(preimage.data()+78, &is_baton,       1);
                     // TODO debug, maybe remove in later release
                     reply->set_tx(tx.serialized.data(), tx.serialized.size());
                     reply->set_vout(vout);
@@ -472,9 +472,9 @@ bool slpsync_bitcoind_process_block(const gs::block& block, const bool mempool)
     }
 
     if (! mempool) {
-        spdlog::info("processed block {} ({}) [{}]", current_block_height, validator.transaction_map.size(), block.txs.size());
+        spdlog::info("processed block {} ({}) [{}]", current_block_height, validator.valid.size(), block.txs.size());
     } else {
-        spdlog::info("processed mempool ({}) [{}]", validator.transaction_map.size(), block.txs.size());
+        spdlog::info("processed mempool ({}) [{}]", validator.valid.size(), block.txs.size());
     }
 
     return true;
