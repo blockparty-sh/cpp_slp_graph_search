@@ -118,6 +118,7 @@ public:
 
         gs::slp_validator validator;
         TIMER("hydrate", {
+            std::vector<gs::transaction> txs;
             for (auto & n : reply.txdata()) {
                 gs::transaction tx;
                 if (! tx.hydrate(n.begin(), n.end())) {
@@ -127,7 +128,13 @@ public:
 
                 // std::cout << "token_type:" << tx.slp.token_type << std::endl;
 
-                validator.add_tx(tx);
+                txs.push_back(tx);
+            }
+
+            txs = gs::util::topological_sort(txs);
+
+            for (auto & n : txs) {
+                validator.add_tx(n);
             }
         });
 
