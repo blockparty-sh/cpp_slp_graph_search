@@ -1,0 +1,60 @@
+version: "3.5"
+services:
+  bitcoin1: # the node not connected to SLPDB
+    image: "bitcoin-cash-node"
+    restart: always
+    build:
+      context: "./bitcoin-cash-node"
+    command: "bitcoind"
+    healthcheck:
+      test: ["CMD", "/entrypoint.sh", "bitcoin-cli", "getblockchaininfo"]
+    expose:
+      - "18333"
+    ports:
+      - "18444:18443"
+    volumes:
+      - ./bitcoin-cash-node/bitcoin.conf:/data/bitcoin.conf
+    networks:
+      - regnet
+  bitcoin2: # the node connected to SLPDB via RPC and zmq
+    image: "bitcoin-cash-node"
+    restart: always
+    build:
+      context: "./bitcoin-cash-node"
+    command: "bitcoind"
+    healthcheck:
+      test: ["CMD", "/entrypoint.sh", "bitcoin-cli", "getblockchaininfo"]
+    expose:
+      - "18333"
+      - "28332"
+    ports:
+      - "18443:18443"
+      - "29332:28332"
+    volumes:
+      - ./bitcoin-cash-node/bitcoin.conf:/data/bitcoin.conf
+    networks:
+      - regnet
+  gspp:
+    image: "gspp"
+    restart: always
+    build:
+      context: "./gspp"
+    command: "gs++ /home/cpp_slp_graph_search/config.toml"
+    healthcheck:
+      test: ["CMD", "/entrypoint.sh", "gs++-cli", "status"]
+    expose:
+      - "50051"
+      - "29069"
+    ports:
+      - "50051:50051"
+      - "29069:29069"
+    volumes:
+      - ./gspp/config.toml:/data/config.toml
+    networks:
+      - regnet
+    depends_on:
+      - bitcoin2
+    ports:
+      - "29069:28339"
+networks:
+  regnet:
