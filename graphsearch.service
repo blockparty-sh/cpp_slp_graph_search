@@ -1,0 +1,12 @@
+[Unit]
+Description=gs++
+
+[Service]
+ExecStart=/home/cpp_slp_graph_search/build/bin/gs++ /home/cpp_slp_graph_search/config.toml
+Type=simple
+Restart=on-failure
+KillMode=process
+TimeoutSec=600s
+
+[Install]
+WantedBy=default.target
