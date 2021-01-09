@@ -18,6 +18,14 @@
 
 namespace gs {
 
+void txgraph::clear()
+{
+    boost::shared_lock<boost::shared_mutex> lock(lookup_mtx);
+
+    tokens.clear();
+    txid_to_token.clear();
+}
+
 bool txgraph::build_exclusion_set(
     const gs::txid lookup_txid,
     absl::flat_hash_set<const graph_node*>& seen
@@ -52,8 +60,7 @@ bool txgraph::build_exclusion_set(
     return true;
 }
 
-std::pair<graph_search_status, std::vector<std::vector<std::uint8_t>>>
-txgraph::graph_search__ptr(
+graph_search_response txgraph::graph_search__ptr(
     const gs::txid lookup_txid,
     absl::flat_hash_set<const graph_node*>& seen
 ) {

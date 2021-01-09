@@ -20,6 +20,8 @@ enum class graph_search_status
     NOT_IN_TOKENGRAPH, // error: if found it should be in tokengraph
 };
 
+using graph_search_response = std::pair<graph_search_status, std::vector<std::vector<std::uint8_t>>>;
+
 struct txgraph
 {
     absl::node_hash_map<gs::tokenid, token_details>  tokens;
@@ -29,19 +31,18 @@ struct txgraph
     txgraph()
     {}
 
+    void clear();
+
     bool build_exclusion_set(
         const gs::txid lookup_txid,
         absl::flat_hash_set<const graph_node*>& seen
     );
 
     // this will modify the exclusion set so keep in mind
-    std::pair<graph_search_status, std::vector<std::vector<std::uint8_t>>>
-    graph_search__ptr(
+    graph_search_response graph_search__ptr(
         const gs::txid lookup_txid,
         absl::flat_hash_set<const graph_node*>& seen
     );
-
-    bool has_tx(const gs::txid& lookup_txid);
 
     unsigned insert_token_data (
         const gs::tokenid & tokenid,

@@ -60,7 +60,7 @@ std::atomic<bool> exit_early = { false };
 boost::shared_mutex processing_mutex;
 
 std::atomic<bool> startup_processing_mempool = { true };
-std::vector<gs::transaction> startup_mempool_transactions;
+std::vector<gs::transaction> startup_mempool_transactions; // TODO guard with mutex
 
 std::size_t max_exclusion_set_size = 5;
 std::array<uint8_t, 32> private_key;
@@ -69,6 +69,7 @@ boost::filesystem::path cache_dir;
 
 gs::slp_validator validator;
 gs::txgraph g;
+gs::txgraph mg; // mempool
 gs::bch bch;
 
 const std::chrono::milliseconds await_time { 1000 };
@@ -129,7 +130,8 @@ class GraphSearchServiceImpl final
     ) override {
         const auto start = std::chrono::steady_clock::now();
 
-        std::pair<gs::graph_search_status, std::vector<std::vector<std::uint8_t>>> result;
+        gs::graph_search_status lookup_status;
+        size_t lookup_count = 0;
 
         std::string lookup_txid_str = "";
 
@@ -160,11 +162,59 @@ class GraphSearchServiceImpl final
                     break;
                 }
             }
-            result = g.graph_search__ptr(lookup_txid, exclusion_set);
 
-            if (result.first == gs::graph_search_status::OK) {
-                for (auto & m : result.second) {
-                    reply->add_txdata(m.data(), m.size());
+            // first check if referring to tx in mempool, this has special handling
+            gs::graph_search_response mempool_result = mg.graph_search__ptr(lookup_txid, exclusion_set);
+            lookup_status = mempool_result.first;
+            lookup_count = mempool_result.second.size();
+
+            if (mempool_result.first == gs::graph_search_status::OK) {
+
+                std::vector<gs::transaction> mempool_transactions;
+                mempool_transactions.reserve(mempool_result.second.size());
+
+                absl::flat_hash_set<gs::txid> mempool_txids;
+
+                for (const gs::graph_node & n : mempool_result.second) {
+                    for (auto & m : mempool_result.second) {
+                        reply->add_txdata(m.data(), m.size());
+                    }
+
+                    gs::transaction mtx;
+                    mtx.hydrate(n.txdata.begin(), n.txdata.end());
+                    mempool_transactions.push_back(mtx);
+                    mempool_txids.insert(mtx.txid);
+                }
+
+                std::vector<gs::txid> unaccounted_mempool_txids;
+
+                for (const gs::transaction & mtx : mempool_transactions) {
+                    for (const gs::outpoint & o : mtx.inputs) {
+                        if (! mempool_txids.count(o.txid)) {
+                            unaccounted_mempool_txids.push_back(o.txid);
+                        }
+                    }
+                }
+
+                absl::flat_hash_set<const gs::graph_node*> mempool_overlap_set;
+                for (const gs::txid & txid : unaccounted_mempool_txids) {
+                    gs::graph_search_response result = g.graph_search__ptr(lookup_txid, exclusion_set);
+                    g.build_exclusion_set(txid, mempool_overlap_set);
+                }
+
+                lookup_count += mempool_overlap_set.size();
+                for (const gs::graph_node* n: mempool_overlap_set) {
+                    reply->add_txdata(n->txdata.data(), n->txdata.size());
+                }
+            } else { // txid not in mempool
+                gs::graph_search_response result = g.graph_search__ptr(lookup_txid, exclusion_set);
+                lookup_status = result.first;
+                lookup_count = result.second.size();
+
+                if (lookup_status == gs::graph_search_status::OK) {
+                    for (const auto & m : result.second) {
+                        reply->add_txdata(m.data(), m.size());
+                    }
                 }
             }
         } else {
@@ -175,13 +225,13 @@ class GraphSearchServiceImpl final
         const auto diff = end - start;
         const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
 
-        spdlog::info("lookup: {} {} ({} ms)", lookup_txid_str, result.second.size(), diff_ms);
+        spdlog::info("lookup: {} {} ({} ms)", lookup_txid_str, lookup_count, diff_ms);
 
         if (! rmatch) {
             return { grpc::StatusCode::INVALID_ARGUMENT, "txid did not match regex" };
         }
 
-        switch (result.first) {
+        switch (lookup_status) {
             case gs::graph_search_status::OK:
                 return { grpc::Status::OK };
             case gs::graph_search_status::NOT_FOUND:
@@ -445,9 +495,41 @@ class UtxoServiceImpl final
     }
 };
 
-bool slpsync_bitcoind_process_block(const gs::block& block, const bool mempool)
+bool slpsync_bitcoind_process_block(const gs::block& block)
 {
     boost::lock_guard<boost::shared_mutex> lock(processing_mutex);
+
+    absl::flat_hash_map<gs::tokenid, std::vector<gs::transaction>> valid_txs;
+    for (auto & tx : block.txs) {
+        if (validator.has(tx.txid)) {
+            // skip over ones we've already added from mempool // TODO correct doc?
+            continue;
+        }
+        if (! validator.add_tx(tx)) {
+            std::cerr << "invalid tx: " << tx.txid.decompress(true) << std::endl;
+            continue;
+        }
+
+        if (! valid_txs.count(tx.slp.tokenid)) {
+            valid_txs.insert({ tx.slp.tokenid, { tx } });
+        } else {
+            valid_txs[tx.slp.tokenid].push_back(tx);
+        }
+    }
+
+    for (auto & m : valid_txs) {
+        g.insert_token_data(m.first, m.second);
+    }
+
+    spdlog::info("processed block {} ({}) [{}]", current_block_height, validator.valid.size(), block.txs.size());
+
+    return true;
+}
+
+bool slpsync_bitcoind_process_mempool(const gs::block& block)
+{
+    boost::lock_guard<boost::shared_mutex> lock(processing_mutex);
+    mg.clear();
 
     absl::flat_hash_map<gs::tokenid, std::vector<gs::transaction>> valid_txs;
     for (auto & tx : block.txs) {
@@ -468,14 +550,10 @@ bool slpsync_bitcoind_process_block(const gs::block& block, const bool mempool)
     }
 
     for (auto & m : valid_txs) {
-        g.insert_token_data(m.first, m.second);
+        mg.insert_token_data(m.first, m.second);
     }
 
-    if (! mempool) {
-        spdlog::info("processed block {} ({}) [{}]", current_block_height, validator.valid.size(), block.txs.size());
-    } else {
-        spdlog::info("processed mempool ({}) [{}]", validator.valid.size(), block.txs.size());
-    }
+    spdlog::info("processed mempool ({}) [{}]", validator.valid.size(), block.txs.size());
 
     return true;
 }
@@ -501,7 +579,7 @@ bool slpsync_bitcoind_process_tx(const gs::transaction& tx)
         return false;
     }
 
-    g.insert_token_data(tx.slp.tokenid, { tx });
+    mg.insert_token_data(tx.slp.tokenid, { tx });
 
     return true;
 }
@@ -526,6 +604,37 @@ bool cache_slp_block(const gs::block& block, const std::uint32_t height)
     outf.write(reinterpret_cast<const char *>(serialized.data()), serialized.size());
 
     return true;
+}
+
+std::vector<gs::transaction> get_mempool_transactions(gs::rpc & rpc)
+{
+    std::vector<gs::transaction> ret;
+
+    const std::pair<bool, std::vector<gs::txid>> txids = rpc.get_raw_mempool();
+    if (! txids.first) {
+        throw std::runtime_error("get_raw_mempool failed");
+    }
+
+    for (const gs::txid & txid : txids.second) {
+        const std::pair<bool, std::vector<std::uint8_t>> txdata = rpc.get_raw_transaction(txid);
+
+        if (! txdata.first) {
+            throw std::runtime_error("get_raw_transaction failed");
+        }
+
+        gs::transaction tx;
+        const bool hydration_success = tx.hydrate(txdata.second.begin(), txdata.second.end());
+
+        if (! hydration_success) {
+            throw std::runtime_error("failed to hydrate mempool tx");
+        }
+
+        if (tx.slp.type != gs::slp_transaction_type::invalid) {
+            ret.push_back(tx);
+        }
+    }
+
+    return ret;
 }
 
 int main(int argc, char * argv[])
@@ -632,7 +741,7 @@ int main(int argc, char * argv[])
 
                 current_block_hash = block.block_hash;
 
-                if (! slpsync_bitcoind_process_block(block, false)) {
+                if (! slpsync_bitcoind_process_block(block)) {
                     spdlog::error("failed to process cache block {}", current_block_height);
                     --current_block_height;
                     break;
@@ -685,7 +794,7 @@ int main(int argc, char * argv[])
                     current_block_hash = block.block_hash;
 
                     block.topological_sort();
-                    if (! slpsync_bitcoind_process_block(block, false)) {
+                    if (! slpsync_bitcoind_process_block(block)) {
                         spdlog::error("failed to process rpc block {}", current_block_height);
                         std::this_thread::sleep_for(await_time);
                         --current_block_height;
@@ -796,11 +905,17 @@ int main(int argc, char * argv[])
                             block.topological_sort();
 
                             ++current_block_height;
-                            if (! slpsync_bitcoind_process_block(block, false)) {
+                            if (! slpsync_bitcoind_process_block(block)) {
                                 spdlog::error("failed to process zmq block {}", current_block_height);
                                 --current_block_height;
                                 continue;
                             }
+                            std::vector<gs::transaction> mempool_transactions = get_mempool_transactions(rpc);
+                            gs::block mempool_block;
+                            mempool_block.txs = mempool_transactions;
+                            mempool_block.topological_sort();
+                            slpsync_bitcoind_process_mempool(mempool_block);
+
 
                             current_block_hash = block.block_hash;
 
@@ -833,46 +948,26 @@ int main(int argc, char * argv[])
 retry_loop1:
             if (exit_early) break;
 
-            const std::pair<bool, std::vector<gs::txid>> txids = rpc.get_raw_mempool();
-            if (! txids.first) {
-                spdlog::warn("get_raw_mempool failed");
-                std::this_thread::sleep_for(await_time);
-                continue;
-            }
-
-            for (const gs::txid & txid : txids.second) {
-                const std::pair<bool, std::vector<std::uint8_t>> txdata = rpc.get_raw_transaction(txid);
-
-                if (! txdata.first) {
-                    spdlog::warn("get_raw_transaction failed");
-                    std::this_thread::sleep_for(await_time);
-                    goto retry_loop1;
-                }
-
-                gs::transaction tx;
-                const bool hydration_success = tx.hydrate(txdata.second.begin(), txdata.second.end());
-
-                if (! hydration_success) {
-                    spdlog::error("failed to hydrate mempool tx");
-                    std::this_thread::sleep_for(await_time);
-                    goto retry_loop1;
-                }
-
-                if (tx.slp.type != gs::slp_transaction_type::invalid) {
+            try {
+                const auto mempool_transactions = get_mempool_transactions(rpc);
+                for (const gs::transaction & tx : mempool_transactions) {
                     startup_mempool_transactions.push_back(tx);
                 }
+                break;
+            } catch (std::runtime_error e) {
+                spdlog::error(e.what());
+                std::this_thread::sleep_for(await_time);
+                goto retry_loop1;
             }
-
-            break;
         }
     }
 
 
     // repurposing to use as mempool container
-    gs::block block;
-    block.txs = startup_mempool_transactions;
-    block.topological_sort();
-    slpsync_bitcoind_process_block(block, true);
+    gs::block mempool_block;
+    mempool_block.txs = startup_mempool_transactions;
+    mempool_block.topological_sort();
+    slpsync_bitcoind_process_mempool(mempool_block);
     startup_processing_mempool = false;
 
 
