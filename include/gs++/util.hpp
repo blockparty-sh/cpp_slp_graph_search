@@ -142,10 +142,10 @@ std::vector<std::uint8_t> unhex(const Container& v_)
         const char p2 = v_[(i<<1)+1];
 
 #ifndef NDEBUG
-        if ((p1 >= '0' && p1 <= '9') || (p1 >= 'a' && p1 <= 'f')) {
+        if (! ((p1 >= '0' && p1 <= '9') || (p1 >= 'a' && p1 <= 'f'))) {
             std::cerr << "unhex p1 out of range (DEBUG MODE IS ON)\n";
         }
-        if ((p2 >= '0' && p2 <= '9') || (p2 >= 'a' && p2 <= 'f')) {
+        if (! ((p2 >= '0' && p2 <= '9') || (p2 >= 'a' && p2 <= 'f'))) {
             std::cerr << "unhex p2 out of range (DEBUG MODE IS ON)\n";
         }
 #endif
