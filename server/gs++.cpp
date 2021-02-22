@@ -445,7 +445,7 @@ class UtxoServiceImpl final
     }
 };
 
-bool slpsync_bitcoind_process_block(const gs::block& block, const bool mempool)
+bool slpsync_bitcoind_process_block(const gs::block& block, const bool mempool, const bool trusted)
 {
     boost::lock_guard<boost::shared_mutex> lock(processing_mutex);
 
@@ -455,7 +455,7 @@ bool slpsync_bitcoind_process_block(const gs::block& block, const bool mempool)
             // skip over ones we've already added from mempool
             continue;
         }
-        if (! validator.add_tx(tx)) {
+        if (! validator.add_tx(tx, trusted)) {
             std::cerr << "invalid tx: " << tx.txid.decompress(true) << std::endl;
             continue;
         }
@@ -496,7 +496,7 @@ bool slpsync_bitcoind_process_tx(const gs::transaction& tx)
         return false;
     }
 
-    if (! validator.add_tx(tx)) {
+    if (! validator.add_tx(tx, false)) {
         spdlog::warn("zmq-tx invalid tx: {}", tx.txid.decompress(true));
         return false;
     }
@@ -632,7 +632,7 @@ int main(int argc, char * argv[])
 
                 current_block_hash = block.block_hash;
 
-                if (! slpsync_bitcoind_process_block(block, false)) {
+                if (! slpsync_bitcoind_process_block(block, false, true)) {
                     spdlog::error("failed to process cache block {}", current_block_height);
                     --current_block_height;
                     break;
@@ -685,7 +685,7 @@ int main(int argc, char * argv[])
                     current_block_hash = block.block_hash;
 
                     block.topological_sort();
-                    if (! slpsync_bitcoind_process_block(block, false)) {
+                    if (! slpsync_bitcoind_process_block(block, false, false)) {
                         spdlog::error("failed to process rpc block {}", current_block_height);
                         std::this_thread::sleep_for(await_time);
                         --current_block_height;
@@ -796,7 +796,7 @@ int main(int argc, char * argv[])
                             block.topological_sort();
 
                             ++current_block_height;
-                            if (! slpsync_bitcoind_process_block(block, false)) {
+                            if (! slpsync_bitcoind_process_block(block, false, false)) {
                                 spdlog::error("failed to process zmq block {}", current_block_height);
                                 --current_block_height;
                                 continue;
@@ -872,7 +872,7 @@ retry_loop1:
     gs::block block;
     block.txs = startup_mempool_transactions;
     block.topological_sort();
-    slpsync_bitcoind_process_block(block, true);
+    slpsync_bitcoind_process_block(block, true, false);
     startup_processing_mempool = false;
 
 

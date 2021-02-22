@@ -134,7 +134,7 @@ public:
             txs = gs::util::topological_sort(txs);
 
             for (auto & n : txs) {
-                validator.add_tx(n);
+                validator.add_tx(n, false);
             }
         });
 
@@ -524,7 +524,7 @@ void validatefile(std::string src)
     gs::slp_validator validator;
     for (auto & tx : txs) {
         std::cout << tx.txid.decompress(true) << "\n";
-        validator.add_tx(tx);
+        validator.add_tx(tx, false);
     }
 
     gs::txid txid = txs.back().txid;

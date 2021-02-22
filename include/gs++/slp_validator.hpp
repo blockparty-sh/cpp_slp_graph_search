@@ -20,7 +20,7 @@ struct slp_validator
 
     slp_validator() = default;
 
-    bool add_tx(const gs::transaction& tx);
+    bool add_tx(const gs::transaction& tx, const bool trusted);
     bool remove_tx(const gs::txid& txid);
     bool add_valid_txid(const gs::txid& txid);
     bool has(const gs::txid& txid) const;

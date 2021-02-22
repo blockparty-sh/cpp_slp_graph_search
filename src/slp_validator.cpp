@@ -14,10 +14,15 @@
 
 namespace gs {
 
-bool slp_validator::add_tx(const gs::transaction& tx)
+bool slp_validator::add_tx(const gs::transaction& tx, const bool trusted)
 {
     if (tx.slp.type != gs::slp_transaction_type::invalid) {
         const auto p = transaction_map.insert({ tx.txid, tx });
+
+        if (trusted) {
+            add_valid_txid(tx.txid);
+            return p.second;
+        }
 
         if (validate(tx.txid)) {
             return p.second;
