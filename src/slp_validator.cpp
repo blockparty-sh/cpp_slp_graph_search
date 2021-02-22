@@ -176,6 +176,10 @@ bool slp_validator::check_mint(
         std::vector<gs::transaction> inputs;
 
         for (auto & front : input_txs) {
+            if (front.slp.type == gs::slp_transaction_type::genesis) {
+                return true;
+            }
+
             std::vector<gs::transaction> partial = walk_mints_home(back, front);
             for (auto & ptx : partial) {
                 inputs.push_back(ptx);
@@ -190,12 +194,11 @@ bool slp_validator::check_mint(
         input_txs = inputs;
         back = input_txs[0];
 
-        if (back.slp.type == gs::slp_transaction_type::genesis) {
-            return true;
-        }
+        std::cout << "found back " << back.txid.decompress(true) << "\n";
+
     }
 
-    return true;
+    return false;
 }
 
 bool slp_validator::check_genesis(
@@ -280,6 +283,9 @@ bool slp_validator::validate(const gs::txid & txid)
         add_valid_txid(txid);
     }
 
+#ifdef ENABLE_SLP_VALIDATE_DEBUG_PRINTING
+    std::cerr << "validation result(txid): " << (is_valid ? "true" : "false") << "\n";
+#endif
     return is_valid;
 }
 
