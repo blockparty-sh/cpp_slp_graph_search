@@ -186,16 +186,35 @@ bool slp_validator::check_mint(
             }
         }
 
-        if (inputs.size() != 1) {
+        if (inputs.size() < 1) {
             std::cerr << "inputs size: " << inputs.size() << " txid: " << tx.txid.decompress(true) << "\n";
             return false;
+        }
+
+        // this should only be possible from burning the value output of genesis combined with genesis mint
+        if (inputs.size() > 1) {
+            gs::txid txidi = inputs[0].txid;
+
+            // so we should check this condition holds (i.e. both have same txid)
+            for (auto & txi : inputs) {
+                if (txidi != txi.txid) {
+                    std::cerr
+                        << "mint rare condition: "
+                        << txidi.decompress(true)
+                        << " "
+                        << txi.txid.decompress(true)
+                        << "\n";
+                    throw std::runtime_error("mint rare condition");
+                }
+            }
         }
 
         input_txs = inputs;
         back = input_txs[0];
 
-        std::cout << "found back " << back.txid.decompress(true) << "\n";
-
+        if (has_valid(back.txid)) {
+            return true;
+        }
     }
 
     return false;
