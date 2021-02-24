@@ -14,10 +14,15 @@
 
 namespace gs {
 
-bool slp_validator::add_tx(const gs::transaction& tx)
+bool slp_validator::add_tx(const gs::transaction& tx, const bool trusted)
 {
     if (tx.slp.type != gs::slp_transaction_type::invalid) {
         const auto p = transaction_map.insert({ tx.txid, tx });
+
+        if (trusted) {
+            add_valid_txid(tx.txid);
+            return p.second;
+        }
 
         if (validate(tx.txid)) {
             return p.second;
@@ -54,7 +59,6 @@ gs::transaction slp_validator::get(const gs::txid& txid) const
     return transaction_map.at(txid);
 }
 
-// #define ENABLE_SLP_VALIDATE_DEBUG_PRINTING
 
 #ifdef ENABLE_SLP_VALIDATE_DEBUG_PRINTING
     #define VALIDATE_CHECK(cond) {\
@@ -100,6 +104,7 @@ bool slp_validator::check_send(
     absl::uint128 input_amount = 0;
     for (const auto & i_outpoint : tx.inputs) {
         VALIDATE_CONTINUE (! has_valid(i_outpoint.txid));
+        VALIDATE_CONTINUE (! transaction_map.count(i_outpoint.txid));
 
         const gs::transaction & txi = transaction_map.at(i_outpoint.txid);
 
@@ -118,26 +123,32 @@ bool slp_validator::check_send(
 bool slp_validator::check_mint(
     const gs::transaction & tx
 ) {
-    std::function<bool(
+    std::function<std::vector<gs::transaction>(
         const gs::transaction&,
         const gs::transaction&
     )> walk_mints_home = [&](
         const gs::transaction& front,
         const gs::transaction& back
-    ) -> bool {
+    ) -> std::vector<gs::transaction> {
 #ifdef ENABLE_SLP_VALIDATE_DEBUG_PRINTING
-    std::cerr
-        << "mint:"
-        << " front " << front.txid.decompress(true)
-        << " back "  << back.txid.decompress(true)
-        << "\n";
+        std::cerr
+            << "mint:"
+            << " front " << front.txid.decompress(true)
+            << " back "  << back.txid.decompress(true)
+            << "\n";
 #endif
+        std::vector<gs::transaction> ret;
 
-        VALIDATE_CHECK (front.slp.tokenid    != back.slp.tokenid);
-        VALIDATE_CHECK (front.slp.token_type != back.slp.token_type);
+        if (front.slp.tokenid    != back.slp.tokenid) {
+            return {};
+        }
+        if (front.slp.token_type != back.slp.token_type) {
+            return {};
+        }
 
         for (const auto & i_outpoint : back.inputs) {
             VALIDATE_CONTINUE (! has_valid(i_outpoint.txid));
+            VALIDATE_CONTINUE (! transaction_map.count(i_outpoint.txid));
 
             const gs::transaction & txi = transaction_map.at(i_outpoint.txid);
 
@@ -146,25 +157,67 @@ bool slp_validator::check_mint(
             VALIDATE_CONTINUE (i_outpoint != txi.mint_baton_outpoint());
 
             if (txi.slp.type == gs::slp_transaction_type::mint) {
-                if (walk_mints_home(back, txi)) {
-                    return true;
-                }
+                ret.push_back(txi);
             }
             else if (txi.slp.type == gs::slp_transaction_type::genesis) {
-                return true;
+                ret.push_back(txi);
             }
         }
 
-        if (valid.count(back.txid) > 0) {
-            return true;
-        }
-
-        return false;
+        return ret;
     };
 
-    VALIDATE_CHECK (! walk_mints_home(tx, tx));
+    gs::transaction back = tx;
+    std::vector<gs::transaction> input_txs;
 
-    return true;
+    input_txs = walk_mints_home(back, back);
+
+    while (true) {
+        std::vector<gs::transaction> inputs;
+
+        for (auto & front : input_txs) {
+            if (front.slp.type == gs::slp_transaction_type::genesis) {
+                return true;
+            }
+
+            std::vector<gs::transaction> partial = walk_mints_home(back, front);
+            for (auto & ptx : partial) {
+                inputs.push_back(ptx);
+            }
+        }
+
+        if (inputs.size() < 1) {
+            std::cerr << "inputs size: " << inputs.size() << " txid: " << tx.txid.decompress(true) << "\n";
+            return false;
+        }
+
+        // this should only be possible from burning the value output of genesis combined with genesis mint
+        if (inputs.size() > 1) {
+            gs::txid txidi = inputs[0].txid;
+
+            // so we should check this condition holds (i.e. both have same txid)
+            for (auto & txi : inputs) {
+                if (txidi != txi.txid) {
+                    std::cerr
+                        << "mint rare condition: "
+                        << txidi.decompress(true)
+                        << " "
+                        << txi.txid.decompress(true)
+                        << "\n";
+                    throw std::runtime_error("mint rare condition");
+                }
+            }
+        }
+
+        input_txs = inputs;
+        back = input_txs[0];
+
+        if (has_valid(back.txid)) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 bool slp_validator::check_genesis(
@@ -177,6 +230,7 @@ bool slp_validator::check_genesis(
         VALIDATE_CHECK (tx.inputs.size() == 0);
         const gs::outpoint& i_outpoint = tx.inputs[0];
         VALIDATE_CHECK (! has_valid(i_outpoint.txid));
+        VALIDATE_CHECK (! transaction_map.count(i_outpoint.txid));
 
         const gs::transaction & txi = transaction_map.at(i_outpoint.txid);
         VALIDATE_CHECK (txi.slp.token_type != 0x81);
@@ -248,6 +302,9 @@ bool slp_validator::validate(const gs::txid & txid)
         add_valid_txid(txid);
     }
 
+#ifdef ENABLE_SLP_VALIDATE_DEBUG_PRINTING
+    std::cerr << "validation result(txid): " << (is_valid ? "true" : "false") << "\n";
+#endif
     return is_valid;
 }
 

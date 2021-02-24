@@ -79,7 +79,7 @@ TEST_CASE( "input_tests", "[single-file]" ) {
                         slp_validator.add_valid_txid(tx.txid);
                     }
 
-                    slp_validator.add_tx(tx);
+                    slp_validator.add_tx(tx, false);
                 }
             }
 
