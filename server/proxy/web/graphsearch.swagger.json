@@ -118,6 +118,34 @@
           "GraphSearchService"
         ]
       }
+    },
+    "/v1/graphsearch/trustedvalidationbulk": {
+      "post": {
+        "operationId": "TrustedValidationBulk",
+        "summary": "Request validation of multiple txids",
+        "description": "Performs SLP validation of multiple transactions. Do not use unless you trust the server. Takes multiple txids string in little endian format. Try using a txid such as `f9d832db893a70fa9ad4ce590ac876acf0b2d22f6671f318210177c74314049e` ",
+        "responses": {
+          "200": {
+            "description": "valid: true or false for each transaction in order",
+            "schema": {
+              "$ref": "#/definitions/graphsearchTrustedValidationBulkReply"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/graphsearchTrustedValidationBulkRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GraphSearchService"
+        ]
+      }
     }
   },
   "definitions": {
@@ -252,6 +280,28 @@
       "properties": {
         "txid": {
           "type": "string"
+        }
+      }
+    },
+    "graphsearchTrustedValidationBulkReply": {
+      "type": "object",
+      "properties": {
+        "valid": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/graphsearchTrustedValidationReply"
+          }
+        }
+      }
+    },
+    "graphsearchTrustedValidationBulkRequest": {
+      "type": "object",
+      "properties": {
+        "txids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/graphsearchTrustedValidationRequest"
+          }
         }
       }
     }

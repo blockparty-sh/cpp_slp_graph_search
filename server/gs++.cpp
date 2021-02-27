@@ -278,6 +278,48 @@ class GraphSearchServiceImpl final
         return { grpc::Status::OK };
     }
 
+    grpc::Status TrustedValidationBulk (
+        grpc::ServerContext* context,
+        const graphsearch::TrustedValidationBulkRequest* request,
+        graphsearch::TrustedValidationBulkReply* reply
+    ) override {
+        const auto start = std::chrono::steady_clock::now();
+
+        static const std::regex txid_regex("^[0-9a-fA-F]{64}$");
+
+        std::vector<gs::txid> lookup_txids;
+        bool rmatch = true;
+        for (auto & rtxid : request->txids()) {
+            const std::string txid_str = rtxid.txid();
+            rmatch = std::regex_match(txid_str, txid_regex);
+            if (! rmatch) {
+                break;
+            }
+
+            lookup_txids.emplace_back(txid_str);
+        }
+
+        if (rmatch) {
+            for (auto & lookup_txid : lookup_txids) {
+                const bool valid_tx = validator.has_valid(lookup_txid);
+                graphsearch::TrustedValidationReply* el = reply->add_valid();
+                el->set_valid(valid_tx);
+            }
+        }
+
+        const auto end = std::chrono::steady_clock::now();
+        const auto diff = end - start;
+        const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
+
+        spdlog::info("tvalidate-bulk: {} ({} ms)", lookup_txids.size(), diff_ms);
+
+        if (! rmatch) {
+            return { grpc::StatusCode::INVALID_ARGUMENT, "txid did not match regex" };
+        }
+
+        return { grpc::Status::OK };
+    }
+
     grpc::Status OutputOracle (
         grpc::ServerContext* context,
         const graphsearch::OutputOracleRequest* request,
