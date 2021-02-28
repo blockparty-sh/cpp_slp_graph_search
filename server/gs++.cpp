@@ -537,7 +537,7 @@ class UtxoServiceImpl final
     }
 };
 
-bool slpsync_bitcoind_process_block(const gs::block& block, const bool mempool, const bool trusted)
+bool slpsync_bitcoind_process_block(const gs::block& block, const bool mempool, const bool trusted, std::vector<gs::transaction> * valid_txs_list = nullptr)
 {
     boost::lock_guard<boost::shared_mutex> lock(processing_mutex);
 
@@ -557,13 +557,17 @@ bool slpsync_bitcoind_process_block(const gs::block& block, const bool mempool, 
         } else {
             valid_txs[tx.slp.tokenid].push_back(tx);
         }
+
+        if (valid_txs_list) {
+            valid_txs_list->push_back(tx);
+        }
     }
 
     for (auto & m : valid_txs) {
         g.insert_token_data(m.first, m.second);
     }
 
-    spdlog::info("processed block {} ({}) [{}]", current_block_height, validator.valid.size(), block.txs.size());
+    spdlog::info("processed block {} ({}) [{}/{}]", current_block_height, validator.valid.size(), valid_txs.size(), block.txs.size());
 
     return true;
 }
@@ -836,7 +840,8 @@ int main(int argc, char * argv[])
                     current_block_hash = block.block_hash;
 
                     block.topological_sort();
-                    if (! slpsync_bitcoind_process_block(block, false, false)) {
+                    std::vector<gs::transaction> valid_txs;
+                    if (! slpsync_bitcoind_process_block(block, false, false, &valid_txs)) {
                         spdlog::error("failed to process rpc block {}", current_block_height);
                         std::this_thread::sleep_for(await_time);
                         --current_block_height;
@@ -846,7 +851,10 @@ int main(int argc, char * argv[])
                     current_block_hash = block_hash.second;
 
                     if (cache_enabled) {
-                        cache_slp_block(block, current_block_height);
+                        gs::block cblk = block;
+                        cblk.txs = valid_txs;
+                        cblk.topological_sort();
+                        cache_slp_block(cblk, current_block_height);
                     }
                 } --current_block_height;
 
