@@ -9,7 +9,7 @@ gen/graphsearch.pb.go: ../../pb/graphsearch.proto ../../pb/graphsearch.yaml
 		-I../../pb \
 		-I${GOPATH}/src \
 		-I${GOPATH}/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis \
-		--go_out=plugins=grpc:gen \
+		--go_out=gen --go-grpc_out=gen \
 		../../pb/graphsearch.proto
 
 web/graphsearch.swagger.json: ../../pb/graphsearch.proto ../../pb/graphsearch.yaml
