@@ -13,6 +13,7 @@ service GraphSearchService {
   rpc TrustedValidationBulk (TrustedValidationBulkRequest) returns (TrustedValidationBulkReply) {}
   rpc OutputOracle (OutputOracleRequest) returns (OutputOracleReply) {}
   rpc Status (StatusRequest) returns (StatusReply) {}
+  rpc SlpUtxos (SlpUtxosRequest) returns (SlpUtxosReply) {}
 }
 
 message GraphSearchRequest {
@@ -74,4 +75,23 @@ message StatusReply {
     uint64 last_outgoing_zmq_blk_unix = 8;
     uint64 last_incoming_zmq_blk_size = 9;
     uint64 last_outgoing_zmq_blk_size = 10;
+}
+
+message SlpUtxosRequest {
+    bytes scriptpubkey = 1;
+}
+
+message SlpUtxo {
+    string txid = 1;
+    uint32 vout = 2;
+    uint64 satoshis = 3;
+    uint64 value = 4;
+    uint32 decimals = 5;
+    string ticker = 6;
+    string tokenId = 7;
+    uint32 type = 8;
+}
+
+message SlpUtxosReply {
+    repeated SlpUtxo utxos = 1;
 }

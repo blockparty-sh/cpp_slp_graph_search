@@ -454,6 +454,80 @@ class GraphSearchServiceImpl final
 
         return { grpc::Status::OK };
     }
+
+    grpc::Status SlpUtxos(
+        grpc::ServerContext* context,
+        const graphsearch::SlpUtxosRequest* request,
+        graphsearch::SlpUtxosReply* reply
+    ) override {
+
+        const gs::scriptpubkey scriptpubkey = gs::scriptpubkey(request->scriptpubkey());
+        boost::shared_lock<boost::shared_mutex> lock(bch.lookup_mtx);
+
+        std::vector<gs::output> allUtxos = bch.utxodb.get_outputs_by_scriptpubkey(scriptpubkey, 1e5);
+
+        for (gs::output utxo : allUtxos) {
+            auto slp_utxo_search = bch.slpdb.utxo_to_tokenid.find(gs::outpoint(utxo.prev_tx_id, utxo.prev_out_idx));
+            if (slp_utxo_search == bch.slpdb.utxo_to_tokenid.end()) {
+                continue;
+            }
+
+            gs::slp_token & slp_token = bch.slpdb.tokens[slp_utxo_search->second];
+
+            const auto & s = absl::get<gs::slp_transaction_genesis>(slp.slp_tx);
+
+
+            // bool valid_tx = validator.has_valid(utxo.prev_tx_id);
+            // if (valid_tx) {
+
+            gs::transaction tx = validator.get(utxo.prev_tx_id);
+                // const gs::txid    txid      = lookup_txid;
+                // const uint32_t    vout      = lookup_vout;
+                // const gs::tokenid tokenid   = tx.slp.tokenid;
+                // const uint16_t    tokentype = tx.slp.token_type;
+                // const uint64_t    value     = tx.output_slp_amount(vout);
+
+                // std::vector<uint8_t> preimage;
+                // if (tokentype == 0x01) {
+                //     preimage.resize(32+4+32+2+8+1); // txid, vout, tokenid, tokentype, tokenvalue, is_baton
+                //     std::memcpy(preimage.data()+0,  txid.data(),    32);
+                //     std::memcpy(preimage.data()+32, &vout,           4);
+                //     std::memcpy(preimage.data()+36, tokenid.data(), 32);
+                //     std::memcpy(preimage.data()+68, &tokentype,      2);
+                //     std::memcpy(preimage.data()+70, &value,          8);
+                //     const uint8_t is_baton = tx.mint_baton_outpoint().vout == vout;
+                //     std::memcpy(preimage.data()+78, &is_baton,       1);
+                //     // TODO debug, maybe remove in later release
+                //     reply->set_tx(tx.serialized.data(), tx.serialized.size());
+                //     reply->set_vout(vout);
+                //     reply->set_tokenid(tokenid.data(), tokenid.size());
+                //     reply->set_tokentype(tokentype);
+                //     reply->set_value(value);
+                //     reply->set_is_baton(is_baton);
+
+
+            graphsearch::SlpUtxo* el = reply->add_utxos();
+            el->set_txid(utxo.prev_tx_id.decompress(true));
+            el->set_vout(utxo.prev_out_idx);
+            el->set_satoshis(tx.outputs[utxo.prev_out_idx].value);
+            el->set_value(tx.output_slp_amount(utxo.prev_out_idx));
+            el->set_decimals(slp_token.)
+            
+
+            // string txid = 1;
+            // uint32 vout = 2;
+            // uint64 satoshis = 3;
+            // uint64 value = 4;
+            // uint32 decimals = 5;
+            // string ticker = 6;
+            // string tokenId = 7;
+            // uint32 type = 8;
+        }
+
+        // return ret;
+
+        return { grpc::Status::OK };
+    }
 };
 
 class UtxoServiceImpl final
@@ -724,6 +798,21 @@ int main(int argc, char * argv[])
         toml::find<std::string>  (config, "bitcoind", "pass")
     );
 
+            const std::string scriptpubkey_b64 = "dqkUVrayIEK5DdZ78vv7mv99N/vuESSIrA==";
+
+            std::size_t scriptpubkey_len = 0;
+            std::string decoded(scriptpubkey_b64.size(), '\0');
+            base64_decode(
+                scriptpubkey_b64.data(),
+                scriptpubkey_b64.size(),
+                const_cast<char*>(decoded.data()),
+                &scriptpubkey_len,
+                0
+            );
+            decoded.resize(scriptpubkey_len);
+            gs::scriptpubkey pubkey(decoded);
+
+
     if (toml::find<bool>(config, "services", "utxosync")) {
         if (toml::find<bool>(config, "utxo", "checkpoint_load")) {
         }
@@ -759,6 +848,9 @@ int main(int argc, char * argv[])
             spdlog::info("processing block {}", block_height);
             bch.process_block(block_data.second, true);
         }
+
+            // std::cout << bch.utxodb.scriptpubkey_to_output.at(pubkey).size() << std::endl;
+            std::cout << bch.utxodb.get_balance_by_scriptpubkey(pubkey) << std::endl;
 
         if (toml::find<bool>(config, "utxo", "checkpoint_save")) {
         }
