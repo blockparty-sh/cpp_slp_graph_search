@@ -472,15 +472,14 @@ class GraphSearchServiceImpl final
                 continue;
             }
 
-            gs::slp_token & slp_token = bch.slpdb.tokens[slp_utxo_search->second];
-
-            const auto & s = absl::get<gs::slp_transaction_genesis>(slp.slp_tx);
-
 
             // bool valid_tx = validator.has_valid(utxo.prev_tx_id);
             // if (valid_tx) {
 
             gs::transaction tx = validator.get(utxo.prev_tx_id);
+            gs::transaction genesis_tx = validator.get(gs::txid(tx.slp.tokenid.v));
+            const gs::slp_transaction_genesis & genesis_info = absl::get<gs::slp_transaction_genesis>(genesis_tx.slp.slp_tx);
+            // const auto & s = absl::get<gs::slp_transaction_genesis>(slp.slp_tx);
                 // const gs::txid    txid      = lookup_txid;
                 // const uint32_t    vout      = lookup_vout;
                 // const gs::tokenid tokenid   = tx.slp.tokenid;
@@ -511,17 +510,11 @@ class GraphSearchServiceImpl final
             el->set_vout(utxo.prev_out_idx);
             el->set_satoshis(tx.outputs[utxo.prev_out_idx].value);
             el->set_value(tx.output_slp_amount(utxo.prev_out_idx));
-            el->set_decimals(slp_token.)
-            
-
-            // string txid = 1;
-            // uint32 vout = 2;
-            // uint64 satoshis = 3;
-            // uint64 value = 4;
-            // uint32 decimals = 5;
-            // string ticker = 6;
-            // string tokenId = 7;
-            // uint32 type = 8;
+            el->set_decimals(genesis_info.decimals);
+            el->set_ticker(genesis_info.ticker);
+            el->set_tokenid(genesis_tx.txid.decompress(true));
+            el->set_type(tx.slp.token_type);
+            el->set_isbaton(tx.mint_baton_outpoint().vout == utxo.prev_out_idx);
         }
 
         // return ret;

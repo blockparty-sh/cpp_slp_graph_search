@@ -90,6 +90,7 @@ message SlpUtxo {
     string ticker = 6;
     string tokenId = 7;
     uint32 type = 8;
+    bool   isBaton = 9;
 }
 
 message SlpUtxosReply {

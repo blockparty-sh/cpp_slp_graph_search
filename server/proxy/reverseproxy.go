@@ -15,7 +15,7 @@ import (
 var (
 	// command-line options:
 	// gRPC server endpoint
-	grpcServerEndpoint = flag.String("gs-grpc-endpoint", "localhost:50051", "gs++ gRPC server endpoint")
+	grpcServerEndpoint = flag.String("gs-grpc-endpoint", "localhost:50052", "gs++ gRPC server endpoint")
 	proxyPort          = flag.String("port", "8082", "port for the proxy server")
 )
 
