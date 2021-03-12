@@ -16,7 +16,7 @@ service GraphSearchService {
   rpc SlpUtxos (SlpUtxosRequest) returns (SlpUtxosReply) {}
   rpc SlpTokenInfo (SlpTokenInfoRequest) returns (SlpTokenInfoReply) {}
   rpc SlpTokenBalance (SlpTokenBalanceRequest) returns (SlpTokenBalanceReply) {}
-  rpc SlpAllTokenBalances (SlpAllTokenBalancesRequest) returns (stream SlpTokenBalanceReply) {}
+  rpc SlpAllTokenBalances (SlpAllTokenBalancesRequest) returns (SlpAllTokenBalancesReply) {}
 }
 
 message GraphSearchRequest {
@@ -131,4 +131,8 @@ message SlpTokenBalanceReply {
 
 message SlpAllTokenBalancesRequest {
     bytes scriptpubkey = 1;
+}
+
+message SlpAllTokenBalancesReply {
+    repeated SlpTokenBalanceReply balances = 1;
 }
