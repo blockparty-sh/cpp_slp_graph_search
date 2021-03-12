@@ -472,37 +472,9 @@ class GraphSearchServiceImpl final
                 continue;
             }
 
-
-            // bool valid_tx = validator.has_valid(utxo.prev_tx_id);
-            // if (valid_tx) {
-
             gs::transaction tx = validator.get(utxo.prev_tx_id);
             gs::transaction genesis_tx = validator.get(gs::txid(tx.slp.tokenid.v));
             const gs::slp_transaction_genesis & genesis_info = absl::get<gs::slp_transaction_genesis>(genesis_tx.slp.slp_tx);
-            // const auto & s = absl::get<gs::slp_transaction_genesis>(slp.slp_tx);
-                // const gs::txid    txid      = lookup_txid;
-                // const uint32_t    vout      = lookup_vout;
-                // const gs::tokenid tokenid   = tx.slp.tokenid;
-                // const uint16_t    tokentype = tx.slp.token_type;
-                // const uint64_t    value     = tx.output_slp_amount(vout);
-
-                // std::vector<uint8_t> preimage;
-                // if (tokentype == 0x01) {
-                //     preimage.resize(32+4+32+2+8+1); // txid, vout, tokenid, tokentype, tokenvalue, is_baton
-                //     std::memcpy(preimage.data()+0,  txid.data(),    32);
-                //     std::memcpy(preimage.data()+32, &vout,           4);
-                //     std::memcpy(preimage.data()+36, tokenid.data(), 32);
-                //     std::memcpy(preimage.data()+68, &tokentype,      2);
-                //     std::memcpy(preimage.data()+70, &value,          8);
-                //     const uint8_t is_baton = tx.mint_baton_outpoint().vout == vout;
-                //     std::memcpy(preimage.data()+78, &is_baton,       1);
-                //     // TODO debug, maybe remove in later release
-                //     reply->set_tx(tx.serialized.data(), tx.serialized.size());
-                //     reply->set_vout(vout);
-                //     reply->set_tokenid(tokenid.data(), tokenid.size());
-                //     reply->set_tokentype(tokentype);
-                //     reply->set_value(value);
-                //     reply->set_is_baton(is_baton);
 
 
             graphsearch::SlpUtxo* el = reply->add_utxos();
@@ -517,7 +489,37 @@ class GraphSearchServiceImpl final
             el->set_isbaton(tx.mint_baton_outpoint().vout == utxo.prev_out_idx);
         }
 
-        // return ret;
+        return { grpc::Status::OK };
+    }
+
+    grpc::Status SlpTokenInfo(
+        grpc::ServerContext* context,
+        const graphsearch::SlpTokenInfoRequest* request,
+        graphsearch::SlpTokenInfoReply* reply
+    ) override {
+
+        const gs::tokenid tokenid(
+            gs::util::unhex(request->tokenid())
+        );
+        boost::shared_lock<boost::shared_mutex> lock(bch.lookup_mtx);
+
+        gs::transaction genesis_tx = validator.get(gs::txid(tokenid.v));
+        const gs::slp_transaction_genesis & genesis_info = absl::get<gs::slp_transaction_genesis>(genesis_tx.slp.slp_tx);
+
+        reply->set_name(genesis_info.name);
+        reply->set_ticker(genesis_info.ticker);
+        reply->set_tokenid(genesis_tx.txid.decompress(true));
+        reply->set_initialamount(genesis_info.qty);
+        reply->set_decimals(genesis_info.decimals);
+        reply->set_documenturl(genesis_info.document_uri);
+        reply->set_documenthash(genesis_info.document_hash);
+        reply->set_type(genesis_tx.slp.token_type);
+        if (genesis_tx.slp.token_type == 0x41) {
+            const gs::transaction & txi    = validator.transaction_map.at(genesis_tx.inputs[0].txid);
+            const gs::tokenid group_id     = txi.slp.tokenid;
+
+            reply->set_tokenid(group_id.decompress(true));
+        }
 
         return { grpc::Status::OK };
     }

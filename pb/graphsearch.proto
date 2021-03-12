@@ -14,6 +14,7 @@ service GraphSearchService {
   rpc OutputOracle (OutputOracleRequest) returns (OutputOracleReply) {}
   rpc Status (StatusRequest) returns (StatusReply) {}
   rpc SlpUtxos (SlpUtxosRequest) returns (SlpUtxosReply) {}
+  rpc SlpTokenInfo (SlpTokenInfoRequest) returns (SlpTokenInfoReply) {}
 }
 
 message GraphSearchRequest {
@@ -95,4 +96,20 @@ message SlpUtxo {
 
 message SlpUtxosReply {
     repeated SlpUtxo utxos = 1;
+}
+
+message SlpTokenInfoRequest {
+    string tokenId = 1;
+}
+
+message SlpTokenInfoReply {
+    string name = 1;
+    string ticker = 2;
+    string tokenId = 3;
+    uint64 initialAmount = 4;
+    uint32 decimals = 5;
+    string documentUrl = 6;
+    string documentHash = 7;
+    uint32 type = 8;
+    string groupId = 9;
 }
