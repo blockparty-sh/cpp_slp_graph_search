@@ -523,6 +523,53 @@ class GraphSearchServiceImpl final
 
         return { grpc::Status::OK };
     }
+
+    grpc::Status SlpTokenBalance(
+        grpc::ServerContext* context,
+        const graphsearch::SlpTokenBalanceRequest* request,
+        graphsearch::SlpTokenBalanceReply* reply
+    ) override {
+
+        const gs::scriptpubkey scriptpubkey = gs::scriptpubkey(request->scriptpubkey());
+        const gs::tokenid tokenid(
+            gs::util::unhex(request->tokenid())
+        );
+
+        boost::shared_lock<boost::shared_mutex> lock(bch.lookup_mtx);
+
+        std::vector<gs::output> allUtxos = bch.utxodb.get_outputs_by_scriptpubkey(scriptpubkey, 1e5);
+
+        std::uint64_t balance = 0;
+
+        for (gs::output utxo : allUtxos) {
+            auto slp_utxo_search = bch.slpdb.utxo_to_tokenid.find(gs::outpoint(utxo.prev_tx_id, utxo.prev_out_idx));
+            if (slp_utxo_search == bch.slpdb.utxo_to_tokenid.end()) {
+                continue;
+            }
+
+            gs::transaction tx = validator.get(utxo.prev_tx_id);
+            if (tx.slp.tokenid != tokenid) {
+                continue;
+            }
+
+            balance += tx.output_slp_amount(utxo.prev_out_idx);
+        }
+
+        if (balance == 0) {
+            reply->set_value(0);
+        } else {
+            gs::transaction genesis_tx = validator.get(gs::txid(tokenid.v));
+            const gs::slp_transaction_genesis & genesis_info = absl::get<gs::slp_transaction_genesis>(genesis_tx.slp.slp_tx);
+
+            reply->set_value(balance);
+            reply->set_ticker(genesis_info.ticker);
+            reply->set_name(genesis_info.name);
+            reply->set_tokenid(genesis_tx.txid.decompress(true));
+            reply->set_type(genesis_tx.slp.token_type);
+        }
+
+        return { grpc::Status::OK };
+    }
 };
 
 class UtxoServiceImpl final
