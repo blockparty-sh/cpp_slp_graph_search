@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <boost/thread.hpp>
 #include <absl/container/flat_hash_map.h>
+#include <gs++/block.hpp>
 #include <gs++/utxodb.hpp>
 #include <gs++/slpdb.hpp>
 
@@ -24,8 +25,17 @@ struct bch
         const bool save_rollback
     );
 
+    void process_block(
+        const gs::block & block,
+        const bool save_rollback
+    );
+
     void process_mempool_tx(
         const std::vector<std::uint8_t>& msg_data
+    );
+
+    void process_mempool_tx(
+        const gs::transaction& tx
     );
 
     void rollback();

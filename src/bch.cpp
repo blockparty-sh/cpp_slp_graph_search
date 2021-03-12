@@ -25,12 +25,19 @@ void bch::process_block(
     const std::vector<std::uint8_t>& block_data,
     const bool save_rollback
 ) {
+    gs::block block;
+    block.hydrate(block_data.begin(), block_data.end());
+
+    process_block(block, save_rollback);
+}
+
+void bch::process_block(
+    const gs::block & block,
+    const bool save_rollback
+) {
     boost::lock_guard<boost::shared_mutex> lock(lookup_mtx);
 
     ++utxodb.current_block_height;
-
-    gs::block block;
-    block.hydrate(block_data.begin(), block_data.end());
 
     std::vector<gs::outpoint>    blk_inputs;
     std::vector<gs::output>      blk_outputs;
@@ -173,11 +180,17 @@ void bch::process_block(
 
 void bch::process_mempool_tx(const std::vector<std::uint8_t>& msg_data)
 {
-    boost::lock_guard<boost::shared_mutex> lock(lookup_mtx);
-
     gs::transaction tx;
     const bool hydration_success = tx.hydrate(msg_data.begin(), msg_data.end());
     assert(hydration_success);
+
+    process_mempool_tx(tx);    
+}
+
+void bch::process_mempool_tx(const gs::transaction& tx)
+{
+    boost::lock_guard<boost::shared_mutex> lock(lookup_mtx);
+
     spdlog::info("processing tx {}", tx.txid.decompress(true));
 
     // std::cout << "txid: " << tx.txid.decompress(true) << std::endl;

@@ -36,7 +36,7 @@
 #include <gs++/util.hpp>
 
 std::unique_ptr<grpc::Server> gserver;
-std::atomic<int>           current_block_height = { 210 };
+std::atomic<int>           current_block_height = { 543375 };
 std::atomic<gs::blockhash> current_block_hash(
     std::string("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
 );
@@ -55,6 +55,7 @@ std::atomic<std::uint64_t> last_outgoing_zmq_blk_unix { 0 };
 std::atomic<std::uint64_t> last_incoming_zmq_blk_size { 0 };
 std::atomic<std::uint64_t> last_outgoing_zmq_blk_size { 0 };
 
+std::atomic<bool> utxosync = { false };
 std::atomic<bool> exit_early = { false };
 
 boost::shared_mutex processing_mutex;
@@ -472,11 +473,13 @@ class GraphSearchServiceImpl final
             if (slp_utxo_search == bch.slpdb.utxo_to_tokenid.end()) {
                 continue;
             }
+            if (!validator.has(utxo.prev_tx_id)) {
+                continue;
+            }
 
             gs::transaction tx = validator.get(utxo.prev_tx_id);
             gs::transaction genesis_tx = validator.get(gs::txid(tx.slp.tokenid.v));
             const gs::slp_transaction_genesis & genesis_info = absl::get<gs::slp_transaction_genesis>(genesis_tx.slp.slp_tx);
-
 
             graphsearch::SlpUtxo* el = reply->add_utxos();
             el->set_txid(utxo.prev_tx_id.decompress(true));
@@ -520,7 +523,8 @@ class GraphSearchServiceImpl final
         reply->set_initialamount(genesis_info.qty);
         reply->set_decimals(genesis_info.decimals);
         reply->set_documenturl(genesis_info.document_uri);
-        reply->set_documenthash(genesis_info.document_hash);
+        std::cout << gs::util::hex2(genesis_info.document_hash) << "\t" << genesis_info.document_hash <<  std::endl;
+        reply->set_documenthash(gs::util::hex2(genesis_info.document_hash));
         reply->set_type(genesis_tx.slp.token_type);
         if (genesis_tx.slp.token_type == 0x41) {
             const gs::transaction & txi    = validator.transaction_map.at(genesis_tx.inputs[0].txid);
@@ -751,6 +755,10 @@ bool slpsync_bitcoind_process_block(const gs::block& block, const bool mempool, 
         g.insert_token_data(m.first, m.second);
     }
 
+    if (utxosync) {
+        bch.process_block(block, true);
+    }
+
     spdlog::info("processed block {} ({}) [{}/{}]", current_block_height, validator.valid.size(), valid_txs.size(), block.txs.size());
 
     return true;
@@ -783,6 +791,14 @@ bool slpsync_bitcoind_process_mempool(const gs::block& block)
         mg.insert_token_data(m.first, m.second);
     }
 
+    if (utxosync) {
+        for (const auto & token_tx_vec : valid_txs) {
+            for (const auto & tx : token_tx_vec.second) {
+                bch.process_mempool_tx(tx);
+            }
+        }
+    }
+
     spdlog::info("processed mempool ({}) [{}]", validator.valid.size(), block.txs.size());
 
     return true;
@@ -810,6 +826,10 @@ bool slpsync_bitcoind_process_tx(const gs::transaction& tx)
     }
 
     mg.insert_token_data(tx.slp.tokenid, { tx });
+
+    if (utxosync) {
+        bch.process_mempool_tx(tx);
+    }
 
     return true;
 }
@@ -909,6 +929,7 @@ int main(int argc, char * argv[])
     );
 
     if (toml::find<bool>(config, "services", "utxosync")) {
+        utxosync = true;
         if (toml::find<bool>(config, "utxo", "checkpoint_load")) {
         }
 
