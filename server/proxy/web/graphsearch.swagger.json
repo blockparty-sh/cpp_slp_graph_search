@@ -88,6 +88,10 @@
           "type": "string",
           "format": "uint64"
         },
+        "decimals": {
+          "type": "integer",
+          "format": "int64"
+        },
         "ticker": {
           "type": "string"
         },

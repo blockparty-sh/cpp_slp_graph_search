@@ -123,10 +123,11 @@ message SlpTokenBalanceRequest {
 
 message SlpTokenBalanceReply {
     uint64 value = 1;
-    string ticker = 2;
-    string name = 3;
-    string tokenId = 4;
-    uint32 type = 5;  
+    uint32 decimals = 2;
+    string ticker = 3;
+    string name = 4;
+    string tokenId = 5;
+    uint32 type = 6;
 }
 
 message SlpAllTokenBalancesRequest {

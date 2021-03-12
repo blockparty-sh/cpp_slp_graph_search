@@ -36,7 +36,7 @@
 #include <gs++/util.hpp>
 
 std::unique_ptr<grpc::Server> gserver;
-std::atomic<int>           current_block_height = { 543375 };
+std::atomic<int>           current_block_height = { 210 };
 std::atomic<gs::blockhash> current_block_hash(
     std::string("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
 );
@@ -460,6 +460,7 @@ class GraphSearchServiceImpl final
         const graphsearch::SlpUtxosRequest* request,
         graphsearch::SlpUtxosReply* reply
     ) override {
+        const auto start = std::chrono::steady_clock::now();
 
         const gs::scriptpubkey scriptpubkey = gs::scriptpubkey(request->scriptpubkey());
         boost::shared_lock<boost::shared_mutex> lock(bch.lookup_mtx);
@@ -489,6 +490,11 @@ class GraphSearchServiceImpl final
             el->set_isbaton(tx.mint_baton_outpoint().vout == utxo.prev_out_idx);
         }
 
+        const auto end = std::chrono::steady_clock::now();
+        const auto diff = end - start;
+        const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
+
+        spdlog::info("slputxos: {} ({} ms)", scriptpubkey_to_base64(scriptpubkey), diff_ms);
         return { grpc::Status::OK };
     }
 
@@ -497,10 +503,12 @@ class GraphSearchServiceImpl final
         const graphsearch::SlpTokenInfoRequest* request,
         graphsearch::SlpTokenInfoReply* reply
     ) override {
+        const auto start = std::chrono::steady_clock::now();
 
-        const gs::tokenid tokenid(
-            gs::util::unhex(request->tokenid())
-        );
+        auto binTokenId = gs::util::unhex(request->tokenid());
+        std::reverse(binTokenId.begin(), binTokenId.end());
+        const gs::tokenid tokenid(binTokenId);
+
         boost::shared_lock<boost::shared_mutex> lock(bch.lookup_mtx);
 
         gs::transaction genesis_tx = validator.get(gs::txid(tokenid.v));
@@ -521,6 +529,11 @@ class GraphSearchServiceImpl final
             reply->set_tokenid(group_id.decompress(true));
         }
 
+        const auto end = std::chrono::steady_clock::now();
+        const auto diff = end - start;
+        const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
+
+        spdlog::info("slptokeninfo: {} ({} ms)", request->tokenid(), diff_ms);
         return { grpc::Status::OK };
     }
 
@@ -529,11 +542,12 @@ class GraphSearchServiceImpl final
         const graphsearch::SlpTokenBalanceRequest* request,
         graphsearch::SlpTokenBalanceReply* reply
     ) override {
+        const auto start = std::chrono::steady_clock::now();
 
         const gs::scriptpubkey scriptpubkey = gs::scriptpubkey(request->scriptpubkey());
-        const gs::tokenid tokenid(
-            gs::util::unhex(request->tokenid())
-        );
+        auto binTokenId = gs::util::unhex(request->tokenid());
+        std::reverse(binTokenId.begin(), binTokenId.end());
+        const gs::tokenid tokenid(binTokenId);
 
         boost::shared_lock<boost::shared_mutex> lock(bch.lookup_mtx);
 
@@ -562,12 +576,18 @@ class GraphSearchServiceImpl final
             const gs::slp_transaction_genesis & genesis_info = absl::get<gs::slp_transaction_genesis>(genesis_tx.slp.slp_tx);
 
             reply->set_value(balance);
+            reply->set_decimals(genesis_info.decimals);
             reply->set_ticker(genesis_info.ticker);
             reply->set_name(genesis_info.name);
             reply->set_tokenid(genesis_tx.txid.decompress(true));
             reply->set_type(genesis_tx.slp.token_type);
         }
 
+        const auto end = std::chrono::steady_clock::now();
+        const auto diff = end - start;
+        const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
+
+        spdlog::info("slptokenbalance: {} {} ({} ms)", scriptpubkey_to_base64(scriptpubkey), request->tokenid(), diff_ms);
         return { grpc::Status::OK };
     }
 
@@ -576,6 +596,7 @@ class GraphSearchServiceImpl final
         const graphsearch::SlpAllTokenBalancesRequest* request,
         graphsearch::SlpAllTokenBalancesReply* reply
     ) override {
+        const auto start = std::chrono::steady_clock::now();
 
         const gs::scriptpubkey scriptpubkey = gs::scriptpubkey(request->scriptpubkey());
 
@@ -603,12 +624,18 @@ class GraphSearchServiceImpl final
             graphsearch::SlpTokenBalanceReply* el = reply->add_balances();
 
             el->set_value(pair.second);
+            el->set_decimals(genesis_info.decimals);
             el->set_ticker(genesis_info.ticker);
             el->set_name(genesis_info.name);
             el->set_tokenid(genesis_tx.txid.decompress(true));
             el->set_type(genesis_tx.slp.token_type);
         }
 
+        const auto end = std::chrono::steady_clock::now();
+        const auto diff = end - start;
+        const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
+
+        spdlog::info("slpalltokenbalances: {} ({} ms)", scriptpubkey_to_base64(scriptpubkey), diff_ms);
         return { grpc::Status::OK };
     }
 };
@@ -881,21 +908,6 @@ int main(int argc, char * argv[])
         toml::find<std::string>  (config, "bitcoind", "pass")
     );
 
-            const std::string scriptpubkey_b64 = "dqkUVrayIEK5DdZ78vv7mv99N/vuESSIrA==";
-
-            std::size_t scriptpubkey_len = 0;
-            std::string decoded(scriptpubkey_b64.size(), '\0');
-            base64_decode(
-                scriptpubkey_b64.data(),
-                scriptpubkey_b64.size(),
-                const_cast<char*>(decoded.data()),
-                &scriptpubkey_len,
-                0
-            );
-            decoded.resize(scriptpubkey_len);
-            gs::scriptpubkey pubkey(decoded);
-
-
     if (toml::find<bool>(config, "services", "utxosync")) {
         if (toml::find<bool>(config, "utxo", "checkpoint_load")) {
         }
@@ -931,9 +943,6 @@ int main(int argc, char * argv[])
             spdlog::info("processing block {}", block_height);
             bch.process_block(block_data.second, true);
         }
-
-            // std::cout << bch.utxodb.scriptpubkey_to_output.at(pubkey).size() << std::endl;
-            std::cout << bch.utxodb.get_balance_by_scriptpubkey(pubkey) << std::endl;
 
         if (toml::find<bool>(config, "utxo", "checkpoint_save")) {
         }
