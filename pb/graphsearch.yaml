@@ -21,3 +21,12 @@
    - selector: graphsearch.GraphSearchService.SlpUtxos
      post: /v1/graphsearch/slputxos
      body: "*"
+   - selector: graphsearch.GraphSearchService.SlpTokenInfo
+     post: /v1/graphsearch/slptokeninfo
+     body: "*"
+   - selector: graphsearch.GraphSearchService.SlpTokenBalance
+     post: /v1/graphsearch/slptokenbalance
+     body: "*"
+   - selector: graphsearch.GraphSearchService.SlpAllTokenBalances
+     post: /v1/graphsearch/slpalltokenbalances
+     body: "*"
