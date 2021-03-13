@@ -205,8 +205,7 @@ void bch::process_mempool_tx(const gs::transaction& tx)
 
         const gs::outpoint outpoint(m.prev_tx_id, m.prev_out_idx);
         gs::output* const oid = &(*utxodb.mempool_outpoint_map.insert({ outpoint, m }).first).second;
-
-        if (! utxodb.scriptpubkey_to_output.count(m.scriptpubkey)) {
+        if (! utxodb.mempool_scriptpubkey_to_output.count(m.scriptpubkey)) {
             utxodb.mempool_scriptpubkey_to_output.insert({ m.scriptpubkey, { oid } });
         } else {
             utxodb.mempool_scriptpubkey_to_output[m.scriptpubkey].insert(oid);

@@ -36,7 +36,7 @@
 #include <gs++/util.hpp>
 
 std::unique_ptr<grpc::Server> gserver;
-std::atomic<int>           current_block_height = { 543375 };
+std::atomic<int>           current_block_height = { 210 };
 std::atomic<gs::blockhash> current_block_hash(
     std::string("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
 );
@@ -514,7 +514,12 @@ class GraphSearchServiceImpl final
 
         boost::shared_lock<boost::shared_mutex> lock(bch.lookup_mtx);
 
-        gs::transaction genesis_tx = validator.get(gs::txid(tokenid.v));
+        const gs::txid txid(tokenid.v);
+        if (!validator.has(txid)) {
+            return { grpc::StatusCode::NOT_FOUND, "token " + request->tokenid() + " not found" };
+        }
+
+        gs::transaction genesis_tx = validator.get(txid);
         const gs::slp_transaction_genesis & genesis_info = absl::get<gs::slp_transaction_genesis>(genesis_tx.slp.slp_tx);
 
         reply->set_name(genesis_info.name);
@@ -523,7 +528,7 @@ class GraphSearchServiceImpl final
         reply->set_initialamount(genesis_info.qty);
         reply->set_decimals(genesis_info.decimals);
         reply->set_documenturl(genesis_info.document_uri);
-        std::cout << gs::util::hex2(genesis_info.document_hash) << "\t" << genesis_info.document_hash <<  std::endl;
+        // std::cout << gs::util::hex2(genesis_info.document_hash) << "\t" << genesis_info.document_hash <<  std::endl;
         reply->set_documenthash(gs::util::hex2(genesis_info.document_hash));
         reply->set_type(genesis_tx.slp.token_type);
         if (genesis_tx.slp.token_type == 0x41) {
