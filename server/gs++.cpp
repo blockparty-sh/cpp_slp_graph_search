@@ -36,7 +36,7 @@
 #include <gs++/util.hpp>
 
 std::unique_ptr<grpc::Server> gserver;
-std::atomic<int>           current_block_height = { 210 };
+std::atomic<int>           current_block_height = { -1 };
 std::atomic<gs::blockhash> current_block_hash(
     std::string("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
 );
@@ -932,6 +932,8 @@ int main(int argc, char * argv[])
         toml::find<std::string>  (config, "bitcoind", "user"),
         toml::find<std::string>  (config, "bitcoind", "pass")
     );
+
+    current_block_height = toml::find<int>(config, "utxo", "block_height");
 
     if (toml::find<bool>(config, "services", "utxosync")) {
         utxosync = true;
