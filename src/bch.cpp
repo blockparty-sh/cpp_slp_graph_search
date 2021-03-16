@@ -47,16 +47,16 @@ void bch::process_block(
     std::size_t total_removed = 0;
 
     for (auto & tx : block.txs) {
-        for (auto & m : tx.inputs) {
-            blk_inputs.push_back(m);
-        }
-
-        for (auto & m : tx.outputs) {
-            blk_outputs.push_back(m);
-        }
-
         if (tx.slp.type != gs::slp_transaction_type::invalid) {
             slp_txs.push_back(tx);
+
+            for (auto & m : tx.inputs) {
+                blk_inputs.push_back(m);
+            }
+
+            for (auto & m : tx.outputs) {
+                blk_outputs.push_back(m);
+            }
         }
     }
 
@@ -189,9 +189,15 @@ void bch::process_mempool_tx(const std::vector<std::uint8_t>& msg_data)
 
 void bch::process_mempool_tx(const gs::transaction& tx)
 {
+    if (tx.slp.type == gs::slp_transaction_type::invalid) {
+        return;
+    }
+
     boost::lock_guard<boost::shared_mutex> lock(lookup_mtx);
 
     spdlog::info("processing tx {}", tx.txid.decompress(true));
+
+    slpdb.add_transaction(tx);
 
     // std::cout << "txid: " << tx.txid.decompress(true) << std::endl;
     // std::cout << "\tversion: " << tx.version << std::endl;
@@ -232,10 +238,6 @@ void bch::process_mempool_tx(const gs::transaction& tx)
         if (addr_map.empty()) {
             utxodb.mempool_scriptpubkey_to_output.erase(o.scriptpubkey);
         }
-    }
-
-    if (tx.slp.type != gs::slp_transaction_type::invalid) {
-        slpdb.add_transaction(tx);
     }
 }
 
