@@ -1172,9 +1172,14 @@ int main(int argc, char * argv[])
                                             continue;
                                         }
                                         
-                                        const auto prevTx = validator.get(input.txid);
+                                        const auto & prevTx = validator.get(input.txid);
                                         // inputKeys.push_back(prevTx.outputs[input.vout].scriptpubkey);
                                         json["inputs"].push_back(gs::util::hex(prevTx.outputs[input.vout].scriptpubkey.v));
+                                    }
+
+                                    if (tx.slp.token_type == 0x41) {
+                                        const auto & genesisTx = validator.get(gs::txid(tx.slp.tokenid.v));
+                                        json["group_id"] = genesisTx.slp.tokenid.decompress(true);
                                     }
                                 }
 
