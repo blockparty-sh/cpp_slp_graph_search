@@ -1174,7 +1174,7 @@ int main(int argc, char * argv[])
                                         
                                         const auto prevTx = validator.get(input.txid);
                                         // inputKeys.push_back(prevTx.outputs[input.vout].scriptpubkey);
-                                        json["inputs"].push_back(prevTx.outputs[input.vout].scriptpubkey.to_address());
+                                        json["inputs"].push_back(gs::util::hex(prevTx.outputs[input.vout].scriptpubkey));
                                     }
                                 }
 
@@ -1184,7 +1184,7 @@ int main(int argc, char * argv[])
                                     }
 
                                     // outputKeys.push_back(output.scriptpubkey);
-                                    json["outputs"].push_back(output.scriptpubkey.to_address());
+                                    json["outputs"].push_back(gs::util::hex(output.scriptpubkey));
                                 }
 
                                 json["tokenId"] = tx.slp.tokenid.decompress(true);
