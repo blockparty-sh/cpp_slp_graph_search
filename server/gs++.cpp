@@ -1178,8 +1178,9 @@ int main(int argc, char * argv[])
                                     }
 
                                     if (tx.slp.token_type == 0x41) {
-                                        const auto & genesisTx = validator.get(gs::txid(tx.slp.tokenid.v));
-                                        json["group_id"] = genesisTx.slp.tokenid.decompress(true);
+                                        const auto & genesis_tx = validator.get(gs::txid(tx.slp.tokenid.v));
+                                        const auto & txi = validator.get(genesis_tx.inputs[0].txid);
+                                        json["group_id"] = txi.slp.tokenid.decompress(true);
                                     }
                                 }
 
