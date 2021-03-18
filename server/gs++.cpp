@@ -20,6 +20,7 @@
 #include <toml.hpp>
 #include <3rdparty/secp256k1/include/secp256k1_schnorr.h>
 #include <3rdparty/sha2.h>
+#include <nlohmann/json.hpp>
 
 #include "graphsearch.grpc.pb.h"
 #include "utxo.grpc.pb.h"
@@ -935,44 +936,48 @@ int main(int argc, char * argv[])
 
     if (toml::find<bool>(config, "services", "utxosync")) {
         utxosync = true;
-        if (toml::find<bool>(config, "utxo", "checkpoint_load")) {
-        }
-
-        const std::pair<bool, std::uint32_t> best_block_height = rpc.get_best_block_height();
-        if (! best_block_height.first) {
-            spdlog::error("could not connect to rpc");
-            return EXIT_FAILURE;
-        }
-
-        spdlog::info("best block height: {}", best_block_height.second);
-        for (
-            std::uint32_t block_height=toml::find<std::uint32_t>(config, "utxo", "block_height");
-            block_height <= best_block_height.second;
-            ++block_height
-        ) {
-            const std::pair<bool, gs::blockhash> block_hash = rpc.get_block_hash(block_height);
-            if (! block_hash.first) {
-                spdlog::warn("rpc request failed, trying again...");
-                std::this_thread::sleep_for(await_time);
-                --block_height;
-                continue;
-            }
-
-            const std::pair<bool, std::vector<std::uint8_t>> block_data = rpc.get_raw_block(block_hash.second);
-            if (! block_data.first) {
-                spdlog::warn("rpc request failed, trying again...");
-                std::this_thread::sleep_for(await_time);
-                --block_height;
-                continue;
-            }
-
-            spdlog::info("processing block {}", block_height);
-            bch.process_block(block_data.second, true);
-        }
-
-        if (toml::find<bool>(config, "utxo", "checkpoint_save")) {
-        }
+        current_block_height= toml::find<int>(config, "utxo", "block_height");
     }
+
+    // if (toml::find<bool>(config, "services", "utxosync")) {
+    //     if (toml::find<bool>(config, "utxo", "checkpoint_load")) {
+    //     }
+
+    //     const std::pair<bool, std::uint32_t> best_block_height = rpc.get_best_block_height();
+    //     if (! best_block_height.first) {
+    //         spdlog::error("could not connect to rpc");
+    //         return EXIT_FAILURE;
+    //     }
+
+    //     spdlog::info("best block height: {}", best_block_height.second);
+    //     for (
+    //         std::uint32_t block_height=toml::find<std::uint32_t>(config, "utxo", "block_height");
+    //         block_height <= best_block_height.second;
+    //         ++block_height
+    //     ) {
+    //         const std::pair<bool, gs::blockhash> block_hash = rpc.get_block_hash(block_height);
+    //         if (! block_hash.first) {
+    //             spdlog::warn("rpc request failed, trying again...");
+    //             std::this_thread::sleep_for(await_time);
+    //             --block_height;
+    //             continue;
+    //         }
+
+    //         const std::pair<bool, std::vector<std::uint8_t>> block_data = rpc.get_raw_block(block_hash.second);
+    //         if (! block_data.first) {
+    //             spdlog::warn("rpc request failed, trying again...");
+    //             std::this_thread::sleep_for(await_time);
+    //             --block_height;
+    //             continue;
+    //         }
+
+    //         spdlog::info("processing block {}", block_height);
+    //         bch.process_block(block_data.second, true);
+    //     }
+
+    //     if (toml::find<bool>(config, "utxo", "checkpoint_save")) {
+    //     }
+    // }
 
     if (toml::find<bool>(config, "services", "graphsearch")) {
         if (cache_enabled) {
@@ -1001,6 +1006,11 @@ int main(int argc, char * argv[])
                     spdlog::error("failed to process cache block {}", current_block_height);
                     --current_block_height;
                     break;
+                }
+
+                if (utxosync) {
+                    bch.process_block(block, true);
+                    spdlog::info("utxosync: processed cached block {}", current_block_height);
                 }
             }
         }
@@ -1056,6 +1066,11 @@ int main(int argc, char * argv[])
                         std::this_thread::sleep_for(await_time);
                         --current_block_height;
                         goto retry_loop2;
+                    }
+
+                    if (utxosync) {
+                        bch.process_block(block, true);
+                        spdlog::info("utxosync: processed rpc block {}", current_block_height);
                     }
 
                     current_block_hash = block_hash.second;
@@ -1143,10 +1158,44 @@ int main(int argc, char * argv[])
                             }
                             if (zmqpub) {
                                 spdlog::info("publishing zmq tx {}", tx.txid.decompress(true));
-                                std::array<zmq::const_buffer, 2> msgs = {
+
+                                nlohmann::json json{{"inputs", {}}, {"outputs", {}}};
+                                {
+                                    boost::lock_guard<boost::shared_mutex> lock(bch.lookup_mtx);
+                                    
+                                    // std::vector<gs::scriptpubkey> inputKeys;
+                                    // std::vector<gs::scriptpubkey> outputKeys;
+                                    for (const auto & input : tx.inputs) {
+                                        if (!validator.has(input.txid)) {
+                                            continue;
+                                        }
+                                        
+                                        const auto prevTx = validator.get(input.txid);
+                                        // inputKeys.push_back(prevTx.outputs[input.vout].scriptpubkey);
+                                        json["inputs"].push_back(prevTx.outputs[input.vout].scriptpubkey.to_address());
+                                    }
+                                }
+
+                                for (const auto & output : tx.outputs) {
+                                    if (output.is_op_return()) {
+                                        continue;
+                                    }
+
+                                    // outputKeys.push_back(output.scriptpubkey);
+                                    json["outputs"].push_back(output.scriptpubkey.to_address());
+                                }
+
+                                json["tokenId"] = tx.slp.tokenid.decompress(true);
+                                json["type"] = tx.slp.token_type;
+
+                                std::string json_string = json.dump();
+
+                                std::array<zmq::const_buffer, 3> msgs = {
                                     zmq::str_buffer("rawtx"),
-                                    zmq::buffer(tx.serialized.data(), tx.serialized.size())
+                                    zmq::buffer(tx.serialized.data(), tx.serialized.size()),
+                                    zmq::buffer(json_string.data(), json_string.size())
                                 };
+
                                 zmq::send_multipart(pubsock, msgs, zmq::send_flags::dontwait);
 
                                 last_outgoing_zmq_tx      = tx.txid;
