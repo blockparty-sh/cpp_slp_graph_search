@@ -27,7 +27,6 @@ namespace gs {
 
 std::vector<gs::output> transaction::slp_outputs() const
 {
-    std::vector<gs::output> outputs = {};
     if (slp.type == slp_transaction_type::send) {
         const auto & s = absl::get<gs::slp_transaction_send>(slp.slp_tx);
 

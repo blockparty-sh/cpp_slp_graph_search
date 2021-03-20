@@ -39,7 +39,7 @@ void bch::process_block(
 
     ++utxodb.current_block_height;
 
-    std::vector<gs::outpoint>    blk_inputs;
+    // std::vector<gs::outpoint>    blk_inputs;
     // std::vector<gs::output>      blk_outputs;
     std::vector<gs::transaction> slp_txs;
 
