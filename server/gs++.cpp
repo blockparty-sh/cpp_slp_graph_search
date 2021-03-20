@@ -1149,36 +1149,40 @@ int main(int argc, char * argv[])
                             if (zmqpub) {
                                 spdlog::info("publishing zmq tx {}", tx.txid.decompress(true));
 
+                                const auto & genesis_tx = validator.get(gs::txid(tx.slp.tokenid.v));
+                                const gs::slp_transaction_genesis & genesis_info = absl::get<gs::slp_transaction_genesis>(genesis_tx.slp.slp_tx);
+
                                 nlohmann::json json{{"inputs", {}}, {"outputs", {}}};
                                 {
                                     boost::lock_guard<boost::shared_mutex> lock(bch.lookup_mtx);
-                                    
-                                    for (const auto & input : tx.inputs) {
-                                        if (!validator.has(input.txid)) {
-                                            continue;
-                                        }
-                                        
-                                        const auto & prevTx = validator.get(input.txid);
-                                        json["inputs"].push_back(gs::util::hex(prevTx.outputs[input.vout].scriptpubkey.v));
-                                    }
 
                                     if (tx.slp.token_type == 0x41) {
-                                        const auto & genesis_tx = validator.get(gs::txid(tx.slp.tokenid.v));
                                         const auto & txi = validator.get(genesis_tx.inputs[0].txid);
                                         json["group_id"] = txi.slp.tokenid.decompress(true);
                                     }
+
+                                    for (const auto & input : tx.slp_inputs(validator)) {
+                                        const auto & prevTx = validator.get(input.txid);
+                                        json["inputs"].push_back(gs::util::hex(prevTx.outputs[input.vout].scriptpubkey.v));
+                                    }
                                 }
 
-                                for (const auto & output : tx.outputs) {
-                                    if (output.is_op_return()) {
-                                        continue;
-                                    }
-
+                                for (const auto & output : tx.slp_outputs()) {
                                     json["outputs"].push_back(gs::util::hex(output.scriptpubkey.v));
                                 }
 
                                 json["tokenId"] = tx.slp.tokenid.decompress(true);
                                 json["type"] = tx.slp.token_type;
+                                json["ticker"] = genesis_info.ticker;
+                                json["decimals"] = genesis_info.decimals;
+                                switch (tx.slp.type) {
+                                    case gs::slp_transaction_type::genesis:
+                                        json["txType"] = "genesis";
+                                    case gs::slp_transaction_type::send:
+                                        json["txType"] = "send";
+                                    case gs::slp_transaction_type::mint:
+                                        json["txType"] = "mint";
+                                }
 
                                 std::string json_string = json.dump();
 

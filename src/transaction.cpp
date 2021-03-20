@@ -1,29 +1,29 @@
 #include <gs++/transaction.hpp>
-// #include <gs++/slp_validator.hpp>
+#include <gs++/slp_validator.hpp>
 
 namespace gs {
 
-// // get all slp inputs
-// // expensive call involving slp_validator to look back into the past
-// std::vector<gs::outpoint> transaction::slp_inputs(const gs::slp_validator & validator) const
-// {
-//     std::vector<gs::outpoint> result;
-//     for (const  auto & input : inputs) {
-//         if (!validator.has(input.txid)) {
-//             continue;
-//         }
+// get all slp inputs
+// expensive call involving slp_validator to look back into the past
+std::vector<gs::outpoint> transaction::slp_inputs(const gs::slp_validator & validator) const
+{
+    std::vector<gs::outpoint> result;
+    for (const  auto & input : inputs) {
+        if (!validator.has(input.txid)) {
+            continue;
+        }
 
-//         const auto & prevTx = validator.get(input.txid);
-//         for (const auto & prevOutput : prevTx.slp_outputs()) {
-//             if (prevOutput.prev_out_idx == input.vout && prevOutput.prev_tx_id == input.txid) {
-//                 result.emplace_back(gs::outpoint(input));
-//                 break;
-//             }
-//         }
-//     }
+        const auto & prevTx = validator.get(input.txid);
+        for (const auto & prevOutput : prevTx.slp_outputs()) {
+            if (prevOutput.prev_out_idx == input.vout && prevOutput.prev_tx_id == input.txid) {
+                result.emplace_back(gs::outpoint(input));
+                break;
+            }
+        }
+    }
 
-//     return result;
-// }
+    return result;
+}
 
 std::vector<gs::output> transaction::slp_outputs() const
 {
