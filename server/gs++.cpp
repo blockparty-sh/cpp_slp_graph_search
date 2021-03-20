@@ -1178,10 +1178,13 @@ int main(int argc, char * argv[])
                                 switch (tx.slp.type) {
                                     case gs::slp_transaction_type::genesis:
                                         json["txType"] = "genesis";
+                                        break;
                                     case gs::slp_transaction_type::send:
                                         json["txType"] = "send";
+                                        break;
                                     case gs::slp_transaction_type::mint:
                                         json["txType"] = "mint";
+                                        break;
                                 }
 
                                 std::string json_string = json.dump();
