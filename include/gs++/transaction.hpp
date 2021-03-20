@@ -21,6 +21,8 @@
 
 namespace gs {
 
+// struct slp_validator;
+
 struct transaction
 {
     gs::txid txid;
@@ -39,6 +41,9 @@ struct transaction
     gs::outpoint mint_baton_outpoint() const;
 
     std::uint64_t output_slp_amount(const std::uint64_t vout) const;
+
+    // std::vector<gs::outpoint> slp_inputs(const gs::slp_validator & validator) const;
+    std::vector<gs::output> slp_outputs() const;
 
     // returns size of tx data read or false on error
     template <typename BeginIterator, typename EndIterator>

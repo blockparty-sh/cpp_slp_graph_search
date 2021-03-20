@@ -470,11 +470,8 @@ class GraphSearchServiceImpl final
         std::vector<gs::output> allUtxos = bch.utxodb.get_outputs_by_scriptpubkey(scriptpubkey, 1e5);
 
         for (gs::output utxo : allUtxos) {
-            auto slp_utxo_search = bch.slpdb.utxo_to_tokenid.find(gs::outpoint(utxo.prev_tx_id, utxo.prev_out_idx));
-            if (slp_utxo_search == bch.slpdb.utxo_to_tokenid.end()) {
-                continue;
-            }
             if (!validator.has(utxo.prev_tx_id)) {
+                std::cout << "SlpUtxos: check this and remove" << std::endl;
                 continue;
             }
 
@@ -566,11 +563,6 @@ class GraphSearchServiceImpl final
         std::uint64_t balance = 0;
 
         for (gs::output utxo : allUtxos) {
-            auto slp_utxo_search = bch.slpdb.utxo_to_tokenid.find(gs::outpoint(utxo.prev_tx_id, utxo.prev_out_idx));
-            if (slp_utxo_search == bch.slpdb.utxo_to_tokenid.end()) {
-                continue;
-            }
-
             gs::transaction tx = validator.get(utxo.prev_tx_id);
             if (tx.slp.tokenid != tokenid) {
                 continue;
@@ -581,6 +573,7 @@ class GraphSearchServiceImpl final
 
         if (balance == 0) {
             reply->set_value(0);
+            reply->set_tokenid(request->tokenid());
         } else {
             gs::transaction genesis_tx = validator.get(gs::txid(tokenid.v));
             const gs::slp_transaction_genesis & genesis_info = absl::get<gs::slp_transaction_genesis>(genesis_tx.slp.slp_tx);
@@ -617,11 +610,6 @@ class GraphSearchServiceImpl final
         absl::flat_hash_map<gs::tokenid, std::uint64_t> balances;
 
         for (gs::output utxo : allUtxos) {
-            auto slp_utxo_search = bch.slpdb.utxo_to_tokenid.find(gs::outpoint(utxo.prev_tx_id, utxo.prev_out_idx));
-            if (slp_utxo_search == bch.slpdb.utxo_to_tokenid.end()) {
-                continue;
-            }
-
             gs::transaction tx = validator.get(utxo.prev_tx_id);
 
             balances[tx.slp.tokenid] += tx.output_slp_amount(utxo.prev_out_idx);
@@ -1165,15 +1153,12 @@ int main(int argc, char * argv[])
                                 {
                                     boost::lock_guard<boost::shared_mutex> lock(bch.lookup_mtx);
                                     
-                                    // std::vector<gs::scriptpubkey> inputKeys;
-                                    // std::vector<gs::scriptpubkey> outputKeys;
                                     for (const auto & input : tx.inputs) {
                                         if (!validator.has(input.txid)) {
                                             continue;
                                         }
                                         
                                         const auto & prevTx = validator.get(input.txid);
-                                        // inputKeys.push_back(prevTx.outputs[input.vout].scriptpubkey);
                                         json["inputs"].push_back(gs::util::hex(prevTx.outputs[input.vout].scriptpubkey.v));
                                     }
 
@@ -1189,7 +1174,6 @@ int main(int argc, char * argv[])
                                         continue;
                                     }
 
-                                    // outputKeys.push_back(output.scriptpubkey);
                                     json["outputs"].push_back(gs::util::hex(output.scriptpubkey.v));
                                 }
 
