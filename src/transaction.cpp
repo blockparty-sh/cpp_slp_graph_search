@@ -29,15 +29,29 @@ std::vector<gs::output> transaction::slp_outputs() const
 {
     if (slp.type == slp_transaction_type::send) {
         const auto & s = absl::get<gs::slp_transaction_send>(slp.slp_tx);
+        
+        // return all outputs except op_return
+        if (s.amounts.size() >= outputs.size() - 1) {
+            return { outputs.begin() + 1, outputs.end() };
+        }
 
+        // otherwise return only existing outputs with slp amounts
         return { outputs.begin() + 1, outputs.begin() + 1 + s.amounts.size() };
     }
     else if (slp.type == slp_transaction_type::mint) {
         const auto & s = absl::get<gs::slp_transaction_mint>(slp.slp_tx);
+        if (s.mint_baton_vout >= outputs.size() || s.mint_baton_vout == 0) {
+            return  { outputs[1] };
+        }
+
         return { outputs[1], outputs[s.mint_baton_vout] };
     }
     else if (slp.type == slp_transaction_type::genesis) {
         const auto & s = absl::get<gs::slp_transaction_genesis>(slp.slp_tx);
+        if (s.mint_baton_vout >= outputs.size() || s.mint_baton_vout == 0) {
+            return  { outputs[1] };
+        }
+
         return { outputs[1], outputs[s.mint_baton_vout] };
     }
 
