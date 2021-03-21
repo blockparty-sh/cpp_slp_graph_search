@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"net/http"
+	"mime"
 
 	"github.com/golang/glog"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -24,17 +25,30 @@ func run() error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	mux := http.NewServeMux()
+
 	// Register gRPC server endpoint
 	// Note: Make sure the gRPC server is running properly and accessible
-	mux := runtime.NewServeMux()
+	gwmux := runtime.NewServeMux()
 	opts := []grpc.DialOption{grpc.WithInsecure(), grpc.WithMaxMsgSize(4294967295)}
-	err := gw.RegisterGraphSearchServiceHandlerFromEndpoint(ctx, mux, *grpcServerEndpoint, opts)
+	err := gw.RegisterGraphSearchServiceHandlerFromEndpoint(ctx, gwmux, *grpcServerEndpoint, opts)
 	if err != nil {
 		return err
 	}
 
+	mux.Handle("/v1/", gwmux)
+	serveSwagger(mux)
+
 	// Start HTTP server (and proxy calls to gRPC server endpoint)
 	return http.ListenAndServe(":"+*proxyPort, mux)
+}
+
+func serveSwagger(mux *http.ServeMux) {
+	mime.AddExtensionType(".svg", "image/svg+xml")
+
+	fileServer := http.FileServer(http.Dir("web"))
+	prefix := "/"
+	mux.Handle(prefix, http.StripPrefix(prefix, fileServer))
 }
 
 func main() {
