@@ -88,7 +88,7 @@ std::pair<bool, std::vector<std::uint8_t>> rpc::get_raw_block(
     return { true, gs::util::unhex(block_data_str) };
 }
 
-std::pair<bool, std::uint32_t> rpc::get_best_block_height()
+std::pair<bool, blockchain_info> rpc::get_blockchain_info()
 {
     std::shared_ptr<httplib::Response> res = query("getblockchaininfo", {});
 
@@ -111,7 +111,10 @@ std::pair<bool, std::uint32_t> rpc::get_best_block_height()
     }
 
     // std::cout << jbody << std::endl;
-    return { true, jbody[0]["result"]["blocks"].get<std::uint32_t>() };
+    blockchain_info info;
+    info.best_block_height = jbody[0]["result"]["blocks"].get<std::uint32_t>();
+    info.network = jbody[0]["result"]["chain"].get<std::string>();
+    return { true, info };
 }
 
 std::pair<bool, nlohmann::json> rpc::get_decode_raw_transaction(

@@ -81,7 +81,7 @@ message StatusReply {
 }
 
 message SlpUtxosRequest {
-    bytes scriptpubkey = 1;
+    string cashaddr = 1;
 }
 
 message SlpUtxo {
@@ -117,7 +117,7 @@ message SlpTokenInfoReply {
 }
 
 message SlpTokenBalanceRequest {
-    bytes scriptpubkey = 1;
+    string cashaddr = 1;
     string tokenId = 2;
 }
 
@@ -131,7 +131,7 @@ message SlpTokenBalanceReply {
 }
 
 message SlpAllTokenBalancesRequest {
-    bytes scriptpubkey = 1;
+    string cashaddr = 1;
 }
 
 message SlpAllTokenBalancesReply {

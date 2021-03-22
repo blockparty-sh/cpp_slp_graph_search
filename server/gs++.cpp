@@ -37,6 +37,13 @@
 #include <gs++/util.hpp>
 
 std::unique_ptr<grpc::Server> gserver;
+std::string network = {"main"};
+std::string networkPrefix = {"simpleledger"};
+std::map<std::string, std::string> networkPrefixes = {
+    {"main", "simpleledger"},
+    {"test", "slptest"}, 
+    {"regtest", "slpreg"}
+};
 std::atomic<int>           current_block_height = { -1 };
 std::atomic<gs::blockhash> current_block_hash(
     std::string("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
@@ -464,17 +471,17 @@ class GraphSearchServiceImpl final
     ) override {
         const auto start = std::chrono::steady_clock::now();
 
-        const gs::scriptpubkey scriptpubkey = gs::scriptpubkey(request->scriptpubkey());
+        std::string cashaddr = request->cashaddr();
+        const gs::scriptpubkey scriptpubkey = gs::scriptpubkey::from_cashaddr(cashaddr);
+        if (scriptpubkey == gs::scriptpubkey()) {
+            return { grpc::StatusCode::INVALID_ARGUMENT, "invalid cashaddr" };
+        }
+
         boost::shared_lock<boost::shared_mutex> lock(bch.lookup_mtx);
 
         std::vector<gs::output> allUtxos = bch.utxodb.get_outputs_by_scriptpubkey(scriptpubkey, 1e5);
 
         for (gs::output utxo : allUtxos) {
-            if (!validator.has(utxo.prev_tx_id)) {
-                std::cout << "SlpUtxos: check this and remove" << std::endl;
-                continue;
-            }
-
             gs::transaction tx = validator.get(utxo.prev_tx_id);
             gs::transaction genesis_tx = validator.get(gs::txid(tx.slp.tokenid.v));
             const gs::slp_transaction_genesis & genesis_info = absl::get<gs::slp_transaction_genesis>(genesis_tx.slp.slp_tx);
@@ -495,7 +502,7 @@ class GraphSearchServiceImpl final
         const auto diff = end - start;
         const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
 
-        spdlog::info("slputxos: {} ({} ms)", scriptpubkey_to_base64(scriptpubkey), diff_ms);
+        spdlog::info("slputxos: {} ({} ms)", cashaddr, diff_ms);
         return { grpc::Status::OK };
     }
 
@@ -525,9 +532,7 @@ class GraphSearchServiceImpl final
         reply->set_tokenid(genesis_tx.txid.decompress(true));
         reply->set_initialamount(genesis_info.qty);
         reply->set_decimals(genesis_info.decimals);
-        reply->set_documenturl(genesis_info.document_uri);
-        // std::cout << gs::util::hex2(genesis_info.document_hash) << "\t" << genesis_info.document_hash <<  std::endl;
-        reply->set_documenthash(gs::util::hex2(genesis_info.document_hash));
+        reply->set_documenthash(gs::util::hex(genesis_info.document_hash));
         reply->set_type(genesis_tx.slp.token_type);
         if (genesis_tx.slp.token_type == 0x41) {
             const gs::transaction & txi    = validator.transaction_map.at(genesis_tx.inputs[0].txid);
@@ -551,7 +556,12 @@ class GraphSearchServiceImpl final
     ) override {
         const auto start = std::chrono::steady_clock::now();
 
-        const gs::scriptpubkey scriptpubkey = gs::scriptpubkey(request->scriptpubkey());
+        std::string cashaddr = request->cashaddr();
+        const gs::scriptpubkey scriptpubkey = gs::scriptpubkey::from_cashaddr(cashaddr);
+        if (scriptpubkey == gs::scriptpubkey()) {
+            return { grpc::StatusCode::INVALID_ARGUMENT, "invalid cashaddr" };
+        }
+
         auto binTokenId = gs::util::unhex(request->tokenid());
         std::reverse(binTokenId.begin(), binTokenId.end());
         const gs::tokenid tokenid(binTokenId);
@@ -590,7 +600,7 @@ class GraphSearchServiceImpl final
         const auto diff = end - start;
         const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
 
-        spdlog::info("slptokenbalance: {} {} ({} ms)", scriptpubkey_to_base64(scriptpubkey), request->tokenid(), diff_ms);
+        spdlog::info("slptokenbalance: {} {} ({} ms)", cashaddr, request->tokenid(), diff_ms);
         return { grpc::Status::OK };
     }
 
@@ -601,7 +611,11 @@ class GraphSearchServiceImpl final
     ) override {
         const auto start = std::chrono::steady_clock::now();
 
-        const gs::scriptpubkey scriptpubkey = gs::scriptpubkey(request->scriptpubkey());
+        std::string cashaddr = request->cashaddr();
+        const gs::scriptpubkey scriptpubkey = gs::scriptpubkey::from_cashaddr(cashaddr);
+        if (scriptpubkey == gs::scriptpubkey()) {
+            return { grpc::StatusCode::INVALID_ARGUMENT, "invalid cashaddr" };
+        }
 
         boost::shared_lock<boost::shared_mutex> lock(bch.lookup_mtx);
 
@@ -633,7 +647,7 @@ class GraphSearchServiceImpl final
         const auto diff = end - start;
         const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
 
-        spdlog::info("slpalltokenbalances: {} ({} ms)", scriptpubkey_to_base64(scriptpubkey), diff_ms);
+        spdlog::info("slpalltokenbalances: {} ({} ms)", cashaddr, diff_ms);
         return { grpc::Status::OK };
     }
 };
@@ -929,46 +943,6 @@ int main(int argc, char * argv[])
         current_block_height= toml::find<int>(config, "utxo", "block_height");
     }
 
-    // if (toml::find<bool>(config, "services", "utxosync")) {
-    //     if (toml::find<bool>(config, "utxo", "checkpoint_load")) {
-    //     }
-
-    //     const std::pair<bool, std::uint32_t> best_block_height = rpc.get_best_block_height();
-    //     if (! best_block_height.first) {
-    //         spdlog::error("could not connect to rpc");
-    //         return EXIT_FAILURE;
-    //     }
-
-    //     spdlog::info("best block height: {}", best_block_height.second);
-    //     for (
-    //         std::uint32_t block_height=toml::find<std::uint32_t>(config, "utxo", "block_height");
-    //         block_height <= best_block_height.second;
-    //         ++block_height
-    //     ) {
-    //         const std::pair<bool, gs::blockhash> block_hash = rpc.get_block_hash(block_height);
-    //         if (! block_hash.first) {
-    //             spdlog::warn("rpc request failed, trying again...");
-    //             std::this_thread::sleep_for(await_time);
-    //             --block_height;
-    //             continue;
-    //         }
-
-    //         const std::pair<bool, std::vector<std::uint8_t>> block_data = rpc.get_raw_block(block_hash.second);
-    //         if (! block_data.first) {
-    //             spdlog::warn("rpc request failed, trying again...");
-    //             std::this_thread::sleep_for(await_time);
-    //             --block_height;
-    //             continue;
-    //         }
-
-    //         spdlog::info("processing block {}", block_height);
-    //         bch.process_block(block_data.second, true);
-    //     }
-
-    //     if (toml::find<bool>(config, "utxo", "checkpoint_save")) {
-    //     }
-    // }
-
     if (toml::find<bool>(config, "services", "graphsearch")) {
         if (cache_enabled) {
             for (; ! exit_early; ++current_block_height) {
@@ -1007,20 +981,24 @@ int main(int argc, char * argv[])
         if (toml::find<bool>(config, "services", "graphsearch_rpc")) {
             while (! exit_early) {
     retry_loop2:
-                const std::pair<bool, std::uint32_t> best_block_height = rpc.get_best_block_height();
-                if (! best_block_height.first) {
+                const std::pair<bool, gs::blockchain_info> blockchain_info = rpc.get_blockchain_info();
+                if (! blockchain_info.first) {
                     spdlog::error("could not connect to rpc");
                     return EXIT_FAILURE;
                 }
+                const auto best_block_height = blockchain_info.second.best_block_height;
+                network = blockchain_info.second.network;
+                networkPrefix = networkPrefixes[network];
 
-                spdlog::info("best block height: {}", best_block_height.second);
 
-                if (current_block_height == best_block_height.second) {
+                spdlog::info("best block height: {}", best_block_height);
+
+                if (current_block_height == best_block_height) {
                     break;
                 }
 
                 for (;
-                    ! exit_early && current_block_height <= best_block_height.second;
+                    ! exit_early && current_block_height <= best_block_height;
                     ++current_block_height
                 ) {
                     const std::pair<bool, gs::blockhash> block_hash = rpc.get_block_hash(current_block_height);
@@ -1163,12 +1141,12 @@ int main(int argc, char * argv[])
 
                                     for (const auto & input : tx.slp_inputs(validator)) {
                                         const auto & prevTx = validator.get(input.txid);
-                                        json["inputs"].push_back(gs::util::hex(prevTx.outputs[input.vout].scriptpubkey.v));
+                                        json["inputs"].push_back(prevTx.outputs[input.vout].scriptpubkey.to_cashaddr(networkPrefix));
                                     }
                                 }
 
                                 for (const auto & output : tx.slp_outputs()) {
-                                    json["outputs"].push_back(gs::util::hex(output.scriptpubkey.v));
+                                    json["outputs"].push_back(output.scriptpubkey.to_cashaddr(networkPrefix));
                                 }
 
                                 json["tokenId"] = tx.slp.tokenid.decompress(true);

@@ -336,7 +336,7 @@
     "graphsearchSlpAllTokenBalancesRequest": {
       "type": "object",
       "properties": {
-        "scriptpubkey": {
+        "cashaddr": {
           "type": "string"
         }
       }
@@ -355,7 +355,7 @@
     "graphsearchSlpTokenBalanceRequest": {
       "type": "object",
       "properties": {
-        "scriptpubkey": {
+        "cashaddr": {
           "type": "string"
         },
         "tokenId": {
@@ -435,7 +435,7 @@
     "graphsearchSlpUtxosRequest": {
       "type": "object",
       "properties": {
-        "scriptpubkey": {
+        "cashaddr": {
           "type": "string"
         }
       }

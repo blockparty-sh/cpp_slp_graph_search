@@ -128,19 +128,6 @@ std::string hex(const Container& v)
     return ret;
 }
 
-template <typename Container>
-std::string hex2(const Container& v)
-{
-    std::stringstream ss;
-    ss << std::hex;
-
-    for(unsigned i=0; i<v.size(); ++i) {
-        ss << std::setw(2) << std::setfill('0') << static_cast<int>(v[i]);
-    }
-
-    return ss.str();
-}
-
 template <typename Iterator>
 std::string hex(Iterator first, Iterator last)
 {
