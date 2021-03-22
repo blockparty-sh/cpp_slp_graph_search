@@ -4,18 +4,262 @@
     "title": "graphsearch.proto",
     "version": "version not set"
   },
-  "tags": [
-    {
-      "name": "GraphSearchService"
-    }
-  ],
   "consumes": [
     "application/json"
   ],
   "produces": [
     "application/json"
   ],
-  "paths": {},
+  "paths": {
+    "/v1/graphsearch/graphsearch": {
+      "post": {
+        "operationId": "GraphSearch",
+        "summary": "Perform a graph search",
+        "description": "Performs a crawl of the DAG towards genesis. Takes a txid string in little endian format. Try using a txid such as `f9d832db893a70fa9ad4ce590ac876acf0b2d22f6671f318210177c74314049e`. You may also add txids whose DAGs will be excluded from the response, use this for txids you have already validated. The server will set a maximum number to choose from (default of 5) and others will be ignored. It is recommended you use txids with high block number as the likelihood of maximally overlapping DAG is higher.",
+        "responses": {
+          "200": {
+            "description": "base64 encoded unordered transaction data.",
+            "schema": {
+              "$ref": "#/definitions/graphsearchGraphSearchReply"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/graphsearchGraphSearchRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GraphSearchService"
+        ]
+      }
+    },
+    "/v1/graphsearch/outputoracle": {
+      "post": {
+        "operationId": "OutputOracle",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/graphsearchOutputOracleReply"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/graphsearchOutputOracleRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GraphSearchService"
+        ]
+      }
+    },
+    "/v1/graphsearch/slpalltokenbalances": {
+      "post": {
+        "operationId": "SlpAllTokenBalances",
+        "summary": "Get all total token balances of an address.",
+        "description": "Address is base64 encoded script public key",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/graphsearchSlpAllTokenBalancesReply"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/graphsearchSlpAllTokenBalancesRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GraphSearchService"
+        ]
+      }
+    },
+    "/v1/graphsearch/slptokenbalance": {
+      "post": {
+        "operationId": "SlpTokenBalance",
+        "summary": "Get total token balance of an address.",
+        "description": "Address is base64 encoded script public key, tokenId is not reversed",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/graphsearchSlpTokenBalanceReply"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/graphsearchSlpTokenBalanceRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GraphSearchService"
+        ]
+      }
+    },
+    "/v1/graphsearch/slptokeninfo": {
+      "post": {
+        "operationId": "SlpTokenInfo",
+        "summary": "Look up token information.",
+        "description": "If token is NFT1 child, the NFT parent token token id will be looked up as well and returned in the 'groupId' field. tokenId and groupId are not reversed.",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/graphsearchSlpTokenInfoReply"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/graphsearchSlpTokenInfoRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GraphSearchService"
+        ]
+      }
+    },
+    "/v1/graphsearch/slputxos": {
+      "post": {
+        "operationId": "SlpUtxos",
+        "summary": "Get all SLP utxos of an address.",
+        "description": "This is a crucial part of SLP awarenes which prevents accidental token burns.",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/graphsearchSlpUtxosReply"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/graphsearchSlpUtxosRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GraphSearchService"
+        ]
+      }
+    },
+    "/v1/graphsearch/status": {
+      "post": {
+        "operationId": "Status",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/graphsearchStatusReply"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/graphsearchStatusRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GraphSearchService"
+        ]
+      }
+    },
+    "/v1/graphsearch/trustedvalidation": {
+      "post": {
+        "operationId": "TrustedValidation",
+        "summary": "Request validation of txid",
+        "description": "Performs SLP validation of a transaction. Do not use unless you trust the server. Takes a txid string in little endian format. Try using a txid such as `f9d832db893a70fa9ad4ce590ac876acf0b2d22f6671f318210177c74314049e` ",
+        "responses": {
+          "200": {
+            "description": "valid: true or false",
+            "schema": {
+              "$ref": "#/definitions/graphsearchTrustedValidationReply"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/graphsearchTrustedValidationRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GraphSearchService"
+        ]
+      }
+    },
+    "/v1/graphsearch/trustedvalidationbulk": {
+      "post": {
+        "operationId": "TrustedValidationBulk",
+        "summary": "Request validation of multiple txids",
+        "description": "Performs SLP validation of multiple transactions. Do not use unless you trust the server. Takes multiple txids string in little endian format. Try using a txid such as `f9d832db893a70fa9ad4ce590ac876acf0b2d22f6671f318210177c74314049e` ",
+        "responses": {
+          "200": {
+            "description": "valid: true or false for each transaction in order",
+            "schema": {
+              "$ref": "#/definitions/graphsearchTrustedValidationBulkReply"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/graphsearchTrustedValidationBulkRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GraphSearchService"
+        ]
+      }
+    }
+  },
   "definitions": {
     "graphsearchGraphSearchReply": {
       "type": "object",
@@ -25,6 +269,20 @@
           "items": {
             "type": "string",
             "format": "byte"
+          }
+        }
+      }
+    },
+    "graphsearchGraphSearchRequest": {
+      "type": "object",
+      "properties": {
+        "txid": {
+          "type": "string"
+        },
+        "exclude_txids": {
+          "type": "array",
+          "items": {
+            "type": "string"
           }
         }
       }
@@ -60,13 +318,26 @@
         "value": {
           "type": "string",
           "format": "uint64"
+        }
+      }
+    },
+    "graphsearchOutputOracleRequest": {
+      "type": "object",
+      "properties": {
+        "txid": {
+          "type": "string"
         },
-        "isBaton": {
-          "type": "boolean"
-        },
-        "groupid": {
-          "type": "string",
-          "format": "byte"
+        "vout": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "graphsearchSlpAllTokenBalancesRequest": {
+      "type": "object",
+      "properties": {
+        "scriptpubkey": {
+          "type": "string"
         }
       }
     },
@@ -78,6 +349,17 @@
           "items": {
             "$ref": "#/definitions/graphsearchSlpTokenBalanceReply"
           }
+        }
+      }
+    },
+    "graphsearchSlpTokenBalanceRequest": {
+      "type": "object",
+      "properties": {
+        "scriptpubkey": {
+          "type": "string"
+        },
+        "tokenId": {
+          "type": "string"
         }
       }
     },
@@ -104,6 +386,14 @@
         "type": {
           "type": "integer",
           "format": "int64"
+        }
+      }
+    },
+    "graphsearchSlpTokenInfoRequest": {
+      "type": "object",
+      "properties": {
+        "tokenId": {
+          "type": "string"
         }
       }
     },
@@ -138,6 +428,14 @@
           "format": "int64"
         },
         "groupId": {
+          "type": "string"
+        }
+      }
+    },
+    "graphsearchSlpUtxosRequest": {
+      "type": "object",
+      "properties": {
+        "scriptpubkey": {
           "type": "string"
         }
       }
@@ -193,42 +491,62 @@
     "graphsearchStatusReply": {
       "type": "object",
       "properties": {
-        "blockHeight": {
+        "block_height": {
           "type": "integer",
           "format": "int64"
         },
-        "bestBlockHash": {
+        "best_block_hash": {
           "type": "string"
         },
-        "lastIncomingZmqTxUnix": {
+        "last_incoming_zmq_tx_unix": {
           "type": "string",
           "format": "uint64"
         },
-        "lastOutgoingZmqTxUnix": {
+        "last_outgoing_zmq_tx_unix": {
           "type": "string",
           "format": "uint64"
         },
-        "lastIncomingZmqTx": {
+        "last_incoming_zmq_tx": {
           "type": "string"
         },
-        "lastOutgoingZmqTx": {
+        "last_outgoing_zmq_tx": {
           "type": "string"
         },
-        "lastIncomingZmqBlkUnix": {
+        "last_incoming_zmq_blk_unix": {
           "type": "string",
           "format": "uint64"
         },
-        "lastOutgoingZmqBlkUnix": {
+        "last_outgoing_zmq_blk_unix": {
           "type": "string",
           "format": "uint64"
         },
-        "lastIncomingZmqBlkSize": {
+        "last_incoming_zmq_blk_size": {
           "type": "string",
           "format": "uint64"
         },
-        "lastOutgoingZmqBlkSize": {
+        "last_outgoing_zmq_blk_size": {
           "type": "string",
           "format": "uint64"
+        }
+      }
+    },
+    "graphsearchStatusRequest": {
+      "type": "object"
+    },
+    "graphsearchTrustedValidationReply": {
+      "type": "object",
+      "properties": {
+        "valid": {
+          "type": "boolean",
+          "format": "boolean"
+        }
+      }
+    },
+    "graphsearchTrustedValidationRequest": {
+      "type": "object",
+      "properties": {
+        "txid": {
+          "type": "string"
         }
       }
     },
@@ -243,48 +561,13 @@
         }
       }
     },
-    "graphsearchTrustedValidationReply": {
+    "graphsearchTrustedValidationBulkRequest": {
       "type": "object",
       "properties": {
-        "valid": {
-          "type": "boolean"
-        }
-      }
-    },
-    "graphsearchTrustedValidationRequest": {
-      "type": "object",
-      "properties": {
-        "txid": {
-          "type": "string"
-        }
-      }
-    },
-    "protobufAny": {
-      "type": "object",
-      "properties": {
-        "typeUrl": {
-          "type": "string"
-        },
-        "value": {
-          "type": "string",
-          "format": "byte"
-        }
-      }
-    },
-    "rpcStatus": {
-      "type": "object",
-      "properties": {
-        "code": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "message": {
-          "type": "string"
-        },
-        "details": {
+        "txids": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/protobufAny"
+            "$ref": "#/definitions/graphsearchTrustedValidationRequest"
           }
         }
       }
