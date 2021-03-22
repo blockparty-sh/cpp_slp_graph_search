@@ -83,6 +83,8 @@ gs::bch bch;
 
 const std::chrono::milliseconds await_time { 1000 };
 
+const std::regex txid_regex("^[0-9a-fA-F]{64}$");
+
 std::uint64_t current_time()
 {
     auto now = std::chrono::system_clock::now();
@@ -513,6 +515,10 @@ class GraphSearchServiceImpl final
     ) override {
         const auto start = std::chrono::steady_clock::now();
 
+        if (!std::regex_match(request->tokenid(), txid_regex)) {
+            return { grpc::StatusCode::INVALID_ARGUMENT, "invalid tokenId" + request->tokenid()};
+        }
+
         auto binTokenId = gs::util::unhex(request->tokenid());
         std::reverse(binTokenId.begin(), binTokenId.end());
         const gs::tokenid tokenid(binTokenId);
@@ -532,7 +538,9 @@ class GraphSearchServiceImpl final
         reply->set_tokenid(genesis_tx.txid.decompress(true));
         reply->set_initialamount(genesis_info.qty);
         reply->set_decimals(genesis_info.decimals);
-        reply->set_documenthash(gs::util::hex(genesis_info.document_hash));
+        const auto document_hash_data = std::vector<uint8_t>(genesis_info.document_hash.begin(),genesis_info.document_hash.end());
+        reply->set_documenthash(gs::util::hex(document_hash_data));
+        reply->set_documenturl(genesis_info.document_uri);
         reply->set_type(genesis_tx.slp.token_type);
         if (genesis_tx.slp.token_type == 0x41) {
             const gs::transaction & txi    = validator.transaction_map.at(genesis_tx.inputs[0].txid);
@@ -560,6 +568,10 @@ class GraphSearchServiceImpl final
         const gs::scriptpubkey scriptpubkey = gs::scriptpubkey::from_cashaddr(cashaddr);
         if (scriptpubkey == gs::scriptpubkey()) {
             return { grpc::StatusCode::INVALID_ARGUMENT, "invalid cashaddr" };
+        }
+
+        if (!std::regex_match(request->tokenid(), txid_regex)) {
+            return { grpc::StatusCode::INVALID_ARGUMENT, "invalid tokenId" + request->tokenid()};
         }
 
         auto binTokenId = gs::util::unhex(request->tokenid());
