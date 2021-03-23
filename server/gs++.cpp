@@ -1176,6 +1176,7 @@ int main(int argc, char * argv[])
                                         json["txType"] = "mint";
                                         break;
                                 }
+                                json["txHash"] = tx.txid.decompress(true);
 
                                 std::string json_string = json.dump();
 
