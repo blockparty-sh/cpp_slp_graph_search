@@ -1142,7 +1142,7 @@ int main(int argc, char * argv[])
                                 const auto & genesis_tx = validator.get(gs::txid(tx.slp.tokenid.v));
                                 const gs::slp_transaction_genesis & genesis_info = absl::get<gs::slp_transaction_genesis>(genesis_tx.slp.slp_tx);
 
-                                nlohmann::json json{{"inputs", {}}, {"outputs", {}}};
+                                nlohmann::json json{{"inputs", nlohmann::json::array()}, {"outputs", nlohmann::json::array()}};
                                 {
                                     boost::lock_guard<boost::shared_mutex> lock(bch.lookup_mtx);
 
