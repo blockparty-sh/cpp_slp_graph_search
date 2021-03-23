@@ -479,7 +479,7 @@ class GraphSearchServiceImpl final
             return { grpc::StatusCode::INVALID_ARGUMENT, "invalid cashaddr" };
         }
 
-        boost::shared_lock<boost::shared_mutex> lock(bch.lookup_mtx);
+        boost::lock_guard<boost::shared_mutex> validator_lock(processing_mutex);
 
         std::vector<gs::output> allUtxos = bch.utxodb.get_outputs_by_scriptpubkey(scriptpubkey, 1e5);
 
@@ -523,7 +523,7 @@ class GraphSearchServiceImpl final
         std::reverse(binTokenId.begin(), binTokenId.end());
         const gs::tokenid tokenid(binTokenId);
 
-        boost::shared_lock<boost::shared_mutex> lock(bch.lookup_mtx);
+        boost::lock_guard<boost::shared_mutex> validator_lock(processing_mutex);
 
         const gs::txid txid(tokenid.v);
         if (!validator.has(txid)) {
@@ -578,7 +578,7 @@ class GraphSearchServiceImpl final
         std::reverse(binTokenId.begin(), binTokenId.end());
         const gs::tokenid tokenid(binTokenId);
 
-        boost::shared_lock<boost::shared_mutex> lock(bch.lookup_mtx);
+        boost::lock_guard<boost::shared_mutex> validator_lock(processing_mutex);
 
         std::vector<gs::output> allUtxos = bch.utxodb.get_outputs_by_scriptpubkey(scriptpubkey, 1e5);
 
@@ -629,7 +629,7 @@ class GraphSearchServiceImpl final
             return { grpc::StatusCode::INVALID_ARGUMENT, "invalid cashaddr" };
         }
 
-        boost::shared_lock<boost::shared_mutex> lock(bch.lookup_mtx);
+        boost::lock_guard<boost::shared_mutex> validator_lock(processing_mutex);
 
         std::vector<gs::output> allUtxos = bch.utxodb.get_outputs_by_scriptpubkey(scriptpubkey, 1e5);
 

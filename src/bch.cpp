@@ -36,6 +36,7 @@ void bch::process_block(
     const bool save_rollback
 ) {
     boost::lock_guard<boost::shared_mutex> lock(lookup_mtx);
+    boost::lock_guard<boost::shared_mutex> lockUtxo(utxodb.lookup_mtx);
 
     ++utxodb.current_block_height;
 
@@ -66,9 +67,9 @@ void bch::process_block(
                 const gs::output& o = utxodb.outpoint_map.at(m);
 
                 if (utxodb.scriptpubkey_to_output.count(o.scriptpubkey) > 0) {
-                    absl::flat_hash_set<gs::output*> & addr_map = utxodb.scriptpubkey_to_output.at(o.scriptpubkey);
+                    absl::flat_hash_set<gs::output> & addr_map = utxodb.scriptpubkey_to_output.at(o.scriptpubkey);
 
-                    if (addr_map.erase(&o)) {
+                    if (addr_map.erase(o)) {
                         // std::cout << height << "\tremoved: " << m.txid.decompress(true) << ":" << m.vout << "\n";
                     }
                     if (addr_map.empty()) {
@@ -91,9 +92,9 @@ void bch::process_block(
                 const gs::output& o = utxodb.mempool_outpoint_map.at(m);
 
                 if (utxodb.mempool_scriptpubkey_to_output.count(o.scriptpubkey) > 0) {
-                    absl::flat_hash_set<gs::output*> & addr_map = utxodb.mempool_scriptpubkey_to_output.at(o.scriptpubkey);
+                    absl::flat_hash_set<gs::output> & addr_map = utxodb.mempool_scriptpubkey_to_output.at(o.scriptpubkey);
 
-                    if (addr_map.erase(&o)) {
+                    if (addr_map.erase(o)) {
                         // std::cout << height << "\tremoved: " << m.txid.decompress(true) << ":" << m.vout << "\n";
                     }
                     if (addr_map.empty()) {
@@ -134,7 +135,7 @@ void bch::process_block(
             }
 
             const gs::outpoint outpoint(m.prev_tx_id, m.prev_out_idx);
-            gs::output* const oid = &(*utxodb.outpoint_map.insert({ outpoint, m }).first).second;
+            const gs::output & oid = (*utxodb.outpoint_map.insert({ outpoint, m }).first).second;
             ++total_added;
 
             if (! utxodb.scriptpubkey_to_output.count(m.scriptpubkey)) {
@@ -147,7 +148,7 @@ void bch::process_block(
             if (utxodb.mempool_scriptpubkey_to_output.count(m.scriptpubkey) > 0) {
                 utxodb.mempool_scriptpubkey_to_output.at(m.scriptpubkey).erase(oid);
             }
-            utxodb.mempool_spent_confirmed_outpoints.erase(gs::outpoint(oid->prev_tx_id, oid->prev_out_idx));
+            utxodb.mempool_spent_confirmed_outpoints.erase(gs::outpoint(oid.prev_tx_id, oid.prev_out_idx));
 
             if (save_rollback) {
                 this_block_added.push_back(outpoint);
@@ -187,6 +188,7 @@ void bch::process_mempool_tx(const gs::transaction& tx)
     }
 
     boost::lock_guard<boost::shared_mutex> lock(lookup_mtx);
+    boost::lock_guard<boost::shared_mutex> lockUtxo(utxodb.lookup_mtx);
 
     spdlog::info("processing tx {}", tx.txid.decompress(true));
 
@@ -203,7 +205,7 @@ void bch::process_mempool_tx(const gs::transaction& tx)
         }
 
         const gs::outpoint outpoint(m.prev_tx_id, m.prev_out_idx);
-        gs::output* const oid = &(*utxodb.mempool_outpoint_map.insert({ outpoint, m }).first).second;
+        const gs::output & oid = (*utxodb.mempool_outpoint_map.insert({ outpoint, m }).first).second;
         if (! utxodb.mempool_scriptpubkey_to_output.count(m.scriptpubkey)) {
             utxodb.mempool_scriptpubkey_to_output.insert({ m.scriptpubkey, { oid } });
         } else {
@@ -224,8 +226,8 @@ void bch::process_mempool_tx(const gs::transaction& tx)
         if (! utxodb.mempool_scriptpubkey_to_output.count(o.scriptpubkey)) {
             continue;
         }
-        absl::flat_hash_set<gs::output*> & addr_map = utxodb.mempool_scriptpubkey_to_output.at(o.scriptpubkey);
-        if (addr_map.erase(&o)) {
+        absl::flat_hash_set<gs::output> & addr_map = utxodb.mempool_scriptpubkey_to_output.at(o.scriptpubkey);
+        if (addr_map.erase(o)) {
             // std::cout << height << "\tremoved: " << m.txid.decompress(true) << ":" << m.vout << "\n";
         }
         if (addr_map.empty()) {

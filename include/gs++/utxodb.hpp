@@ -26,13 +26,13 @@ struct utxodb
     absl::node_hash_map<gs::outpoint, gs::output>
     outpoint_map;
     
-    absl::flat_hash_map<gs::scriptpubkey, absl::flat_hash_set<gs::output*>>
+    absl::flat_hash_map<gs::scriptpubkey, absl::flat_hash_set<gs::output>>
     scriptpubkey_to_output;
 
     absl::node_hash_map<gs::outpoint, gs::output>
     mempool_outpoint_map;
 
-    absl::flat_hash_map<gs::scriptpubkey, absl::flat_hash_set<gs::output*>>
+    absl::flat_hash_map<gs::scriptpubkey, absl::flat_hash_set<gs::output>>
     mempool_scriptpubkey_to_output;
 
     absl::flat_hash_set<gs::outpoint>

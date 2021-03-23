@@ -47,7 +47,7 @@ void utxodb::rollback()
     last_block_added.pop_back();
 
     for (auto m : rb_removed) {
-        gs::output* const oid = &(*outpoint_map.insert({
+        const gs::output & oid = (*outpoint_map.insert({
             gs::outpoint(m.prev_tx_id, m.prev_out_idx),
             m
         }).first).second;
@@ -72,8 +72,8 @@ void utxodb::rollback()
         if (! scriptpubkey_to_output.count(scriptpubkey)) {
             continue;
         }
-        absl::flat_hash_set<gs::output*> & addr_map = scriptpubkey_to_output.at(scriptpubkey);
-        if (addr_map.erase(&o)) {
+        absl::flat_hash_set<gs::output> & addr_map = scriptpubkey_to_output.at(scriptpubkey);
+        if (addr_map.erase(o)) {
             // std::cout << "\tremoved: " << m.txid.decompress(true) << ":" << m.vout << "\n";
             if (addr_map.empty()) {
                 scriptpubkey_to_output.erase(scriptpubkey);
@@ -117,11 +117,11 @@ std::vector<gs::output> utxodb::get_outputs_by_scriptpubkey(
     std::vector<gs::output> ret;
 
     if (scriptpubkey_to_output.count(scriptpubkey) > 0) {
-        const absl::flat_hash_set<gs::output*>& pk_utxos = scriptpubkey_to_output.at(scriptpubkey);
+        const absl::flat_hash_set<gs::output>& pk_utxos = scriptpubkey_to_output.at(scriptpubkey);
 
-        for (const gs::output* u : pk_utxos) {
-            if (mempool_spent_confirmed_outpoints.count(gs::outpoint(u->prev_tx_id, u->prev_out_idx)) == 0) {
-                ret.push_back(*u);
+        for (const gs::output& u : pk_utxos) {
+            if (mempool_spent_confirmed_outpoints.count(gs::outpoint(u.prev_tx_id, u.prev_out_idx)) == 0) {
+                ret.push_back(u);
                 if (ret.size() == limit) {
                     break;
                 }
@@ -130,10 +130,10 @@ std::vector<gs::output> utxodb::get_outputs_by_scriptpubkey(
     }
 
     if (ret.size() < limit && mempool_scriptpubkey_to_output.count(scriptpubkey) > 0) {
-        const absl::flat_hash_set<gs::output*>& pk_utxos = mempool_scriptpubkey_to_output.at(scriptpubkey);
+        const absl::flat_hash_set<gs::output>& pk_utxos = mempool_scriptpubkey_to_output.at(scriptpubkey);
 
-        for (const gs::output* u : pk_utxos) {
-            ret.push_back(*u);
+        for (const gs::output & u : pk_utxos) {
+                ret.push_back(u);
             if (ret.size() == limit) {
                 break;
             }
@@ -151,20 +151,20 @@ std::uint64_t utxodb::get_balance_by_scriptpubkey(
     std::uint64_t ret = 0;
 
     if (scriptpubkey_to_output.count(scriptpubkey) > 0) {
-        const absl::flat_hash_set<gs::output*>& pk_utxos = scriptpubkey_to_output.at(scriptpubkey);
+        const absl::flat_hash_set<gs::output>& pk_utxos = scriptpubkey_to_output.at(scriptpubkey);
 
-        for (const gs::output* u : pk_utxos) {
-            if (mempool_spent_confirmed_outpoints.count(gs::outpoint(u->prev_tx_id, u->prev_out_idx)) == 0) {
-                ret += u->value;
+        for (const gs::output& u : pk_utxos) {
+            if (mempool_spent_confirmed_outpoints.count(gs::outpoint(u.prev_tx_id, u.prev_out_idx)) == 0) {
+                ret += u.value;
             }
         }
     }
 
     if (mempool_scriptpubkey_to_output.count(scriptpubkey) > 0) {
-        const absl::flat_hash_set<gs::output*>& pk_utxos = mempool_scriptpubkey_to_output.at(scriptpubkey);
+        const absl::flat_hash_set<gs::output>& pk_utxos = mempool_scriptpubkey_to_output.at(scriptpubkey);
 
-        for (const gs::output* u : pk_utxos) {
-            ret += u->value;
+        for (const gs::output& u : pk_utxos) {
+            ret += u.value;
         }
     }
 
