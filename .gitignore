@@ -1,3 +1,4 @@
 build
 build-afl
 gspp-zmq
+.vscode
