@@ -4,6 +4,9 @@ import (
 	"flag"
 	"net/http"
 	"mime"
+	"path/filepath"
+	"os"
+	"log"
 
 	"github.com/golang/glog"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -46,7 +49,13 @@ func run() error {
 func serveSwagger(mux *http.ServeMux) {
 	mime.AddExtensionType(".svg", "image/svg+xml")
 
-	fileServer := http.FileServer(http.Dir("web"))
+	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+					log.Fatal(err)
+	}
+	dir = filepath.Join(dir, "web")
+
+	fileServer := http.FileServer(http.Dir(dir))
 	prefix := "/"
 	mux.Handle(prefix, http.StripPrefix(prefix, fileServer))
 }
