@@ -391,7 +391,7 @@
     "graphsearchSlpOutpointsReply": {
       "type": "object",
       "properties": {
-        "utxos": {
+        "outpoints": {
           "type": "array",
           "items": {
             "type": "string"
