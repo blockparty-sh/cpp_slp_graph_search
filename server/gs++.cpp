@@ -466,6 +466,36 @@ class GraphSearchServiceImpl final
         return { grpc::Status::OK };
     }
 
+    grpc::Status SlpOutpoints(
+        grpc::ServerContext* context,
+        const graphsearch::SlpOutpointsRequest* request,
+        graphsearch::SlpOutpointsReply* reply
+    ) override {
+        const auto start = std::chrono::steady_clock::now();
+
+        std::string cashaddr = request->cashaddr();
+        const gs::scriptpubkey scriptpubkey = gs::scriptpubkey::from_cashaddr(cashaddr);
+        if (scriptpubkey == gs::scriptpubkey()) {
+            return { grpc::StatusCode::INVALID_ARGUMENT, "invalid cashaddr" };
+        }
+
+        boost::lock_guard<boost::shared_mutex> validator_lock(processing_mutex);
+
+        std::vector<gs::output> allUtxos = bch.utxodb.get_outputs_by_scriptpubkey(scriptpubkey, 1e5);
+
+        for (gs::output utxo : allUtxos) {
+            std::string outpoint(utxo.prev_tx_id.decompress(true) + ":" + std::to_string(utxo.prev_out_idx));
+            reply->add_outpoints(outpoint);
+        }
+
+        const auto end = std::chrono::steady_clock::now();
+        const auto diff = end - start;
+        const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
+
+        spdlog::info("slpoutpoints: {} ({} ms)", cashaddr, diff_ms);
+        return { grpc::Status::OK };
+    }
+
     grpc::Status SlpUtxos(
         grpc::ServerContext* context,
         const graphsearch::SlpUtxosRequest* request,

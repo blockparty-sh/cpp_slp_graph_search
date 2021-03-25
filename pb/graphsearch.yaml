@@ -18,6 +18,9 @@
    - selector: graphsearch.GraphSearchService.Status
      post: /v1/graphsearch/status
      body: "*"
+   - selector: graphsearch.GraphSearchService.SlpOutpoints
+     post: /v1/graphsearch/slpoutpoints
+     body: "*"
    - selector: graphsearch.GraphSearchService.SlpUtxos
      post: /v1/graphsearch/slputxos
      body: "*"

@@ -93,6 +93,34 @@
         ]
       }
     },
+    "/v1/graphsearch/slpoutpoints": {
+      "post": {
+        "operationId": "SlpOutpoints",
+        "summary": "Get all SLP outpoints of an address.",
+        "description": "This is a crucial part of SLP awareness which prevents accidental token burns.",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/graphsearchSlpOutpointsReply"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/graphsearchSlpOutpointsRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GraphSearchService"
+        ]
+      }
+    },
     "/v1/graphsearch/slptokenbalance": {
       "post": {
         "operationId": "SlpTokenBalance",
@@ -153,7 +181,7 @@
       "post": {
         "operationId": "SlpUtxos",
         "summary": "Get all SLP utxos of an address.",
-        "description": "This is a crucial part of SLP awarenes which prevents accidental token burns.",
+        "description": "The utxos are hydrated with all relevant information about the token being transferred as well as mint baton presnce.",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -348,6 +376,25 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/graphsearchSlpTokenBalanceReply"
+          }
+        }
+      }
+    },
+    "graphsearchSlpOutpointsRequest": {
+      "type": "object",
+      "properties": {
+        "cashaddr": {
+          "type": "string"
+        }
+      }
+    },
+    "graphsearchSlpOutpointsReply": {
+      "type": "object",
+      "properties": {
+        "utxos": {
+          "type": "array",
+          "items": {
+            "type": "string"
           }
         }
       }
