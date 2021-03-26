@@ -13,6 +13,8 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
+	"github.com/rs/cors"
+
 	gw "main/gen"
 )
 
@@ -42,8 +44,10 @@ func run() error {
 	mux.Handle("/v1/", gwmux)
 	serveSwagger(mux)
 
+	handler := cors.AllowAll().Handler(mux)
+
 	// Start HTTP server (and proxy calls to gRPC server endpoint)
-	return http.ListenAndServe(":"+*proxyPort, mux)
+	return http.ListenAndServe(":"+*proxyPort, handler)
 }
 
 func serveSwagger(mux *http.ServeMux) {
