@@ -576,7 +576,7 @@ class GraphSearchServiceImpl final
             const gs::transaction & txi    = validator.transaction_map.at(genesis_tx.inputs[0].txid);
             const gs::tokenid group_id     = txi.slp.tokenid;
 
-            reply->set_tokenid(group_id.decompress(true));
+            reply->set_groupid(group_id.decompress(true));
         }
 
         const auto end = std::chrono::steady_clock::now();
@@ -1178,7 +1178,7 @@ int main(int argc, char * argv[])
 
                                     if (tx.slp.token_type == 0x41) {
                                         const auto & txi = validator.get(genesis_tx.inputs[0].txid);
-                                        json["group_id"] = txi.slp.tokenid.decompress(true);
+                                        json["groupId"] = txi.slp.tokenid.decompress(true);
                                     }
 
                                     for (const auto & input : tx.slp_inputs(validator)) {
