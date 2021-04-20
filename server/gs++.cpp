@@ -779,6 +779,10 @@ bool slpsync_bitcoind_process_block(const gs::block& block, const bool mempool, 
 {
     boost::lock_guard<boost::shared_mutex> lock(processing_mutex);
 
+    if (utxosync) {
+        bch.process_block(block, true);
+    }
+
     absl::flat_hash_map<gs::tokenid, std::vector<gs::transaction>> valid_txs;
     for (auto & tx : block.txs) {
         if (validator.has(tx.txid)) {
@@ -803,10 +807,6 @@ bool slpsync_bitcoind_process_block(const gs::block& block, const bool mempool, 
 
     for (auto & m : valid_txs) {
         g.insert_token_data(m.first, m.second);
-    }
-
-    if (utxosync) {
-        bch.process_block(block, true);
     }
 
     spdlog::info("processed block {} ({}) [{}/{}]", current_block_height, validator.valid.size(), valid_txs.size(), block.txs.size());
@@ -860,6 +860,10 @@ bool slpsync_bitcoind_process_tx(const gs::transaction& tx)
 
     spdlog::info("zmq-tx {}", tx.txid.decompress(true));
 
+    if (utxosync) {
+        bch.process_mempool_tx(tx);
+    }
+
     if (tx.slp.type == gs::slp_transaction_type::invalid) {
         // spdlog::warn("zmq-tx invalid {}", tx.txid.decompress(true));
         return false;
@@ -876,10 +880,6 @@ bool slpsync_bitcoind_process_tx(const gs::transaction& tx)
     }
 
     mg.insert_token_data(tx.slp.tokenid, { tx });
-
-    if (utxosync) {
-        bch.process_mempool_tx(tx);
-    }
 
     return true;
 }
