@@ -156,6 +156,7 @@ struct scriptpubkey
             return 8;
 
         assert(false);
+        return 0;
     }
 
     template <typename Container>
@@ -180,6 +181,7 @@ struct scriptpubkey
         }
 
         assert(false);
+        return 0;
     }
 };
 
