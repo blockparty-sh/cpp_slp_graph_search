@@ -1060,7 +1060,9 @@ int main(int argc, char * argv[])
                     }
 
                     gs::block block;
-                    if (! block.hydrate(block_data.second.begin(), block_data.second.end(), true)) {
+
+                    // also check non-slp transactions for slp utxo spend checks (token burns)
+                    if (! block.hydrate(block_data.second.begin(), block_data.second.end(), false)) {
                         spdlog::error("failed to hydrate rpc block {}", current_block_height);
                         std::this_thread::sleep_for(await_time);
                         --current_block_height;
@@ -1224,7 +1226,7 @@ int main(int argc, char * argv[])
                         }
                         if (env_str == "rawblock") {
                             gs::block block;
-                            if (! block.hydrate(msg_data.begin(), msg_data.end(), true)) {
+                            if (! block.hydrate(msg_data.begin(), msg_data.end(), false)) {
                                 spdlog::error("failed to hydrate zmq block");
                                 continue;
                             }

@@ -52,7 +52,7 @@ void bch::process_block(
             blk_inputs.push_back(m);
         }
 
-        for (auto & m : tx.outputs) {
+        for (auto & m : tx.slp_outputs()) {
             blk_outputs.push_back(m);
         }
 
