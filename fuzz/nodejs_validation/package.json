@@ -10,7 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "slp-validate": "^1.1.1",
+    "slp-validate": "^1.2.2",
     "turbo-http": "^0.3.2"
   }
 }
