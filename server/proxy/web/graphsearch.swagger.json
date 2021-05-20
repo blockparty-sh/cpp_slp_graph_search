@@ -65,6 +65,146 @@
         ]
       }
     },
+    "/v1/graphsearch/slpalltokenbalances": {
+      "post": {
+        "operationId": "SlpAllTokenBalances",
+        "summary": "Get all total token balances of an address.",
+        "description": "Address is base64 encoded script public key",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/graphsearchSlpAllTokenBalancesReply"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/graphsearchSlpAllTokenBalancesRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GraphSearchService"
+        ]
+      }
+    },
+    "/v1/graphsearch/slpoutpoints": {
+      "post": {
+        "operationId": "SlpOutpoints",
+        "summary": "Get all SLP outpoints of an address.",
+        "description": "This is a crucial part of SLP awareness which prevents accidental token burns.",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/graphsearchSlpOutpointsReply"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/graphsearchSlpOutpointsRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GraphSearchService"
+        ]
+      }
+    },
+    "/v1/graphsearch/slptokenbalance": {
+      "post": {
+        "operationId": "SlpTokenBalance",
+        "summary": "Get total token balance of an address.",
+        "description": "Address is base64 encoded script public key, tokenId is not reversed",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/graphsearchSlpTokenBalanceReply"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/graphsearchSlpTokenBalanceRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GraphSearchService"
+        ]
+      }
+    },
+    "/v1/graphsearch/slptokeninfo": {
+      "post": {
+        "operationId": "SlpTokenInfo",
+        "summary": "Look up token information.",
+        "description": "If token is NFT1 child, the NFT parent token token id will be looked up as well and returned in the 'groupId' field. tokenId and groupId are not reversed.",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/graphsearchSlpTokenInfoReply"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/graphsearchSlpTokenInfoRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GraphSearchService"
+        ]
+      }
+    },
+    "/v1/graphsearch/slputxos": {
+      "post": {
+        "operationId": "SlpUtxos",
+        "summary": "Get all SLP utxos of an address.",
+        "description": "The utxos are hydrated with all relevant information about the token being transferred as well as mint baton presnce.",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/graphsearchSlpUtxosReply"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/graphsearchSlpUtxosRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GraphSearchService"
+        ]
+      }
+    },
     "/v1/graphsearch/status": {
       "post": {
         "operationId": "Status",
@@ -218,6 +358,180 @@
         "vout": {
           "type": "integer",
           "format": "int64"
+        }
+      }
+    },
+    "graphsearchSlpAllTokenBalancesRequest": {
+      "type": "object",
+      "properties": {
+        "cashaddr": {
+          "type": "string"
+        }
+      }
+    },
+    "graphsearchSlpAllTokenBalancesReply": {
+      "type": "object",
+      "properties": {
+        "balances": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/graphsearchSlpTokenBalanceReply"
+          }
+        }
+      }
+    },
+    "graphsearchSlpOutpointsRequest": {
+      "type": "object",
+      "properties": {
+        "cashaddr": {
+          "type": "string"
+        }
+      }
+    },
+    "graphsearchSlpOutpointsReply": {
+      "type": "object",
+      "properties": {
+        "outpoints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "graphsearchSlpTokenBalanceRequest": {
+      "type": "object",
+      "properties": {
+        "cashaddr": {
+          "type": "string"
+        },
+        "tokenId": {
+          "type": "string"
+        }
+      }
+    },
+    "graphsearchSlpTokenBalanceReply": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "decimals": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "ticker": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "tokenId": {
+          "type": "string"
+        },
+        "type": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "graphsearchSlpTokenInfoRequest": {
+      "type": "object",
+      "properties": {
+        "tokenId": {
+          "type": "string"
+        }
+      }
+    },
+    "graphsearchSlpTokenInfoReply": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "ticker": {
+          "type": "string"
+        },
+        "tokenId": {
+          "type": "string"
+        },
+        "initialAmount": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "decimals": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "documentUrl": {
+          "type": "string"
+        },
+        "documentHash": {
+          "type": "string"
+        },
+        "type": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "groupId": {
+          "type": "string"
+        }
+      }
+    },
+    "graphsearchSlpUtxosRequest": {
+      "type": "object",
+      "properties": {
+        "cashaddr": {
+          "type": "string"
+        }
+      }
+    },
+    "graphsearchSlpUtxo": {
+      "type": "object",
+      "properties": {
+        "txid": {
+          "type": "string"
+        },
+        "vout": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "satoshis": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "value": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "decimals": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "ticker": {
+          "type": "string"
+        },
+        "tokenId": {
+          "type": "string"
+        },
+        "type": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "isBaton": {
+          "type": "boolean"
+        }
+      }
+    },
+    "graphsearchSlpUtxosReply": {
+      "type": "object",
+      "properties": {
+        "utxos": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/graphsearchSlpUtxo"
+          }
         }
       }
     },

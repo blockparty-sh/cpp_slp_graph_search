@@ -8,6 +8,8 @@
 #include <array>
 #include <string>
 #include <iostream>
+#include <iomanip>
+#include <sstream>
 
 // You must include gs++/transaction.hpp before including this file
 

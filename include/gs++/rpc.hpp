@@ -13,6 +13,11 @@
 
 namespace gs {
 
+struct blockchain_info {
+    std::string network;
+    std::uint32_t best_block_height;
+};
+
 struct rpc
 {
     std::string     rpc_user;
@@ -38,7 +43,7 @@ struct rpc
     std::pair<bool, gs::blockhash> get_block_hash(const std::size_t height);
     std::pair<bool, std::vector<std::uint8_t>> get_raw_block(const gs::blockhash& block_hash);
 
-    std::pair<bool, std::uint32_t> get_best_block_height();
+    std::pair<bool, blockchain_info> get_blockchain_info();
 
     std::pair<bool, nlohmann::json> get_decode_raw_transaction(const std::string& hex_str);
     std::pair<bool, std::vector<gs::txid>> get_raw_mempool();

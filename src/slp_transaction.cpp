@@ -112,11 +112,12 @@ std::ostream & operator<<(std::ostream &os, const gs::slp_transaction & slp)
     if (slp.type == gs::slp_transaction_type::genesis) {
         const auto & s = absl::get<gs::slp_transaction_genesis>(slp.slp_tx);
 
+        const auto document_hash_hex = gs::util::hex(std::vector<uint8_t>(s.document_hash.begin(), s.document_hash.end()));
         os
             << "ticker:           " << (! s.ticker.empty()          ? s.ticker          : "[none]") << "\n"
             << "name:             " << (! s.name.empty()            ? s.name            : "[none]") << "\n"
             << "document_uri:     " << (! s.document_uri.empty()    ? s.document_uri    : "[none]") << "\n"
-            << "document_hash:    " << (! s.document_hash.empty()   ? s.document_hash   : "[none]") << "\n"
+            << "document_hash:    " << (! s.document_hash.empty()   ? document_hash_hex : "[none]") << "\n"
             << "decimals:         " << s.decimals                                                   << "\n"
             << "has_mint_baton:   " << s.has_mint_baton                                             << "\n"
             << "slp_amount:       " << (s.qty                       ? std::to_string(s.qty) : "[none]") << "\n"

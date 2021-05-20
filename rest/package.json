@@ -6,7 +6,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "build": "grpc_tools_node_protoc --js_out=import_style=commonjs,binary:./pb --grpc_out=./pb --plugin=protoc-gen-grpc=`which grpc_tools_node_protoc_plugin` -I../pb   graphsearch.proto",
+    "build": "grpc_tools_node_protoc --js_out=import_style=commonjs,binary:./pb --grpc_out=./pb --plugin=protoc-gen-grpc=`which grpc_tools_node_protoc_plugin` -I../pb   graphsearch.proto &&  grpc_tools_node_protoc --js_out=import_style=commonjs,binary:./pb --grpc_out=./pb --plugin=protoc-gen-grpc=`which grpc_tools_node_protoc_plugin` -I../pb   utxo.proto",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",

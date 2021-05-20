@@ -18,3 +18,18 @@
    - selector: graphsearch.GraphSearchService.Status
      post: /v1/graphsearch/status
      body: "*"
+   - selector: graphsearch.GraphSearchService.SlpOutpoints
+     post: /v1/graphsearch/slpoutpoints
+     body: "*"
+   - selector: graphsearch.GraphSearchService.SlpUtxos
+     post: /v1/graphsearch/slputxos
+     body: "*"
+   - selector: graphsearch.GraphSearchService.SlpTokenInfo
+     post: /v1/graphsearch/slptokeninfo
+     body: "*"
+   - selector: graphsearch.GraphSearchService.SlpTokenBalance
+     post: /v1/graphsearch/slptokenbalance
+     body: "*"
+   - selector: graphsearch.GraphSearchService.SlpAllTokenBalances
+     post: /v1/graphsearch/slpalltokenbalances
+     body: "*"

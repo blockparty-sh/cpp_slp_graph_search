@@ -35,6 +35,18 @@ struct output
     {
         return scriptpubkey.v.size() > 0 && scriptpubkey.v[0] == 0x6a;
     }
+
+    bool operator==(const output &o) const
+    { return prev_tx_id == o.prev_tx_id && prev_out_idx == o.prev_out_idx; }
+
+    bool operator!=(const output &o) const
+    { return ! operator==(o); }
+
+    template <typename H>
+    friend H AbslHashValue(H h, const output& m)
+    {
+        return H::combine(std::move(h), m.prev_tx_id, m.prev_out_idx);
+    }
 };
 
 struct outpoint

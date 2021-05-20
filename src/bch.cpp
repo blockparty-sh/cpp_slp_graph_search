@@ -25,12 +25,20 @@ void bch::process_block(
     const std::vector<std::uint8_t>& block_data,
     const bool save_rollback
 ) {
-    boost::lock_guard<boost::shared_mutex> lock(lookup_mtx);
-
-    ++utxodb.current_block_height;
-
     gs::block block;
     block.hydrate(block_data.begin(), block_data.end());
+
+    process_block(block, save_rollback);
+}
+
+void bch::process_block(
+    const gs::block & block,
+    const bool save_rollback
+) {
+    boost::lock_guard<boost::shared_mutex> lock(lookup_mtx);
+    boost::lock_guard<boost::shared_mutex> lockUtxo(utxodb.lookup_mtx);
+
+    ++utxodb.current_block_height;
 
     std::vector<gs::outpoint>    blk_inputs;
     std::vector<gs::output>      blk_outputs;
@@ -44,7 +52,7 @@ void bch::process_block(
             blk_inputs.push_back(m);
         }
 
-        for (auto & m : tx.outputs) {
+        for (auto & m : tx.slp_outputs()) {
             blk_outputs.push_back(m);
         }
 
@@ -63,7 +71,7 @@ void bch::process_block(
         }
 
         const gs::outpoint outpoint(m.prev_tx_id, m.prev_out_idx);
-        gs::output* const oid = &(*utxodb.outpoint_map.insert({ outpoint, m }).first).second;
+        gs::output const oid = (*utxodb.outpoint_map.insert({ outpoint, m }).first).second;
         ++total_added;
 
         if (! utxodb.scriptpubkey_to_output.count(m.scriptpubkey)) {
@@ -76,7 +84,7 @@ void bch::process_block(
         if (utxodb.mempool_scriptpubkey_to_output.count(m.scriptpubkey) > 0) {
             utxodb.mempool_scriptpubkey_to_output.at(m.scriptpubkey).erase(oid);
         }
-        utxodb.mempool_spent_confirmed_outpoints.erase(gs::outpoint(oid->prev_tx_id, oid->prev_out_idx));
+        utxodb.mempool_spent_confirmed_outpoints.erase(gs::outpoint(oid.prev_tx_id, oid.prev_out_idx));
 
         if (save_rollback) {
             this_block_added.push_back(outpoint);
@@ -91,12 +99,12 @@ void bch::process_block(
 
     for (auto & m : blk_inputs) {
         if (utxodb.outpoint_map.count(m) > 0) {
-            const gs::output& o = utxodb.outpoint_map.at(m);
+            const gs::output o = utxodb.outpoint_map.at(m);
 
             if (utxodb.scriptpubkey_to_output.count(o.scriptpubkey) > 0) {
-                absl::flat_hash_set<gs::output*> & addr_map = utxodb.scriptpubkey_to_output.at(o.scriptpubkey);
+                absl::flat_hash_set<gs::output> & addr_map = utxodb.scriptpubkey_to_output.at(o.scriptpubkey);
 
-                if (addr_map.erase(&o)) {
+                if (addr_map.erase(o)) {
                     // std::cout << height << "\tremoved: " << m.txid.decompress(true) << ":" << m.vout << "\n";
                 }
                 if (addr_map.empty()) {
@@ -116,12 +124,12 @@ void bch::process_block(
         }
 
         if (utxodb.mempool_outpoint_map.count(m) > 0) {
-            const gs::output& o = utxodb.mempool_outpoint_map.at(m);
+            const gs::output o = utxodb.mempool_outpoint_map.at(m);
 
             if (utxodb.mempool_scriptpubkey_to_output.count(o.scriptpubkey) > 0) {
-                absl::flat_hash_set<gs::output*> & addr_map = utxodb.mempool_scriptpubkey_to_output.at(o.scriptpubkey);
+                absl::flat_hash_set<gs::output> & addr_map = utxodb.mempool_scriptpubkey_to_output.at(o.scriptpubkey);
 
-                if (addr_map.erase(&o)) {
+                if (addr_map.erase(o)) {
                     // std::cout << height << "\tremoved: " << m.txid.decompress(true) << ":" << m.vout << "\n";
                 }
                 if (addr_map.empty()) {
@@ -173,27 +181,33 @@ void bch::process_block(
 
 void bch::process_mempool_tx(const std::vector<std::uint8_t>& msg_data)
 {
-    boost::lock_guard<boost::shared_mutex> lock(lookup_mtx);
-
     gs::transaction tx;
     const bool hydration_success = tx.hydrate(msg_data.begin(), msg_data.end());
     assert(hydration_success);
+
+    process_mempool_tx(tx);
+}
+
+void bch::process_mempool_tx(const gs::transaction& tx)
+{
+    boost::lock_guard<boost::shared_mutex> lock(lookup_mtx);
+    boost::lock_guard<boost::shared_mutex> lockUtxo(utxodb.lookup_mtx);
+
     spdlog::info("processing tx {}", tx.txid.decompress(true));
 
     // std::cout << "txid: " << tx.txid.decompress(true) << std::endl;
     // std::cout << "\tversion: " << tx.version << std::endl;
     // std::cout << "\tlock_time: " << tx.lock_time << std::endl;
 
-    for (auto & m : tx.outputs) {
+    for (auto & m : tx.slp_outputs()) {
         // std::cout << "\toutput txid: " << m.prev_tx_id.decompress(true) << "\t" << m.prev_out_idx << std::endl; 
         if (m.is_op_return()) {
             continue;
         }
 
         const gs::outpoint outpoint(m.prev_tx_id, m.prev_out_idx);
-        gs::output* const oid = &(*utxodb.mempool_outpoint_map.insert({ outpoint, m }).first).second;
-
-        if (! utxodb.scriptpubkey_to_output.count(m.scriptpubkey)) {
+        const gs::output & oid = (*utxodb.mempool_outpoint_map.insert({ outpoint, m }).first).second;
+        if (! utxodb.mempool_scriptpubkey_to_output.count(m.scriptpubkey)) {
             utxodb.mempool_scriptpubkey_to_output.insert({ m.scriptpubkey, { oid } });
         } else {
             utxodb.mempool_scriptpubkey_to_output[m.scriptpubkey].insert(oid);
@@ -208,13 +222,13 @@ void bch::process_mempool_tx(const std::vector<std::uint8_t>& msg_data)
             continue;
         }
 
-        const gs::output& o = utxodb.mempool_outpoint_map.at(m);
+        const gs::output o = utxodb.mempool_outpoint_map.at(m);
 
         if (! utxodb.mempool_scriptpubkey_to_output.count(o.scriptpubkey)) {
             continue;
         }
-        absl::flat_hash_set<gs::output*> & addr_map = utxodb.mempool_scriptpubkey_to_output.at(o.scriptpubkey);
-        if (addr_map.erase(&o)) {
+        absl::flat_hash_set<gs::output> & addr_map = utxodb.mempool_scriptpubkey_to_output.at(o.scriptpubkey);
+        if (addr_map.erase(o)) {
             // std::cout << height << "\tremoved: " << m.txid.decompress(true) << ":" << m.vout << "\n";
         }
         if (addr_map.empty()) {

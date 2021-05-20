@@ -13,6 +13,7 @@ add_executable(gs++
     ${CMAKE_SOURCE_DIR}/src/block.cpp
     ${CMAKE_SOURCE_DIR}/src/slp_validator.cpp
     ${CMAKE_SOURCE_DIR}/src/secp256k1/secp256k1.c
+    ${CMAKE_SOURCE_DIR}/src/cashaddr/cashaddr.cpp
     ${PROTO_SRCS}
     ${GRPC_SRCS}
 )
@@ -31,6 +32,7 @@ target_compile_definitions(gs++
 target_include_directories(gs++ PUBLIC
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/include/3rdparty/secp256k1
+    ${CMAKE_SOURCE_DIR}/include/3rdparty/cashaddr
     ${CMAKE_SOURCE_DIR}/src/secp256k1
     ${PROTO_SRC_DIR}
     ${CMAKE_BINARY_DIR}/cpp-httplib/include

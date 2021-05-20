@@ -3,6 +3,7 @@ project(blockdecoder)
 add_executable(blockdecoder
     ${CMAKE_CURRENT_SOURCE_DIR}/blockdecoder.cpp
     ${CMAKE_SOURCE_DIR}/src/transaction.cpp
+    ${CMAKE_SOURCE_DIR}/src/slp_validator.cpp
     ${CMAKE_SOURCE_DIR}/src/slp_transaction.cpp
     ${CMAKE_SOURCE_DIR}/src/sha2.cpp
     ${CMAKE_SOURCE_DIR}/src/block.cpp

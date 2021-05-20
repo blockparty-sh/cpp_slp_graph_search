@@ -1,6 +1,62 @@
 #include <gs++/transaction.hpp>
+#include <gs++/slp_validator.hpp>
 
 namespace gs {
+
+// get all slp inputs
+// expensive call involving slp_validator to look back into the past
+std::vector<gs::outpoint> transaction::slp_inputs(const gs::slp_validator & validator) const
+{
+    std::vector<gs::outpoint> result;
+    for (const  auto & input : inputs) {
+        if (!validator.has(input.txid)) {
+            continue;
+        }
+
+        const auto & prevTx = validator.get(input.txid);
+        for (const auto & prevOutput : prevTx.slp_outputs()) {
+            if (prevOutput.prev_out_idx == input.vout && prevOutput.prev_tx_id == input.txid) {
+                result.emplace_back(gs::outpoint(input));
+                break;
+            }
+        }
+    }
+
+    return result;
+}
+
+std::vector<gs::output> transaction::slp_outputs() const
+{
+    if (slp.type == slp_transaction_type::send) {
+        const auto & s = absl::get<gs::slp_transaction_send>(slp.slp_tx);
+        
+        // return all outputs except op_return
+        if (s.amounts.size() >= outputs.size() - 1) {
+            return { outputs.begin() + 1, outputs.end() };
+        }
+
+        // otherwise return only existing outputs with slp amounts
+        return { outputs.begin() + 1, outputs.begin() + 1 + s.amounts.size() };
+    }
+    else if (slp.type == slp_transaction_type::mint) {
+        const auto & s = absl::get<gs::slp_transaction_mint>(slp.slp_tx);
+        if (s.mint_baton_vout >= outputs.size() || s.mint_baton_vout == 0) {
+            return  { outputs[1] };
+        }
+
+        return { outputs[1], outputs[s.mint_baton_vout] };
+    }
+    else if (slp.type == slp_transaction_type::genesis) {
+        const auto & s = absl::get<gs::slp_transaction_genesis>(slp.slp_tx);
+        if (s.mint_baton_vout >= outputs.size() || s.mint_baton_vout == 0) {
+            return  { outputs[1] };
+        }
+
+        return { outputs[1], outputs[s.mint_baton_vout] };
+    }
+
+    return {};
+}
 
 std::uint64_t transaction::output_slp_amount(const std::uint64_t vout) const
 {

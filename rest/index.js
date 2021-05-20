@@ -4,6 +4,9 @@ const grpc = require('grpc');
 const graphsearch = require('./pb/graphsearch_pb.js');
 const graphsearch_service = require('./pb/graphsearch_grpc_pb.js');
 
+const utxo = require('./pb/utxo_pb.js');
+const utxo_service = require('./pb/utxo_grpc_pb.js');
+
 const express = require('express')
 const app = express()
 const cors = require("cors")
@@ -11,11 +14,21 @@ const cors = require("cors")
 const bitcore = require('bitcore-lib-cash');
 const cashaddrjs = require('cashaddrjs');
 
-const client = new graphsearch_service.GraphSearchServiceClient(
+const graphSearchClient = new graphsearch_service.GraphSearchServiceClient(
   process.env.graphsearch_grpc_server_bind,
   grpc.credentials.createInsecure(),
   {
-     'grpc.max_receive_message_length': 1024*1024*1024
+     'grpc.max_receive_message_length': 1024*1024*1024,
+     'grpc.enable_http_proxy': 1
+  },
+);
+
+const utxoClient = new utxo_service.UtxoServiceClient(
+  process.env.graphsearch_grpc_server_bind,
+  grpc.credentials.createInsecure(),
+  {
+     'grpc.max_receive_message_length': 1024*1024*1024,
+     'grpc.enable_http_proxy': 1
   },
 );
 
@@ -27,7 +40,7 @@ app.get(/^\/slp\/graphsearch\/(.+)/, function(req, res) {
   const request = new graphsearch.GraphSearchRequest();
   request.setTxid(txid);
   
-  client.graphSearch(request, function(err, response) {
+  graphSearchClient.graphSearch(request, function(err, response) {
     res.setHeader('Content-Type', 'application/json');
     if (err) {
       console.log(err);
@@ -51,7 +64,7 @@ app.get(/^\/slp\/graphsearch\/(.+)/, function(req, res) {
 app.get(/^\/utxo\/(.+)/, function(req, res) {
   const outpoints = req.params[0].split(',');
 
-  const request = new graphsearch.UtxoSearchByOutpointsRequest();
+  const request = new utxo.UtxoSearchByOutpointsRequest();
   for (const o of outpoints) {
       const segments = o.split(':');
 
@@ -69,7 +82,7 @@ app.get(/^\/utxo\/(.+)/, function(req, res) {
   }
 
   
-  client.utxoSearchByOutpoints(request, function(err, response) {
+  utxoClient.utxoSearchByOutpoints(request, function(err, response) {
     res.setHeader('Content-Type', 'application/json');
     if (err) {
       console.log(err);
@@ -111,11 +124,11 @@ app.get(/^\/utxo\/(.+)/, function(req, res) {
 app.get(/^\/address\/utxos\/(.+)/, function(req, res) {
   const scriptpubkey = addressToScriptpubkey(req.params[0]);
 
-  const request = new graphsearch.UtxoSearchByScriptPubKeyRequest();
+  const request = new utxo.UtxoSearchByScriptPubKeyRequest();
   request.setScriptpubkey(scriptpubkey);
   request.setLimit(10000);
   
-  client.utxoSearchByScriptPubKey(request, function(err, response) {
+  utxoClient.utxoSearchByScriptPubKey(request, function(err, response) {
     res.setHeader('Content-Type', 'application/json');
     if (err) {
       console.log(err);
@@ -144,10 +157,10 @@ app.get(/^\/address\/utxos\/(.+)/, function(req, res) {
 app.get(/^\/address\/balance\/(.+)/, function(req, res) {
   const scriptpubkey = addressToScriptpubkey(req.params[0]);
 
-  const request = new graphsearch.BalanceByScriptPubKeyRequest();
+  const request = new utxo.BalanceByScriptPubKeyRequest();
   request.setScriptpubkey(scriptpubkey);
   
-  client.balanceByScriptPubKey(request, function(err, response) {
+  utxoClient.balanceByScriptPubKey(request, function(err, response) {
     res.setHeader('Content-Type', 'application/json');
     if (err) {
       console.log(err);

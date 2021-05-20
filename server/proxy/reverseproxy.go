@@ -3,13 +3,19 @@ package main
 import (
 	"flag"
 	"net/http"
+	"mime"
+	"path/filepath"
+	"os"
+	"log"
 
 	"github.com/golang/glog"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
-	gw "./gen"
+	"github.com/rs/cors"
+
+	gw "main/gen"
 )
 
 var (
@@ -24,17 +30,38 @@ func run() error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	mux := http.NewServeMux()
+
 	// Register gRPC server endpoint
 	// Note: Make sure the gRPC server is running properly and accessible
-	mux := runtime.NewServeMux()
+	gwmux := runtime.NewServeMux()
 	opts := []grpc.DialOption{grpc.WithInsecure(), grpc.WithMaxMsgSize(4294967295)}
-	err := gw.RegisterGraphSearchServiceHandlerFromEndpoint(ctx, mux, *grpcServerEndpoint, opts)
+	err := gw.RegisterGraphSearchServiceHandlerFromEndpoint(ctx, gwmux, *grpcServerEndpoint, opts)
 	if err != nil {
 		return err
 	}
 
+	mux.Handle("/v1/", gwmux)
+	serveSwagger(mux)
+
+	handler := cors.AllowAll().Handler(mux)
+
 	// Start HTTP server (and proxy calls to gRPC server endpoint)
-	return http.ListenAndServe(":"+*proxyPort, mux)
+	return http.ListenAndServe(":"+*proxyPort, handler)
+}
+
+func serveSwagger(mux *http.ServeMux) {
+	mime.AddExtensionType(".svg", "image/svg+xml")
+
+	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+					log.Fatal(err)
+	}
+	dir = filepath.Join(dir, "web")
+
+	fileServer := http.FileServer(http.Dir(dir))
+	prefix := "/"
+	mux.Handle(prefix, http.StripPrefix(prefix, fileServer))
 }
 
 func main() {

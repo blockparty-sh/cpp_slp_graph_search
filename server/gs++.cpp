@@ -20,6 +20,7 @@
 #include <toml.hpp>
 #include <3rdparty/secp256k1/include/secp256k1_schnorr.h>
 #include <3rdparty/sha2.h>
+#include <nlohmann/json.hpp>
 
 #include "graphsearch.grpc.pb.h"
 #include "utxo.grpc.pb.h"
@@ -36,7 +37,14 @@
 #include <gs++/util.hpp>
 
 std::unique_ptr<grpc::Server> gserver;
-std::atomic<int>           current_block_height = { 543375 };
+std::string network = {"main"};
+std::string networkPrefix = {"simpleledger"};
+std::map<std::string, std::string> networkPrefixes = {
+    {"main", "simpleledger"},
+    {"test", "slptest"}, 
+    {"regtest", "slpreg"}
+};
+std::atomic<int>           current_block_height = { -1 };
 std::atomic<gs::blockhash> current_block_hash(
     std::string("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
 );
@@ -55,6 +63,7 @@ std::atomic<std::uint64_t> last_outgoing_zmq_blk_unix { 0 };
 std::atomic<std::uint64_t> last_incoming_zmq_blk_size { 0 };
 std::atomic<std::uint64_t> last_outgoing_zmq_blk_size { 0 };
 
+std::atomic<bool> utxosync = { false };
 std::atomic<bool> exit_early = { false };
 
 boost::shared_mutex processing_mutex;
@@ -73,6 +82,8 @@ gs::txgraph mg; // mempool
 gs::bch bch;
 
 const std::chrono::milliseconds await_time { 1000 };
+
+const std::regex txid_regex("^[0-9a-fA-F]{64}$");
 
 std::uint64_t current_time()
 {
@@ -454,6 +465,233 @@ class GraphSearchServiceImpl final
 
         return { grpc::Status::OK };
     }
+
+    grpc::Status SlpOutpoints(
+        grpc::ServerContext* context,
+        const graphsearch::SlpOutpointsRequest* request,
+        graphsearch::SlpOutpointsReply* reply
+    ) override {
+        const auto start = std::chrono::steady_clock::now();
+
+        std::string cashaddr = request->cashaddr();
+        const gs::scriptpubkey scriptpubkey = gs::scriptpubkey::from_cashaddr(cashaddr);
+        if (scriptpubkey == gs::scriptpubkey()) {
+            return { grpc::StatusCode::INVALID_ARGUMENT, "invalid cashaddr" };
+        }
+
+        boost::lock_guard<boost::shared_mutex> validator_lock(processing_mutex);
+
+        std::vector<gs::output> allUtxos = bch.utxodb.get_outputs_by_scriptpubkey(scriptpubkey, 1e5);
+
+        for (gs::output utxo : allUtxos) {
+            std::string outpoint(utxo.prev_tx_id.decompress(true) + ":" + std::to_string(utxo.prev_out_idx));
+            reply->add_outpoints(outpoint);
+        }
+
+        const auto end = std::chrono::steady_clock::now();
+        const auto diff = end - start;
+        const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
+
+        spdlog::info("slpoutpoints: {} ({} ms)", cashaddr, diff_ms);
+        return { grpc::Status::OK };
+    }
+
+    grpc::Status SlpUtxos(
+        grpc::ServerContext* context,
+        const graphsearch::SlpUtxosRequest* request,
+        graphsearch::SlpUtxosReply* reply
+    ) override {
+        const auto start = std::chrono::steady_clock::now();
+
+        std::string cashaddr = request->cashaddr();
+        const gs::scriptpubkey scriptpubkey = gs::scriptpubkey::from_cashaddr(cashaddr);
+        if (scriptpubkey == gs::scriptpubkey()) {
+            return { grpc::StatusCode::INVALID_ARGUMENT, "invalid cashaddr" };
+        }
+
+        boost::lock_guard<boost::shared_mutex> validator_lock(processing_mutex);
+
+        std::vector<gs::output> allUtxos = bch.utxodb.get_outputs_by_scriptpubkey(scriptpubkey, 1e5);
+
+        for (gs::output utxo : allUtxos) {
+            gs::transaction tx = validator.get(utxo.prev_tx_id);
+            gs::transaction genesis_tx = validator.get(gs::txid(tx.slp.tokenid.v));
+            const gs::slp_transaction_genesis & genesis_info = absl::get<gs::slp_transaction_genesis>(genesis_tx.slp.slp_tx);
+
+            graphsearch::SlpUtxo* el = reply->add_utxos();
+            el->set_txid(utxo.prev_tx_id.decompress(true));
+            el->set_vout(utxo.prev_out_idx);
+            el->set_satoshis(tx.outputs[utxo.prev_out_idx].value);
+            el->set_value(tx.output_slp_amount(utxo.prev_out_idx));
+            el->set_decimals(genesis_info.decimals);
+            el->set_ticker(genesis_info.ticker);
+            el->set_tokenid(genesis_tx.txid.decompress(true));
+            el->set_type(tx.slp.token_type);
+            el->set_isbaton(tx.mint_baton_outpoint().vout == utxo.prev_out_idx);
+        }
+
+        const auto end = std::chrono::steady_clock::now();
+        const auto diff = end - start;
+        const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
+
+        spdlog::info("slputxos: {} ({} ms)", cashaddr, diff_ms);
+        return { grpc::Status::OK };
+    }
+
+    grpc::Status SlpTokenInfo(
+        grpc::ServerContext* context,
+        const graphsearch::SlpTokenInfoRequest* request,
+        graphsearch::SlpTokenInfoReply* reply
+    ) override {
+        const auto start = std::chrono::steady_clock::now();
+
+        if (!std::regex_match(request->tokenid(), txid_regex)) {
+            return { grpc::StatusCode::INVALID_ARGUMENT, "invalid tokenId" + request->tokenid()};
+        }
+
+        auto binTokenId = gs::util::unhex(request->tokenid());
+        std::reverse(binTokenId.begin(), binTokenId.end());
+        const gs::tokenid tokenid(binTokenId);
+
+        boost::lock_guard<boost::shared_mutex> validator_lock(processing_mutex);
+
+        const gs::txid txid(tokenid.v);
+        if (!validator.has(txid)) {
+            return { grpc::StatusCode::NOT_FOUND, "token " + request->tokenid() + " not found" };
+        }
+
+        gs::transaction genesis_tx = validator.get(txid);
+        const gs::slp_transaction_genesis & genesis_info = absl::get<gs::slp_transaction_genesis>(genesis_tx.slp.slp_tx);
+
+        reply->set_name(genesis_info.name);
+        reply->set_ticker(genesis_info.ticker);
+        reply->set_tokenid(genesis_tx.txid.decompress(true));
+        reply->set_initialamount(genesis_info.qty);
+        reply->set_decimals(genesis_info.decimals);
+        const auto document_hash_data = std::vector<uint8_t>(genesis_info.document_hash.begin(),genesis_info.document_hash.end());
+        reply->set_documenthash(gs::util::hex(document_hash_data));
+        reply->set_documenturl(genesis_info.document_uri);
+        reply->set_type(genesis_tx.slp.token_type);
+        if (genesis_tx.slp.token_type == 0x41) {
+            const gs::transaction & txi    = validator.transaction_map.at(genesis_tx.inputs[0].txid);
+            const gs::tokenid group_id     = txi.slp.tokenid;
+
+            reply->set_groupid(group_id.decompress(true));
+        }
+
+        const auto end = std::chrono::steady_clock::now();
+        const auto diff = end - start;
+        const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
+
+        spdlog::info("slptokeninfo: {} ({} ms)", request->tokenid(), diff_ms);
+        return { grpc::Status::OK };
+    }
+
+    grpc::Status SlpTokenBalance(
+        grpc::ServerContext* context,
+        const graphsearch::SlpTokenBalanceRequest* request,
+        graphsearch::SlpTokenBalanceReply* reply
+    ) override {
+        const auto start = std::chrono::steady_clock::now();
+
+        std::string cashaddr = request->cashaddr();
+        const gs::scriptpubkey scriptpubkey = gs::scriptpubkey::from_cashaddr(cashaddr);
+        if (scriptpubkey == gs::scriptpubkey()) {
+            return { grpc::StatusCode::INVALID_ARGUMENT, "invalid cashaddr" };
+        }
+
+        if (!std::regex_match(request->tokenid(), txid_regex)) {
+            return { grpc::StatusCode::INVALID_ARGUMENT, "invalid tokenId" + request->tokenid()};
+        }
+
+        auto binTokenId = gs::util::unhex(request->tokenid());
+        std::reverse(binTokenId.begin(), binTokenId.end());
+        const gs::tokenid tokenid(binTokenId);
+
+        boost::lock_guard<boost::shared_mutex> validator_lock(processing_mutex);
+
+        std::vector<gs::output> allUtxos = bch.utxodb.get_outputs_by_scriptpubkey(scriptpubkey, 1e5);
+
+        std::uint64_t balance = 0;
+
+        for (gs::output utxo : allUtxos) {
+            gs::transaction tx = validator.get(utxo.prev_tx_id);
+            if (tx.slp.tokenid != tokenid) {
+                continue;
+            }
+
+            balance += tx.output_slp_amount(utxo.prev_out_idx);
+        }
+
+        if (balance == 0) {
+            reply->set_value(0);
+            reply->set_tokenid(request->tokenid());
+        } else {
+            gs::transaction genesis_tx = validator.get(gs::txid(tokenid.v));
+            const gs::slp_transaction_genesis & genesis_info = absl::get<gs::slp_transaction_genesis>(genesis_tx.slp.slp_tx);
+
+            reply->set_value(balance);
+            reply->set_decimals(genesis_info.decimals);
+            reply->set_ticker(genesis_info.ticker);
+            reply->set_name(genesis_info.name);
+            reply->set_tokenid(genesis_tx.txid.decompress(true));
+            reply->set_type(genesis_tx.slp.token_type);
+        }
+
+        const auto end = std::chrono::steady_clock::now();
+        const auto diff = end - start;
+        const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
+
+        spdlog::info("slptokenbalance: {} {} ({} ms)", cashaddr, request->tokenid(), diff_ms);
+        return { grpc::Status::OK };
+    }
+
+    grpc::Status SlpAllTokenBalances(
+        grpc::ServerContext* context,
+        const graphsearch::SlpAllTokenBalancesRequest* request,
+        graphsearch::SlpAllTokenBalancesReply* reply
+    ) override {
+        const auto start = std::chrono::steady_clock::now();
+
+        std::string cashaddr = request->cashaddr();
+        const gs::scriptpubkey scriptpubkey = gs::scriptpubkey::from_cashaddr(cashaddr);
+        if (scriptpubkey == gs::scriptpubkey()) {
+            return { grpc::StatusCode::INVALID_ARGUMENT, "invalid cashaddr" };
+        }
+
+        boost::lock_guard<boost::shared_mutex> validator_lock(processing_mutex);
+
+        std::vector<gs::output> allUtxos = bch.utxodb.get_outputs_by_scriptpubkey(scriptpubkey, 1e5);
+
+        absl::flat_hash_map<gs::tokenid, std::uint64_t> balances;
+
+        for (gs::output utxo : allUtxos) {
+            gs::transaction tx = validator.get(utxo.prev_tx_id);
+
+            balances[tx.slp.tokenid] += tx.output_slp_amount(utxo.prev_out_idx);
+        }
+
+        for (const auto & pair : balances) {
+            gs::transaction genesis_tx = validator.get(gs::txid(pair.first.v));
+            const gs::slp_transaction_genesis & genesis_info = absl::get<gs::slp_transaction_genesis>(genesis_tx.slp.slp_tx);
+
+            graphsearch::SlpTokenBalanceReply* el = reply->add_balances();
+
+            el->set_value(pair.second);
+            el->set_decimals(genesis_info.decimals);
+            el->set_ticker(genesis_info.ticker);
+            el->set_name(genesis_info.name);
+            el->set_tokenid(genesis_tx.txid.decompress(true));
+            el->set_type(genesis_tx.slp.token_type);
+        }
+
+        const auto end = std::chrono::steady_clock::now();
+        const auto diff = end - start;
+        const auto diff_ms = std::chrono::duration<double, std::milli>(diff).count();
+
+        spdlog::info("slpalltokenbalances: {} ({} ms)", cashaddr, diff_ms);
+        return { grpc::Status::OK };
+    }
 };
 
 class UtxoServiceImpl final
@@ -541,6 +779,10 @@ bool slpsync_bitcoind_process_block(const gs::block& block, const bool mempool, 
 {
     boost::lock_guard<boost::shared_mutex> lock(processing_mutex);
 
+    if (utxosync) {
+        bch.process_block(block, true);
+    }
+
     absl::flat_hash_map<gs::tokenid, std::vector<gs::transaction>> valid_txs;
     for (auto & tx : block.txs) {
         if (validator.has(tx.txid)) {
@@ -599,6 +841,14 @@ bool slpsync_bitcoind_process_mempool(const gs::block& block)
         mg.insert_token_data(m.first, m.second);
     }
 
+    if (utxosync) {
+        for (const auto & token_tx_vec : valid_txs) {
+            for (const auto & tx : token_tx_vec.second) {
+                bch.process_mempool_tx(tx);
+            }
+        }
+    }
+
     spdlog::info("processed mempool ({}) [{}]", validator.valid.size(), block.txs.size());
 
     return true;
@@ -609,6 +859,10 @@ bool slpsync_bitcoind_process_tx(const gs::transaction& tx)
     boost::lock_guard<boost::shared_mutex> lock(processing_mutex);
 
     spdlog::info("zmq-tx {}", tx.txid.decompress(true));
+
+    if (utxosync) {
+        bch.process_mempool_tx(tx);
+    }
 
     if (tx.slp.type == gs::slp_transaction_type::invalid) {
         // spdlog::warn("zmq-tx invalid {}", tx.txid.decompress(true));
@@ -724,44 +978,11 @@ int main(int argc, char * argv[])
         toml::find<std::string>  (config, "bitcoind", "pass")
     );
 
+    current_block_height = toml::find<int>(config, "utxo", "block_height");
+
     if (toml::find<bool>(config, "services", "utxosync")) {
-        if (toml::find<bool>(config, "utxo", "checkpoint_load")) {
-        }
-
-        const std::pair<bool, std::uint32_t> best_block_height = rpc.get_best_block_height();
-        if (! best_block_height.first) {
-            spdlog::error("could not connect to rpc");
-            return EXIT_FAILURE;
-        }
-
-        spdlog::info("best block height: {}", best_block_height.second);
-        for (
-            std::uint32_t block_height=toml::find<std::uint32_t>(config, "utxo", "block_height");
-            block_height <= best_block_height.second;
-            ++block_height
-        ) {
-            const std::pair<bool, gs::blockhash> block_hash = rpc.get_block_hash(block_height);
-            if (! block_hash.first) {
-                spdlog::warn("rpc request failed, trying again...");
-                std::this_thread::sleep_for(await_time);
-                --block_height;
-                continue;
-            }
-
-            const std::pair<bool, std::vector<std::uint8_t>> block_data = rpc.get_raw_block(block_hash.second);
-            if (! block_data.first) {
-                spdlog::warn("rpc request failed, trying again...");
-                std::this_thread::sleep_for(await_time);
-                --block_height;
-                continue;
-            }
-
-            spdlog::info("processing block {}", block_height);
-            bch.process_block(block_data.second, true);
-        }
-
-        if (toml::find<bool>(config, "utxo", "checkpoint_save")) {
-        }
+        utxosync = true;
+        current_block_height= toml::find<int>(config, "utxo", "block_height");
     }
 
     if (toml::find<bool>(config, "services", "graphsearch")) {
@@ -792,25 +1013,34 @@ int main(int argc, char * argv[])
                     --current_block_height;
                     break;
                 }
+
+                if (utxosync) {
+                    bch.process_block(block, true);
+                    spdlog::info("utxosync: processed cached block {}", current_block_height);
+                }
             }
         }
         if (toml::find<bool>(config, "services", "graphsearch_rpc")) {
             while (! exit_early) {
     retry_loop2:
-                const std::pair<bool, std::uint32_t> best_block_height = rpc.get_best_block_height();
-                if (! best_block_height.first) {
+                const std::pair<bool, gs::blockchain_info> blockchain_info = rpc.get_blockchain_info();
+                if (! blockchain_info.first) {
                     spdlog::error("could not connect to rpc");
                     return EXIT_FAILURE;
                 }
+                const auto best_block_height = blockchain_info.second.best_block_height;
+                network = blockchain_info.second.network;
+                networkPrefix = networkPrefixes[network];
 
-                spdlog::info("best block height: {}", best_block_height.second);
 
-                if (current_block_height == best_block_height.second) {
+                spdlog::info("best block height: {}", best_block_height);
+
+                if (current_block_height == best_block_height) {
                     break;
                 }
 
                 for (;
-                    ! exit_early && current_block_height <= best_block_height.second;
+                    ! exit_early && current_block_height <= best_block_height;
                     ++current_block_height
                 ) {
                     const std::pair<bool, gs::blockhash> block_hash = rpc.get_block_hash(current_block_height);
@@ -830,7 +1060,9 @@ int main(int argc, char * argv[])
                     }
 
                     gs::block block;
-                    if (! block.hydrate(block_data.second.begin(), block_data.second.end(), true)) {
+
+                    // also check non-slp transactions for slp utxo spend checks (token burns)
+                    if (! block.hydrate(block_data.second.begin(), block_data.second.end(), false)) {
                         spdlog::error("failed to hydrate rpc block {}", current_block_height);
                         std::this_thread::sleep_for(await_time);
                         --current_block_height;
@@ -846,6 +1078,11 @@ int main(int argc, char * argv[])
                         std::this_thread::sleep_for(await_time);
                         --current_block_height;
                         goto retry_loop2;
+                    }
+
+                    if (utxosync) {
+                        bch.process_block(block, true);
+                        spdlog::info("utxosync: processed rpc block {}", current_block_height);
                     }
 
                     current_block_hash = block_hash.second;
@@ -933,10 +1170,54 @@ int main(int argc, char * argv[])
                             }
                             if (zmqpub) {
                                 spdlog::info("publishing zmq tx {}", tx.txid.decompress(true));
-                                std::array<zmq::const_buffer, 2> msgs = {
+
+                                const auto & genesis_tx = validator.get(gs::txid(tx.slp.tokenid.v));
+                                const gs::slp_transaction_genesis & genesis_info = absl::get<gs::slp_transaction_genesis>(genesis_tx.slp.slp_tx);
+
+                                nlohmann::json json{{"inputs", nlohmann::json::array()}, {"outputs", nlohmann::json::array()}};
+                                {
+                                    boost::lock_guard<boost::shared_mutex> lock(bch.lookup_mtx);
+
+                                    if (tx.slp.token_type == 0x41) {
+                                        const auto & txi = validator.get(genesis_tx.inputs[0].txid);
+                                        json["groupId"] = txi.slp.tokenid.decompress(true);
+                                    }
+
+                                    for (const auto & input : tx.slp_inputs(validator)) {
+                                        const auto & prevTx = validator.get(input.txid);
+                                        json["inputs"].push_back(prevTx.outputs[input.vout].scriptpubkey.to_cashaddr(networkPrefix));
+                                    }
+                                }
+
+                                for (const auto & output : tx.slp_outputs()) {
+                                    json["outputs"].push_back(output.scriptpubkey.to_cashaddr(networkPrefix));
+                                }
+
+                                json["tokenId"] = tx.slp.tokenid.decompress(true);
+                                json["type"] = tx.slp.token_type;
+                                json["ticker"] = genesis_info.ticker;
+                                json["decimals"] = genesis_info.decimals;
+                                switch (tx.slp.type) {
+                                    case gs::slp_transaction_type::genesis:
+                                        json["txType"] = "genesis";
+                                        break;
+                                    case gs::slp_transaction_type::send:
+                                        json["txType"] = "send";
+                                        break;
+                                    case gs::slp_transaction_type::mint:
+                                        json["txType"] = "mint";
+                                        break;
+                                }
+                                json["txHash"] = tx.txid.decompress(true);
+
+                                std::string json_string = json.dump();
+
+                                std::array<zmq::const_buffer, 3> msgs = {
                                     zmq::str_buffer("rawtx"),
-                                    zmq::buffer(tx.serialized.data(), tx.serialized.size())
+                                    zmq::buffer(tx.serialized.data(), tx.serialized.size()),
+                                    zmq::buffer(json_string.data(), json_string.size())
                                 };
+
                                 zmq::send_multipart(pubsock, msgs, zmq::send_flags::dontwait);
 
                                 last_outgoing_zmq_tx      = tx.txid;
@@ -945,7 +1226,7 @@ int main(int argc, char * argv[])
                         }
                         if (env_str == "rawblock") {
                             gs::block block;
-                            if (! block.hydrate(msg_data.begin(), msg_data.end(), true)) {
+                            if (! block.hydrate(msg_data.begin(), msg_data.end(), false)) {
                                 spdlog::error("failed to hydrate zmq block");
                                 continue;
                             }
