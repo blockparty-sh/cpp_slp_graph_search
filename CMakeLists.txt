@@ -127,7 +127,7 @@ if(${PROJECT_NAME}_SUPERBUILD)
     ExternalProject_Add(absl
         PREFIX absl
         GIT_REPOSITORY "https://github.com/abseil/abseil-cpp.git"
-        GIT_TAG "20190808"
+        GIT_TAG "20210324.2"
         INSTALL_DIR     "${CMAKE_BINARY_DIR}/absl"
         CMAKE_CACHE_ARGS
             -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/absl
