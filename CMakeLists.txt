@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.9)
 project(gs++ VERSION 1 LANGUAGES CXX C)
-
 configure_file(include/config.h.in include/config.h ESCAPE_QUOTES)
 
 
@@ -82,7 +81,10 @@ if(${PROJECT_NAME}_MARCH_NATIVE)
   include(CheckCXXCompilerFlag)
   CHECK_CXX_COMPILER_FLAG("-march=native" COMPILER_SUPPORTS_MARCH_NATIVE)
   if(COMPILER_SUPPORTS_MARCH_NATIVE)
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -mno-tbm")
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+      if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64|AMD64")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mno-tbm")
+      endif()
   else()
       message(FATAL_ERROR "not able to build with march native")
   endif()
@@ -127,7 +129,7 @@ if(${PROJECT_NAME}_SUPERBUILD)
     ExternalProject_Add(absl
         PREFIX absl
         GIT_REPOSITORY "https://github.com/abseil/abseil-cpp.git"
-        GIT_TAG "20190808"
+        GIT_TAG "20210324.2"
         INSTALL_DIR     "${CMAKE_BINARY_DIR}/absl"
         CMAKE_CACHE_ARGS
             -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/absl
@@ -148,8 +150,7 @@ if(${PROJECT_NAME}_SUPERBUILD)
     )
     set(base64_DIR "${CMAKE_CURRENT_BINARY_DIR}/base64/src/base64")
 
-    ExternalProject_Add(
-        catch
+    ExternalProject_Add(catch
         PREFIX ${CMAKE_BINARY_DIR}/catch
         GIT_REPOSITORY "https://github.com/philsquared/Catch.git"
         GIT_TAG "v2.9.2"
@@ -271,7 +272,7 @@ endif()
 
 message(STATUS "Configuring inner-build")
 
-add_subdirectory(${absl_DIR})
+include(${CMAKE_BINARY_DIR}/absl/lib/cmake/absl/abslConfig.cmake)
 add_subdirectory(${base64_DIR})
 add_subdirectory(${spdlog_DIR})
 add_subdirectory(${cpp-httplib_DIR})
