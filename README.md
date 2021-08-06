@@ -17,6 +17,24 @@ Install [SWIG 3](http://www.swig.org)
 
 Follow [this](https://github.com/grpc/grpc/blob/master/BUILDING.md) guide to install gRPC and Protobuf for your system if it is not already installed.
 
+### Condensed install for Debian 10 (Buster)
+
+###### Install Boost, SWIG,  GRPC C++ & Protobuf from Debian repositories
+```
+sudo apt install libboost-all-dev swig libgrpc++-dev protobuf-compiler-grpc
+``` 
+
+###### Install compilation essentials, including libgmp and libzmq libraries.
+```
+sudo apt install apt-transport-https curl gnupg build-essential autoconf libtool pkg-config cmake libgmp-dev libgmp3-dev libzmq3-dev
+```
+
+###### Git Clone This Repo
+git clone https://github.com/blockparty-sh/cpp_slp_graph_search.git
+
+cd cpp_slp_graph_search
+
+Continue to build. 
 
 ## Build
 
@@ -33,6 +51,15 @@ make -j
 
 You can use `-DCMAKE_BUILD_TYPE=Debug` for debug build.
 
+### Troubleshooting during building
+* If you have issues compiling successfully but can't find the error...
+
+Run make without the -j switch. ex. *make*
+Since -j switch builds parallelized the true error for the build failure gets lost. Disabling the parallel compile will let you zero in on the failure.
+
+* Compilation with -j requires at least 8gb of ram. 
+
+If you receive errors such as ```c++: fatal error: Killed signal terminated program cc1plus``` you are running out of ram. Again, build without -j or get more ram.
 
 # Running
 
