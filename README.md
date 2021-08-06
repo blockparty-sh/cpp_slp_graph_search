@@ -63,6 +63,8 @@ If you receive errors such as ```c++: fatal error: Killed signal terminated prog
 
 # Running
 
+Executables are deposited into the /build/bin subdir after a successful build.
+
 Make sure you have bitcoind running and the following options enabled:
 
 ```
