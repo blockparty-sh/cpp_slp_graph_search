@@ -23,6 +23,6 @@
     "grpc": "^1.11.0",
     "grpc-tools": "^1.8.0",
     "lodash": "^4.6.1",
-    "minimist": "^1.2.0"
+    "minimist": "^1.2.6"
   }
 }
